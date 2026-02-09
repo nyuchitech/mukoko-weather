@@ -2,9 +2,19 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform for Zimbabwe, built by Nyuchi Africa. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life across 90+ Zimbabwe locations.
+mukoko weather is an AI-powered weather intelligence platform for Zimbabwe. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life across 90+ Zimbabwe locations.
 
 **Live URL:** https://weather.mukoko.africa
+
+## Company Structure
+
+- **Nyuchi Africa (PVT) Ltd** — parent company
+- **Nyuchi Web Services** — technology/development arm (builds the product)
+- **Mukoko Africa** — division of Nyuchi Africa
+- **mukoko weather** — a Mukoko Africa product
+
+Contact: support@mukoko.com, hi@mukoko.com, legal@nyuchi.com
+Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 
 ## Tech Stack
 
@@ -32,6 +42,10 @@ npm test          # Run Vitest tests
 
 - `/` redirects to `/harare`
 - `/[location]` — dynamic weather pages (90+ locations)
+- `/about` — about page (company info, contact details)
+- `/privacy` — privacy policy
+- `/terms` — terms of service
+- `/help` — user help/FAQ
 - `/api/weather` — GET, proxies Open-Meteo
 - `/api/geo` — GET, nearest location lookup
 - `/api/ai` — POST, AI weather summaries with KV caching
