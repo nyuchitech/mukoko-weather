@@ -4,7 +4,7 @@
 
 mukoko weather is an AI-powered weather intelligence platform for Zimbabwe. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life across 90+ Zimbabwe locations.
 
-**Live URL:** https://weather.mukoko.africa
+**Live URL:** https://weather.mukoko.com
 
 ## Company Structure
 
