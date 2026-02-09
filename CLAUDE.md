@@ -23,9 +23,10 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **State:** Zustand 5
 - **AI:** Anthropic Claude SDK (server-side only)
 - **Weather data:** Open-Meteo API (free, no auth required)
-- **Caching:** Cloudflare KV (with in-memory fallback)
+- **Database:** MongoDB Atlas (weather cache, AI summaries, historical data, locations)
+- **On-device cache:** IndexedDB (auto-refresh every 60s, offline-first)
 - **Testing:** Vitest
-- **Deployment:** Cloudflare Pages + Workers
+- **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 
 ## Key Commands
 
@@ -46,9 +47,11 @@ npm test          # Run Vitest tests
 - `/privacy` — privacy policy
 - `/terms` — terms of service
 - `/help` — user help/FAQ
-- `/api/weather` — GET, proxies Open-Meteo
+- `/api/weather` — GET, proxies Open-Meteo (MongoDB cached + historical recording)
 - `/api/geo` — GET, nearest location lookup
-- `/api/ai` — POST, AI weather summaries with KV caching
+- `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL)
+- `/api/history` — GET, historical weather data (location + days params)
+- `/api/db-init` — POST, one-time DB setup (indexes + location sync)
 - `/embed` — widget embedding docs
 
 ### Location Data
@@ -88,12 +91,24 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v7). Co
 
 ## Environment Variables
 
+- `MONGODB_URI` — required, MongoDB Atlas connection string
 - `ANTHROPIC_API_KEY` — optional, server-side only. Without it, a basic weather summary fallback is generated.
+- `DB_INIT_SECRET` — optional, protects the `/api/db-init` endpoint in production
 
 ## Common Patterns
 
 ### Adding a location
-Add to the `LOCATIONS` array in `src/lib/locations.ts`. Include accurate GPS coordinates, elevation, province, and relevant tags.
+Add to the `LOCATIONS` array in `src/lib/locations.ts`. Include accurate GPS coordinates, elevation, province, and relevant tags. Then run `POST /api/db-init` to sync locations to MongoDB.
+
+### Database (MongoDB Atlas)
+- Client: `src/lib/mongo.ts` (module-scoped, connection-pooled via `@vercel/functions`)
+- Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations)
+- Collections use TTL indexes for automatic cache expiration
+- Historical weather data is recorded automatically on every fresh API fetch
+
+### On-device cache (IndexedDB)
+- `src/lib/weather-idb.ts` — low-level IndexedDB read/write for weather + AI summaries
+- `src/lib/use-weather-sync.ts` — React hook with auto-refresh (60s interval + visibility change)
 
 ### Modifying SEO
 - Root metadata: `src/app/layout.tsx`
