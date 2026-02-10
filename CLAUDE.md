@@ -292,11 +292,44 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - TypeScript path alias: `@/*` maps to `./src/*` (e.g., `import { t } from "@/lib/i18n"`)
 - CORS is configured in `next.config.ts` for `/api/*` and `/embed/*` routes
 
+## Premium / Subscription Model
+
+**Business model:** All weather data is free. Premium is a single paid plan that unlocks interactive map layers.
+
+**Free tier (all users):**
+- Current conditions, hourly/daily forecasts, area charts
+- AI Shamwari insights
+- Frost alerts
+- Location maps with weather markers
+
+**Premium tier (single plan):**
+- Radar map layer (precipitation radar)
+- Cloud cover satellite map layer
+- Precipitation map layer
+- All premium map layers use Leaflet/react-leaflet with tile overlays
+
+**Authentication:** Stytch (upcoming)
+- Handles sign-up, login, sessions, and premium entitlement checks
+- Server-side session validation on premium API routes
+
+**Map data providers:**
+- **OpenWeatherMap** — Weather Maps 1.0 (free: clouds, precip, temp, wind, pressure tiles), Weather Maps 2.0 (paid: 4-day forecast tiles with 1-hour step), Global Precipitation Map (paid: radar-based precip). Requires `OPENWEATHERMAP_API_KEY`.
+- **Tomorrow.io** — Radar satellite constellation with growing Africa coverage. 60+ data layers including precipitation, cloud, wind. Requires `TOMORROW_IO_API_KEY`.
+- **Base map tiles:** OpenStreetMap (free, no key) via Leaflet
+
+**Map technical notes:**
+- Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)
+- Premium map layers are gated server-side — tile proxy routes check Stytch session before forwarding to OWM/Tomorrow.io
+
 ## Environment Variables
 
 - `MONGODB_URI` — required, MongoDB Atlas connection string
 - `ANTHROPIC_API_KEY` — optional, server-side only. Without it, a basic weather summary fallback is generated.
 - `DB_INIT_SECRET` — optional, protects the `/api/db-init` endpoint in production (via `x-init-secret` header)
+- `STYTCH_PROJECT_ID` — upcoming, Stytch authentication project ID
+- `STYTCH_SECRET` — upcoming, Stytch secret key (server-side only)
+- `OPENWEATHERMAP_API_KEY` — upcoming, OpenWeatherMap API key for premium map tiles
+- `TOMORROW_IO_API_KEY` — upcoming, Tomorrow.io API key for premium radar/satellite data
 
 ## Common Patterns
 
