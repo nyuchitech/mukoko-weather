@@ -98,16 +98,19 @@ mukoko-weather/
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
-│   │   │   └── AISummary.tsx          # Shamwari AI markdown summary
+│   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
+│   │   │   └── ActivitySelector.tsx   # Activity selection modal (personalized advice)
 │   │   └── embed/
 │   │       ├── MukokoWeatherEmbed.tsx          # Embeddable widget (current/forecast/badge)
 │   │       ├── MukokoWeatherEmbed.module.css   # Self-contained widget CSS (no Tailwind)
 │   │       ├── MukokoWeatherEmbed.test.ts
 │   │       └── index.ts
 │   ├── lib/
-│   │   ├── store.ts               # Zustand app state (theme, location)
+│   │   ├── store.ts               # Zustand app state (theme, location, activities)
 │   │   ├── locations.ts           # 90+ Zimbabwe locations, search, filtering
 │   │   ├── locations.test.ts
+│   │   ├── activities.ts          # Activity definitions for personalized weather insights
+│   │   ├── activities.test.ts
 │   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils
 │   │   ├── weather.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
@@ -115,8 +118,9 @@ mukoko-weather/
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
 │   │   ├── use-weather-sync.ts    # React hook: IndexedDB + API sync, 60s auto-refresh
 │   │   ├── weather-idb.ts         # IndexedDB operations for offline-first cache
-│   │   ├── weather-icons.tsx      # SVG weather icons as React components
+│   │   ├── weather-icons.tsx      # SVG weather icons + ActivityIcon component
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
+│   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
 │       └── cloudflare.d.ts        # DEPRECATED — empty (KV migration complete)
@@ -165,7 +169,17 @@ mukoko-weather/
 
 All locations are defined in `src/lib/locations.ts` as a flat array. Each has: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
 
-Key functions: `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`.
+Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`.
+
+### Activities
+
+`src/lib/activities.ts` defines 20 activities across 6 categories for personalized weather advice. Activities extend the LocationTag system with user-activity categories.
+
+**Categories:** farming, mining, travel, tourism, sports, casual
+
+**Key functions:** `getActivitiesByCategory(category)`, `getActivityById(id)`, `getActivityLabels(ids)`, `getRelevantActivities(locationTags, selectedIds)`, `searchActivities(query)`
+
+**UI:** `src/components/weather/ActivitySelector.tsx` — a card + modal component that lets users pick activities. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
 
 ### Weather Data
 
@@ -184,6 +198,8 @@ Key functions: `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestL
 - `toggleTheme()` — switches theme
 - `selectedLocation: string` — current location slug (default: `"harare"`)
 - `setSelectedLocation(slug)` — updates location
+- `selectedActivities: string[]` — persisted activity IDs (from `src/lib/activities.ts`)
+- `toggleActivity(id)` — adds/removes an activity selection
 
 Persistence: localStorage key `"mukoko-weather-prefs"`, rehydrates on mount via Zustand `persist` middleware.
 
@@ -251,6 +267,7 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Co
 **Test files:**
 - `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
+- `src/lib/activities.test.ts` — activity definitions, categories, search, filtering
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
