@@ -19,6 +19,8 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 ## Tech Stack
 
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
+- **UI components:** shadcn/ui (new-york style, Lucide icons)
+- **Charts:** Recharts 2 via shadcn chart component
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (persisted to localStorage)
@@ -75,6 +77,9 @@ mukoko-weather/
 │   │       ├── history/route.ts      # GET — historical weather data
 │   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + locations)
 │   ├── components/
+│   │   ├── ui/                       # shadcn/ui primitives
+│   │   │   ├── card.tsx              # Card, CardHeader, CardContent, etc.
+│   │   │   └── chart.tsx             # ChartContainer, ChartTooltip (wraps Recharts)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
 │   │   │   ├── MineralsStripe.tsx    # 5-mineral decorative stripe
@@ -86,7 +91,10 @@ mukoko-weather/
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
 │   │   │   ├── HourlyForecast.tsx     # 24-hour hourly forecast
+│   │   │   ├── HourlyChart.tsx        # Area chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
+│   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
+│   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
@@ -247,6 +255,7 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Co
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
+- `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily)
 
 **Conventions:**
 - Tests live next to the code they test (co-located)
