@@ -313,23 +313,20 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - Server-side session validation on premium API routes
 
 **Map data providers:**
-- **OpenWeatherMap** — Weather Maps 1.0 (free: clouds, precip, temp, wind, pressure tiles), Weather Maps 2.0 (paid: 4-day forecast tiles with 1-hour step), Global Precipitation Map (paid: radar-based precip). Requires `OPENWEATHERMAP_API_KEY`.
-- **Tomorrow.io** — Radar satellite constellation with growing Africa coverage. 60+ data layers including precipitation, cloud, wind. Requires `TOMORROW_IO_API_KEY`.
+- **Tomorrow.io** — Radar satellite constellation with growing Africa coverage. 60+ data layers including precipitation, cloud, wind. Primary source for all premium map tile layers. API key stored in MongoDB (not env vars).
 - **Base map tiles:** OpenStreetMap (free, no key) via Leaflet
 
 **Map technical notes:**
 - Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)
-- Premium map layers are gated server-side — tile proxy routes check Stytch session before forwarding to OWM/Tomorrow.io
+- Premium map layers are gated server-side — tile proxy routes check Stytch session before forwarding to Tomorrow.io
+
+**API key storage:** Third-party API keys (Tomorrow.io, Stytch) are stored in MongoDB, not as server environment variables. This allows key rotation and management without redeployment.
 
 ## Environment Variables
 
 - `MONGODB_URI` — required, MongoDB Atlas connection string
 - `ANTHROPIC_API_KEY` — optional, server-side only. Without it, a basic weather summary fallback is generated.
 - `DB_INIT_SECRET` — optional, protects the `/api/db-init` endpoint in production (via `x-init-secret` header)
-- `STYTCH_PROJECT_ID` — upcoming, Stytch authentication project ID
-- `STYTCH_SECRET` — upcoming, Stytch secret key (server-side only)
-- `OPENWEATHERMAP_API_KEY` — upcoming, OpenWeatherMap API key for premium map tiles
-- `TOMORROW_IO_API_KEY` — upcoming, Tomorrow.io API key for premium radar/satellite data
 
 ## Common Patterns
 
