@@ -25,7 +25,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (persisted to localStorage)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
-- **Weather data:** Open-Meteo API (free, no auth required)
+- **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
 - **On-device cache:** IndexedDB (weather 15-min TTL, AI 30-min TTL, auto-refresh every 60s)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
@@ -111,6 +111,8 @@ mukoko-weather/
 │   │   ├── locations.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
 │   │   ├── activities.test.ts
+│   │   ├── tomorrow.ts             # Tomorrow.io API client + WMO normalization
+│   │   ├── tomorrow.test.ts
 │   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils
 │   │   ├── weather.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
@@ -163,7 +165,7 @@ mukoko-weather/
 - `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
-- `/api/db-init` — POST, one-time DB setup (requires `x-init-secret` header in production)
+- `/api/db-init` — POST, one-time DB setup + optional API key seeding (requires `x-init-secret` header in production)
 
 ### Location Data
 
@@ -183,13 +185,22 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 ### Weather Data
 
-`src/lib/weather.ts` contains the Open-Meteo client and pure utility functions:
-- `fetchWeather(lat, lon)` — API call
+**Tomorrow.io (primary):** `src/lib/tomorrow.ts` — Tomorrow.io API client, weather code mapping, and response normalization to the existing `WeatherData` interface.
+- `fetchWeatherFromTomorrow(lat, lon, apiKey)` — fetches forecast (hourly + daily) and normalizes
+- `tomorrowCodeToWmo(code)` — maps Tomorrow.io weather codes to WMO codes
+- `normalizeTomorrowResponse(data)` — converts Tomorrow.io response to `WeatherData`
+- `TomorrowRateLimitError` — thrown on 429, triggers fallback to Open-Meteo
+- Free tier limits: 500 calls/day, 25/hour, 3/second; 5-day forecast
+
+**Open-Meteo (fallback):** `src/lib/weather.ts` — Open-Meteo client and pure utility functions:
+- `fetchWeather(lat, lon)` — API call (7-day forecast, no auth required)
 - `checkFrostRisk(hourly)` — frost detection (temps <= 3°C between 10pm-8am)
 - `weatherCodeToInfo(code)` — WMO code to label/icon
 - `getZimbabweSeason(date)` — Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe)
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
+
+**Provider strategy:** The weather API route (`/api/weather`) tries Tomorrow.io first. If the API key is missing, rate-limited (429), or the request fails, it falls back to Open-Meteo. The `X-Weather-Provider` response header indicates which provider served the data.
 
 ### State Management (Zustand)
 
@@ -268,6 +279,7 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Co
 - `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
 - `src/lib/activities.test.ts` — activity definitions, categories, search, filtering
+- `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
@@ -337,7 +349,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)
 - Premium map layers are gated server-side — tile proxy routes check Stytch session before forwarding to Tomorrow.io
 
-**API key storage:** Third-party API keys (Tomorrow.io, Stytch) are stored in MongoDB, not as server environment variables. This allows key rotation and management without redeployment.
+**API key storage:** Third-party API keys (Tomorrow.io, Stytch) are stored in MongoDB (`api_keys` collection via `getApiKey`/`setApiKey` in `src/lib/db.ts`), not as server environment variables. This allows key rotation and management without redeployment. Keys are seeded via `POST /api/db-init` with body `{ "apiKeys": { "tomorrow": "..." } }`.
 
 ## Environment Variables
 
