@@ -99,7 +99,8 @@ mukoko-weather/
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
 │   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
-│   │   │   └── ActivitySelector.tsx   # Activity selection modal (personalized advice)
+│   │   │   ├── ActivitySelector.tsx   # Activity selection modal (personalized advice)
+│   │   │   └── ActivityInsights.tsx   # Category-specific weather insight cards
 │   │   └── embed/
 │   │       ├── MukokoWeatherEmbed.tsx          # Embeddable widget (current/forecast/badge)
 │   │       ├── MukokoWeatherEmbed.module.css   # Self-contained widget CSS (no Tailwind)
