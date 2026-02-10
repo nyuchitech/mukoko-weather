@@ -25,7 +25,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (persisted to localStorage)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
-- **Weather data:** Open-Meteo API (free, no auth required)
+- **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
 - **On-device cache:** IndexedDB (weather 15-min TTL, AI 30-min TTL, auto-refresh every 60s)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
@@ -83,8 +83,8 @@ mukoko-weather/
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
 │   │   │   ├── MineralsStripe.tsx    # 5-mineral decorative stripe
-│   │   │   ├── ThemeProvider.tsx     # Syncs Zustand theme to document
-│   │   │   └── ThemeToggle.tsx       # Light/dark mode toggle
+│   │   │   ├── ThemeProvider.tsx     # Syncs Zustand theme to document, listens for OS changes
+│   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
 │   │   ├── layout/
 │   │   │   ├── Header.tsx            # Sticky header, location selector, theme toggle
 │   │   │   └── Footer.tsx            # Footer with copyright, links, Ubuntu philosophy
@@ -98,16 +98,23 @@ mukoko-weather/
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
-│   │   │   └── AISummary.tsx          # Shamwari AI markdown summary
+│   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
+│   │   │   ├── ActivitySelector.tsx   # Activity selection modal (personalized advice)
+│   │   │   └── ActivityInsights.tsx   # Category-specific weather insight cards
 │   │   └── embed/
 │   │       ├── MukokoWeatherEmbed.tsx          # Embeddable widget (current/forecast/badge)
 │   │       ├── MukokoWeatherEmbed.module.css   # Self-contained widget CSS (no Tailwind)
 │   │       ├── MukokoWeatherEmbed.test.ts
 │   │       └── index.ts
 │   ├── lib/
-│   │   ├── store.ts               # Zustand app state (theme, location)
+│   │   ├── store.ts               # Zustand app state (theme with system detection, location, activities)
+│   │   ├── store.test.ts          # Theme resolution tests
 │   │   ├── locations.ts           # 90+ Zimbabwe locations, search, filtering
 │   │   ├── locations.test.ts
+│   │   ├── activities.ts          # Activity definitions for personalized weather insights
+│   │   ├── activities.test.ts
+│   │   ├── tomorrow.ts             # Tomorrow.io API client + WMO normalization
+│   │   ├── tomorrow.test.ts
 │   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils
 │   │   ├── weather.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
@@ -115,8 +122,9 @@ mukoko-weather/
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
 │   │   ├── use-weather-sync.ts    # React hook: IndexedDB + API sync, 60s auto-refresh
 │   │   ├── weather-idb.ts         # IndexedDB operations for offline-first cache
-│   │   ├── weather-icons.tsx      # SVG weather icons as React components
+│   │   ├── weather-icons.tsx      # SVG weather icons + ActivityIcon component
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
+│   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
 │       └── cloudflare.d.ts        # DEPRECATED — empty (KV migration complete)
@@ -159,41 +167,85 @@ mukoko-weather/
 - `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
-- `/api/db-init` — POST, one-time DB setup (requires `x-init-secret` header in production)
+- `/api/db-init` — POST, one-time DB setup + optional API key seeding (requires `x-init-secret` header in production)
 
 ### Location Data
 
 All locations are defined in `src/lib/locations.ts` as a flat array. Each has: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
 
-Key functions: `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`.
+Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`.
+
+### Activities
+
+`src/lib/activities.ts` defines 20 activities across 6 categories for personalized weather advice. Activities extend the LocationTag system with user-activity categories.
+
+**Categories:** farming, mining, travel, tourism, sports, casual
+
+**Key functions:** `getActivitiesByCategory(category)`, `getActivityById(id)`, `getActivityLabels(ids)`, `getRelevantActivities(locationTags, selectedIds)`, `searchActivities(query)`
+
+**Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
+
+**UI:** `src/components/weather/ActivitySelector.tsx` — mineral-colored activity cards with icon, description, and category badge. Selected activities display as bordered cards (not badges). Modal grid items and category tabs use mineral color accents. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
+
+**Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.).
 
 ### Weather Data
 
-`src/lib/weather.ts` contains the Open-Meteo client and pure utility functions:
-- `fetchWeather(lat, lon)` — API call
+**Tomorrow.io (primary):** `src/lib/tomorrow.ts` — Tomorrow.io API client, weather code mapping, and response normalization to the existing `WeatherData` interface.
+- `fetchWeatherFromTomorrow(lat, lon, apiKey)` — fetches forecast (hourly + daily) and normalizes
+- `tomorrowCodeToWmo(code)` — maps Tomorrow.io weather codes to WMO codes
+- `normalizeTomorrowResponse(data)` — converts Tomorrow.io response to `WeatherData`
+- `TomorrowRateLimitError` — thrown on 429, triggers fallback to Open-Meteo
+- Free tier limits: 500 calls/day, 25/hour, 3/second; 5-day forecast
+
+**Open-Meteo (fallback):** `src/lib/weather.ts` — Open-Meteo client and pure utility functions:
+- `fetchWeather(lat, lon)` — API call (7-day forecast, no auth required)
 - `checkFrostRisk(hourly)` — frost detection (temps <= 3°C between 10pm-8am)
 - `weatherCodeToInfo(code)` — WMO code to label/icon
 - `getZimbabweSeason(date)` — Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe)
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
 
+**Provider strategy:** The weather API route (`/api/weather`) tries Tomorrow.io first. If the API key is missing, rate-limited (429), or the request fails, it falls back to Open-Meteo. The `X-Weather-Provider` response header indicates which provider served the data.
+
 ### State Management (Zustand)
 
 `src/lib/store.ts` exports `useAppStore` with:
-- `theme: "light" | "dark"` — persisted, syncs to `data-theme` attribute on `<html>`
-- `toggleTheme()` — switches theme
+- `theme: "light" | "dark" | "system"` — persisted, defaults to `"system"` (follows OS `prefers-color-scheme`)
+- `setTheme(theme)` — explicitly set a theme preference
+- `toggleTheme()` — cycles through light → dark → system
 - `selectedLocation: string` — current location slug (default: `"harare"`)
 - `setSelectedLocation(slug)` — updates location
+- `selectedActivities: string[]` — persisted activity IDs (from `src/lib/activities.ts`)
+- `toggleActivity(id)` — adds/removes an activity selection
+
+**Theme system:**
+- `resolveTheme(pref)` — resolves `"system"` to `"light"` or `"dark"` based on `matchMedia('(prefers-color-scheme: dark)')`
+- `ThemeProvider` listens for OS theme changes when in `"system"` mode and updates `data-theme` on `<html>` in real time
+- `ThemeToggle` shows three states: sun (→ light), moon (→ dark), monitor (→ system)
+- An inline script in `layout.tsx` prevents FOUC by reading localStorage and applying the theme before first paint
 
 Persistence: localStorage key `"mukoko-weather-prefs"`, rehydrates on mount via Zustand `persist` middleware.
 
 ### Styling / Brand System
 
-CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Colors are WCAG 3.0 APCA/AAA compliant. The theme supports light/dark mode, `prefers-contrast: more`, `prefers-reduced-motion: reduce`, and `forced-colors: active`.
+CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Colors are WCAG 3.0 APCA/AAA compliant. The theme supports light/dark mode with system preference detection, `prefers-contrast: more`, `prefers-reduced-motion: reduce`, and `forced-colors: active`.
+
+**Mineral Color System:**
+Each activity category has a dedicated mineral color, defined as CSS custom properties with light and dark variants:
+- **Farming** → Malachite (`--mineral-malachite`)
+- **Mining** → Terracotta (`--mineral-terracotta`)
+- **Travel** → Cobalt (`--mineral-cobalt`)
+- **Tourism** → Tanzanite (`--mineral-tanzanite`)
+- **Sports** → Gold (`--mineral-gold`)
+- **Casual** → Primary (Cobalt brand color)
+
+Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) with static Tailwind classes for `bg`, `border`, `text`, and `badge` per category. Each mineral color has a corresponding `--mineral-*-fg` foreground token for badge text contrast.
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
+- Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
 - Frost alert severity colors use `--color-frost-*` tokens, not hardcoded values
 
@@ -251,6 +303,9 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Co
 **Test files:**
 - `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
+- `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
+- `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
+- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
@@ -320,7 +375,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)
 - Premium map layers are gated server-side — tile proxy routes check Stytch session before forwarding to Tomorrow.io
 
-**API key storage:** Third-party API keys (Tomorrow.io, Stytch) are stored in MongoDB, not as server environment variables. This allows key rotation and management without redeployment.
+**API key storage:** Third-party API keys (Tomorrow.io, Stytch) are stored in MongoDB (`api_keys` collection via `getApiKey`/`setApiKey` in `src/lib/db.ts`), not as server environment variables. This allows key rotation and management without redeployment. Keys are seeded via `POST /api/db-init` with body `{ "apiKeys": { "tomorrow": "..." } }`.
 
 ## Environment Variables
 
