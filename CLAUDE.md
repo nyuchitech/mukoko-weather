@@ -83,8 +83,8 @@ mukoko-weather/
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
 │   │   │   ├── MineralsStripe.tsx    # 5-mineral decorative stripe
-│   │   │   ├── ThemeProvider.tsx     # Syncs Zustand theme to document
-│   │   │   └── ThemeToggle.tsx       # Light/dark mode toggle
+│   │   │   ├── ThemeProvider.tsx     # Syncs Zustand theme to document, listens for OS changes
+│   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
 │   │   ├── layout/
 │   │   │   ├── Header.tsx            # Sticky header, location selector, theme toggle
 │   │   │   └── Footer.tsx            # Footer with copyright, links, Ubuntu philosophy
@@ -107,7 +107,8 @@ mukoko-weather/
 │   │       ├── MukokoWeatherEmbed.test.ts
 │   │       └── index.ts
 │   ├── lib/
-│   │   ├── store.ts               # Zustand app state (theme, location, activities)
+│   │   ├── store.ts               # Zustand app state (theme with system detection, location, activities)
+│   │   ├── store.test.ts          # Theme resolution tests
 │   │   ├── locations.ts           # 90+ Zimbabwe locations, search, filtering
 │   │   ├── locations.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
@@ -182,7 +183,11 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 **Key functions:** `getActivitiesByCategory(category)`, `getActivityById(id)`, `getActivityLabels(ids)`, `getRelevantActivities(locationTags, selectedIds)`, `searchActivities(query)`
 
-**UI:** `src/components/weather/ActivitySelector.tsx` — a card + modal component that lets users pick activities. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
+**Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
+
+**UI:** `src/components/weather/ActivitySelector.tsx` — mineral-colored activity cards with icon, description, and category badge. Selected activities display as bordered cards (not badges). Modal grid items and category tabs use mineral color accents. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
+
+**Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.).
 
 ### Weather Data
 
@@ -206,22 +211,41 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 ### State Management (Zustand)
 
 `src/lib/store.ts` exports `useAppStore` with:
-- `theme: "light" | "dark"` — persisted, syncs to `data-theme` attribute on `<html>`
-- `toggleTheme()` — switches theme
+- `theme: "light" | "dark" | "system"` — persisted, defaults to `"system"` (follows OS `prefers-color-scheme`)
+- `setTheme(theme)` — explicitly set a theme preference
+- `toggleTheme()` — cycles through light → dark → system
 - `selectedLocation: string` — current location slug (default: `"harare"`)
 - `setSelectedLocation(slug)` — updates location
 - `selectedActivities: string[]` — persisted activity IDs (from `src/lib/activities.ts`)
 - `toggleActivity(id)` — adds/removes an activity selection
 
+**Theme system:**
+- `resolveTheme(pref)` — resolves `"system"` to `"light"` or `"dark"` based on `matchMedia('(prefers-color-scheme: dark)')`
+- `ThemeProvider` listens for OS theme changes when in `"system"` mode and updates `data-theme` on `<html>` in real time
+- `ThemeToggle` shows three states: sun (→ light), moon (→ dark), monitor (→ system)
+- An inline script in `layout.tsx` prevents FOUC by reading localStorage and applying the theme before first paint
+
 Persistence: localStorage key `"mukoko-weather-prefs"`, rehydrates on mount via Zustand `persist` middleware.
 
 ### Styling / Brand System
 
-CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Colors are WCAG 3.0 APCA/AAA compliant. The theme supports light/dark mode, `prefers-contrast: more`, `prefers-reduced-motion: reduce`, and `forced-colors: active`.
+CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Colors are WCAG 3.0 APCA/AAA compliant. The theme supports light/dark mode with system preference detection, `prefers-contrast: more`, `prefers-reduced-motion: reduce`, and `forced-colors: active`.
+
+**Mineral Color System:**
+Each activity category has a dedicated mineral color, defined as CSS custom properties with light and dark variants:
+- **Farming** → Malachite (`--mineral-malachite`)
+- **Mining** → Terracotta (`--mineral-terracotta`)
+- **Travel** → Cobalt (`--mineral-cobalt`)
+- **Tourism** → Tanzanite (`--mineral-tanzanite`)
+- **Sports** → Gold (`--mineral-gold`)
+- **Casual** → Primary (Cobalt brand color)
+
+Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) with static Tailwind classes for `bg`, `border`, `text`, and `badge` per category. Each mineral color has a corresponding `--mineral-*-fg` foreground token for badge text contrast.
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
+- Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
 - Frost alert severity colors use `--color-frost-*` tokens, not hardcoded values
 
@@ -279,8 +303,9 @@ CSS custom properties are defined in `src/app/globals.css` (Brand System v6). Co
 **Test files:**
 - `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
-- `src/lib/activities.test.ts` — activity definitions, categories, search, filtering
-- `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization
+- `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
+- `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
+- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
