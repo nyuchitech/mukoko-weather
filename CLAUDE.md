@@ -106,6 +106,8 @@ mukoko-weather/
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
 │   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
 │   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
+│   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
+│   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
