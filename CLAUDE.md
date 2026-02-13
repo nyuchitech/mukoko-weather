@@ -21,7 +21,6 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Recharts 2 via shadcn chart component
-- **3D/Loading:** Three.js (dynamic import, loading animation only)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (in-memory, fresh on every page load)
@@ -109,7 +108,7 @@ mukoko-weather/
 │   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
-│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation
+│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
