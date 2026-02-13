@@ -311,9 +311,26 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 
 - **Route:** `/history` — client-side dashboard for exploring recorded weather data
 - **Components:** `src/app/history/page.tsx` (server, metadata) + `src/app/history/HistoryDashboard.tsx` (client)
-- **Features:** location search, configurable time period (7d–1y), temperature trend chart, precipitation bar chart, summary statistics, and daily records table
+- **Features:** location search, configurable time period (7d–1y), comprehensive charts, summary statistics, and daily records table
 - **Data source:** `GET /api/history?location=<slug>&days=<n>` backed by MongoDB `weather_history` collection
 - **Charts:** Recharts via shadcn ChartContainer (same pattern as HourlyChart/DailyChart)
+
+**Dashboard metrics (7 charts + stats + table):**
+1. **Temperature trend** — actual high/low area chart + feels-like (apparent) temperature overlay lines
+2. **Precipitation & rain probability** — dual-axis: rainfall bars (mm) + probability line (%)
+3. **UV index & cloud cover** — dual-axis: UV bars + cloud cover line (%)
+4. **Wind speed & gusts** — overlapping area chart showing sustained speed vs peak gusts
+5. **Barometric pressure** — line chart with auto-scaled Y axis
+6. **Humidity** — area chart with gradient fill (0–100%)
+7. **Daylight hours** — sunrise-to-sunset duration (shown when data available)
+
+**Summary statistics (4 grouped sections):**
+- Temperature: avg high/low, record high/low, feels-like high/low
+- Precipitation: total rain, rainy days count, avg rain probability
+- Atmosphere: avg humidity, cloud cover, pressure, avg/peak UV with severity label
+- Wind & Daylight: avg wind, max gusts, avg daylight hours, data point count
+
+**Data table columns:** Date, Condition, High, Low, Feels-Like, Rain, Rain Prob, Humidity, Cloud, Wind, Gusts, Direction, UV, Pressure, Sunrise, Sunset — responsively hidden on smaller screens
 
 ## Testing
 
