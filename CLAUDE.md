@@ -21,6 +21,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Recharts 2 via shadcn chart component
+- **3D/Loading:** Three.js (dynamic import, loading animation only)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (persisted to localStorage)
@@ -31,6 +32,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **Testing:** Vitest 4.0.18
+- **CI/CD:** GitHub Actions (tests + lint + typecheck on push/PR, CodeQL weekly, Claude AI review on PRs)
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
 
@@ -108,6 +110,7 @@ mukoko-weather/
 │   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
+│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
@@ -154,7 +157,12 @@ mukoko-weather/
 ├── public/
 │   ├── manifest.json              # PWA manifest (installable, shortcuts)
 │   └── icons/                     # PWA icons (192px, 512px)
-├── .github/ISSUE_TEMPLATE/        # Bug report and feature request templates
+├── .github/
+│   ├── ISSUE_TEMPLATE/            # Bug report and feature request templates
+│   └── workflows/
+│       ├── ci.yml                 # Tests, lint, type check on push/PR
+│       ├── codeql.yml             # CodeQL security analysis
+│       └── claude-review.yml      # Claude AI code review on PRs
 ├── next.config.ts                 # CORS headers for /api/* and /embed/*
 ├── tsconfig.json                  # Strict, path alias @/* → ./src/*
 ├── vitest.config.ts               # Node env, glob src/**/*.test.ts
