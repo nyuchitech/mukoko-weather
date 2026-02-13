@@ -29,6 +29,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
 - **On-device cache:** IndexedDB (weather 15-min TTL, AI 30-min TTL, auto-refresh every 60s)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
+- **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **Testing:** Vitest 4.0.18
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
@@ -65,6 +66,9 @@ mukoko-weather/
 │   │   │   └── FrostAlertBanner.test.ts
 │   │   ├── about/page.tsx            # About page
 │   │   ├── help/page.tsx             # Help/FAQ page
+│   │   ├── history/                  # Historical weather data dashboard
+│   │   │   ├── page.tsx              # History page (metadata, layout)
+│   │   │   └── HistoryDashboard.tsx  # Client-side dashboard (search, charts, table)
 │   │   ├── privacy/page.tsx          # Privacy policy
 │   │   ├── terms/page.tsx            # Terms of service
 │   │   ├── embed/page.tsx            # Widget embedding docs
@@ -85,9 +89,11 @@ mukoko-weather/
 │   │   │   ├── MineralsStripe.tsx    # 5-mineral decorative stripe
 │   │   │   ├── ThemeProvider.tsx     # Syncs Zustand theme to document, listens for OS changes
 │   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
+│   │   ├── analytics/
+│   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
 │   │   ├── layout/
 │   │   │   ├── Header.tsx            # Sticky header, location selector, theme toggle
-│   │   │   └── Footer.tsx            # Footer with copyright, links, Ubuntu philosophy
+│   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
 │   │   │   ├── HourlyForecast.tsx     # 24-hour hourly forecast
@@ -162,6 +168,7 @@ mukoko-weather/
 - `/privacy` — privacy policy
 - `/terms` — terms of service
 - `/help` — user help/FAQ
+- `/history` — historical weather data dashboard (search, charts, data table)
 - `/embed` — widget embedding docs
 - `/api/weather` — GET, proxies Open-Meteo (MongoDB cached 15-min TTL + historical recording)
 - `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
@@ -291,6 +298,39 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - `public/manifest.json` — installable app with shortcuts, theme colors, display modes
 - Icons: 192px and 512px in `public/icons/`
 - Geolocation support for location detection
+
+### Analytics
+
+- **Google Analytics 4** (GA4) — measurement ID `G-4KB2ZS573N`
+- Loaded via `next/script` with `afterInteractive` strategy in `src/components/analytics/GoogleAnalytics.tsx`
+- Included in the root layout (`src/app/layout.tsx`) so it runs on all pages
+- Privacy policy (`/privacy`) updated to disclose GA4 usage, cookie information, and opt-out instructions
+- No personally identifiable information is collected — only anonymised page views, visitor counts, and navigation patterns
+
+### Historical Weather Dashboard
+
+- **Route:** `/history` — client-side dashboard for exploring recorded weather data
+- **Components:** `src/app/history/page.tsx` (server, metadata) + `src/app/history/HistoryDashboard.tsx` (client)
+- **Features:** location search, configurable time period (7d–1y), comprehensive charts, summary statistics, and daily records table
+- **Data source:** `GET /api/history?location=<slug>&days=<n>` backed by MongoDB `weather_history` collection
+- **Charts:** Recharts via shadcn ChartContainer (same pattern as HourlyChart/DailyChart)
+
+**Dashboard metrics (7 charts + stats + table):**
+1. **Temperature trend** — actual high/low area chart + feels-like (apparent) temperature overlay lines
+2. **Precipitation & rain probability** — dual-axis: rainfall bars (mm) + probability line (%)
+3. **UV index & cloud cover** — dual-axis: UV bars + cloud cover line (%)
+4. **Wind speed & gusts** — overlapping area chart showing sustained speed vs peak gusts
+5. **Barometric pressure** — line chart with auto-scaled Y axis
+6. **Humidity** — area chart with gradient fill (0–100%)
+7. **Daylight hours** — sunrise-to-sunset duration (shown when data available)
+
+**Summary statistics (4 grouped sections):**
+- Temperature: avg high/low, record high/low, feels-like high/low
+- Precipitation: total rain, rainy days count, avg rain probability
+- Atmosphere: avg humidity, cloud cover, pressure, avg/peak UV with severity label
+- Wind & Daylight: avg wind, max gusts, avg daylight hours, data point count
+
+**Data table columns:** Date, Condition, High, Low, Feels-Like, Rain, Rain Prob, Humidity, Cloud, Wind, Gusts, Direction, UV, Pressure, Sunrise, Sunset — responsively hidden on smaller screens
 
 ## Testing
 
