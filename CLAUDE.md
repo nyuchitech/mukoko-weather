@@ -55,20 +55,25 @@ mukoko-weather/
 │   │   ├── page.tsx                  # Home — redirects to /harare
 │   │   ├── globals.css               # Brand System v6 CSS custom properties
 │   │   ├── loading.tsx               # Root loading skeleton
+│   │   ├── error.tsx                 # Global error boundary (client component)
+│   │   ├── favicon.ico               # Site favicon
 │   │   ├── robots.ts                 # Dynamic robots.txt
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
 │   │   ├── [location]/               # Dynamic weather pages (90+ locations)
 │   │   │   ├── page.tsx              # Main weather page (force-dynamic SSR)
 │   │   │   ├── loading.tsx           # Loading skeleton
+│   │   │   ├── error.tsx             # Location-specific error boundary
 │   │   │   ├── not-found.tsx         # 404 for invalid locations
 │   │   │   ├── FrostAlertBanner.tsx  # Frost warning/advisory banner
-│   │   │   └── FrostAlertBanner.test.ts
+│   │   │   ├── FrostAlertBanner.test.ts
+│   │   │   └── WeatherUnavailableBanner.tsx  # Weather data unavailability alert
 │   │   ├── about/page.tsx            # About page
 │   │   ├── help/page.tsx             # Help/FAQ page
 │   │   ├── history/                  # Historical weather data dashboard
 │   │   │   ├── page.tsx              # History page (metadata, layout)
-│   │   │   └── HistoryDashboard.tsx  # Client-side dashboard (search, charts, table)
+│   │   │   ├── HistoryDashboard.tsx  # Client-side dashboard (search, charts, table)
+│   │   │   └── error.tsx             # History page error boundary
 │   │   ├── privacy/page.tsx          # Privacy policy
 │   │   ├── terms/page.tsx            # Terms of service
 │   │   ├── embed/page.tsx            # Widget embedding docs
@@ -100,6 +105,7 @@ mukoko-weather/
 │   │   │   ├── HourlyChart.tsx        # Area chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
 │   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
+│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
@@ -152,6 +158,7 @@ mukoko-weather/
 ├── vitest.config.ts               # Node env, glob src/**/*.test.ts
 ├── eslint.config.mjs              # Next.js core-web-vitals + TypeScript
 ├── postcss.config.mjs             # Tailwind CSS 4 plugin
+├── components.json                # shadcn/ui configuration (new-york style)
 ├── CONTRIBUTING.md
 ├── README.md
 ├── SECURITY.md
@@ -175,6 +182,16 @@ mukoko-weather/
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/db-init` — POST, one-time DB setup + optional API key seeding (requires `x-init-secret` header in production)
+
+### Error Handling
+
+Next.js error boundaries are used at three levels:
+- `src/app/error.tsx` — global fallback ("Something went wrong"), offers "Try again" and "Go home"
+- `src/app/[location]/error.tsx` — weather page errors ("Weather Unavailable"), offers retry and link to Harare
+- `src/app/history/error.tsx` — history page errors ("History Unavailable"), offers retry and home link
+- `src/app/[location]/WeatherUnavailableBanner.tsx` — inline banner shown when weather providers fail but the page still renders with seasonal estimates; includes a "Refresh now" button
+
+All error boundaries are client components (`"use client"`) and log the error to the console via `useEffect`.
 
 ### Location Data
 
@@ -331,6 +348,19 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - Wind & Daylight: avg wind, max gusts, avg daylight hours, data point count
 
 **Data table columns:** Date, Condition, High, Low, Feels-Like, Rain, Rain Prob, Humidity, Cloud, Wind, Gusts, Direction, UV, Pressure, Sunrise, Sunset — responsively hidden on smaller screens
+
+### Atmospheric Details
+
+`src/components/weather/AtmosphericDetails.tsx` — a client component rendering four 24-hour hourly atmospheric charts on the weather page:
+
+1. **Humidity & Cloud Cover** — area chart (humidity) + dashed line (cloud cover), 0–100%
+2. **Wind Speed & Gusts** — area chart (sustained speed) + dashed line (gusts), km/h
+3. **Barometric Pressure** — line chart with auto-scaled Y axis, hPa
+4. **UV Index** — bar chart with dynamic max scale
+
+**Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
+
+All four charts use `ComposedChart` from Recharts via the shadcn `ChartContainer` wrapper, following the same pattern as `HourlyChart` and `DailyChart`.
 
 ## Testing
 
