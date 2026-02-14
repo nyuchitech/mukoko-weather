@@ -21,14 +21,12 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Recharts 2 via shadcn chart component
-- **3D/Loading:** Three.js (dynamic import, loading animation only)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
-- **State:** Zustand 5.0.11 (persisted to localStorage)
+- **State:** Zustand 5.0.11 (in-memory, fresh on every page load)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
-- **On-device cache:** IndexedDB (weather 15-min TTL, AI 30-min TTL, auto-refresh every 60s)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **Testing:** Vitest 4.0.18
@@ -110,7 +108,7 @@ mukoko-weather/
 │   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
-│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation
+│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
@@ -137,8 +135,6 @@ mukoko-weather/
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
 │   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations)
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
-│   │   ├── use-weather-sync.ts    # React hook: IndexedDB + API sync, 60s auto-refresh
-│   │   ├── weather-idb.ts         # IndexedDB operations for offline-first cache
 │   │   ├── weather-icons.tsx      # SVG weather icons + ActivityIcon component
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
@@ -244,21 +240,21 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 ### State Management (Zustand)
 
 `src/lib/store.ts` exports `useAppStore` with:
-- `theme: "light" | "dark" | "system"` — persisted, defaults to `"system"` (follows OS `prefers-color-scheme`)
+- `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), resets on page load
 - `setTheme(theme)` — explicitly set a theme preference
 - `toggleTheme()` — cycles through light → dark → system
 - `selectedLocation: string` — current location slug (default: `"harare"`)
 - `setSelectedLocation(slug)` — updates location
-- `selectedActivities: string[]` — persisted activity IDs (from `src/lib/activities.ts`)
+- `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), resets on page load
 - `toggleActivity(id)` — adds/removes an activity selection
 
 **Theme system:**
 - `resolveTheme(pref)` — resolves `"system"` to `"light"` or `"dark"` based on `matchMedia('(prefers-color-scheme: dark)')`
 - `ThemeProvider` listens for OS theme changes when in `"system"` mode and updates `data-theme` on `<html>` in real time
 - `ThemeToggle` shows three states: sun (→ light), moon (→ dark), monitor (→ system)
-- An inline script in `layout.tsx` prevents FOUC by reading localStorage and applying the theme before first paint
+- An inline script in `layout.tsx` prevents FOUC by detecting system theme preference before first paint
 
-Persistence: localStorage key `"mukoko-weather-prefs"`, rehydrates on mount via Zustand `persist` middleware.
+State is in-memory only (no localStorage persistence). Every page load starts fresh with system theme detection. Stale localStorage from previous app versions is automatically cleared.
 
 ### Styling / Brand System
 
@@ -288,7 +284,7 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - AI persona: "Shamwari Weather" (Ubuntu philosophy, Zimbabwe context)
 - Summaries are **markdown-formatted** — the system prompt requests bold, bullet points, and no headings
 - Rendered with `react-markdown` inside Tailwind `prose` classes
-- Cached in MongoDB with tiered TTL (30/60/120 min by location tier) + IndexedDB on-device (30 min)
+- Cached in MongoDB with tiered TTL (30/60/120 min by location tier)
 - If `ANTHROPIC_API_KEY` is unset, a basic weather summary fallback is generated
 
 ### Caching Strategy
@@ -298,11 +294,9 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - AI summaries: tiered TTL — 30 min (major cities), 60 min (mid-tier), 120 min (small locations)
 - Weather history: unlimited retention (recorded on every fresh API fetch)
 
-**Client-side (IndexedDB via `src/lib/weather-idb.ts`):**
-- Weather: 15-min TTL
-- AI summaries: 30-min TTL
-- Auto-refresh every 60s or on visibility change (tab switch / app resume)
-- Falls back gracefully if IndexedDB is unavailable
+**Client-side:**
+- No client-side caching — every page load fetches fresh data from the server
+- Stale localStorage from previous versions is cleared on page load
 
 ### i18n
 
@@ -472,10 +466,6 @@ Add to the `LOCATIONS` array in `src/lib/locations.ts`. Include accurate GPS coo
 - Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations)
 - Collections use TTL indexes for automatic cache expiration
 - Historical weather data is recorded automatically on every fresh API fetch
-
-### On-device cache (IndexedDB)
-- `src/lib/weather-idb.ts` — low-level IndexedDB read/write for weather + AI summaries
-- `src/lib/use-weather-sync.ts` — React hook with auto-refresh (60s interval + visibility change)
 
 ### Modifying SEO
 - Root metadata: `src/app/layout.tsx`
