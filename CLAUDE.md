@@ -378,18 +378,26 @@ Modal features: closes on Escape or overlay click, prevents body scroll, renders
 
 ### Lazy Loading & Mobile Performance
 
-The location page renders only **2 Recharts charts** (HourlyChart + DailyChart), deferred via `LazySection`. Atmospheric data is shown as lightweight metric cards (`AtmosphericSummary`) instead of charts — full atmospheric charts live on the `/history` page only. This follows the Apple Weather / Google Weather pattern of progressive disclosure.
+Both the location page and history page use a **feed-style progressive loading** pattern — only the section nearest the viewport renders; everything below the fold is deferred via `LazySection`. This prevents mobile OOM crashes from mounting all components simultaneously.
 
-`LazySection` (`src/components/weather/LazySection.tsx`) is an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`).
+`LazySection` (`src/components/weather/LazySection.tsx`) is an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`). It is used across both pages to gate every non-critical section.
 
-**Lazy-wrapped sections on the location page:**
-- `HourlyForecast` (wrapped in `LazySection` + `ChartErrorBoundary`)
-- `DailyForecast` (wrapped in `LazySection` + `ChartErrorBoundary`)
+**Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
+- `AISummary` → `LazySection`
+- `ActivityInsights` → `LazySection`
+- `HourlyForecast` → `LazySection` + `ChartErrorBoundary`
+- `AtmosphericSummary` → `LazySection`
+- `DailyForecast` → `LazySection` + `ChartErrorBoundary`
+- `SunTimes` → `LazySection`
+- Location info card → `LazySection`
+
+**History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
+- All 7 charts → `LazySection` + `ChartErrorBoundary` each
+- Daily records data table → `LazySection`
 
 **Additional mobile performance optimizations:**
 - All charts across the app have `activeDot={false}` to prevent per-data-point SVG element allocation on touch interaction
 - `HistoryDashboard` uses `reduce()` instead of spread-based `Math.max(...array)` for large datasets to avoid call stack overflow
-- All 7 history dashboard charts are wrapped in `ChartErrorBoundary` for crash isolation
 - `AtmosphericDetails` charts use safe fallback values for empty data arrays
 
 ### Atmospheric Summary (Location Page)
