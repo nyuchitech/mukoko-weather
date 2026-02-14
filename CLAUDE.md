@@ -61,9 +61,10 @@ mukoko-weather/
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
 │   │   ├── [location]/               # Dynamic weather pages (90+ locations)
-│   │   │   ├── page.tsx              # Main weather page (force-dynamic SSR)
-│   │   │   ├── loading.tsx           # Loading skeleton
-│   │   │   ├── error.tsx             # Location-specific error boundary
+│   │   │   ├── page.tsx              # Thin server wrapper (SEO, data fetch, JSON-LD)
+│   │   │   ├── WeatherDashboard.tsx  # Client component — all weather UI with per-section error boundaries
+│   │   │   ├── loading.tsx           # Branded skeleton matching page layout
+│   │   │   ├── error.tsx             # Location-specific error boundary (sessionStorage retry tracking)
 │   │   │   ├── not-found.tsx         # 404 for invalid locations
 │   │   │   ├── FrostAlertBanner.tsx  # Frost warning/advisory banner
 │   │   │   ├── FrostAlertBanner.test.ts
@@ -193,13 +194,23 @@ mukoko-weather/
 
 ### Error Handling
 
-Next.js error boundaries are used at three levels:
-- `src/app/error.tsx` — global fallback ("Something went wrong"), offers "Try again" and "Go home"
-- `src/app/[location]/error.tsx` — weather page errors ("Weather Unavailable"), offers retry and link to Harare
-- `src/app/history/error.tsx` — history page errors ("History Unavailable"), offers retry and home link
-- `src/app/[location]/WeatherUnavailableBanner.tsx` — inline banner shown when weather providers fail but the page still renders with seasonal estimates; includes a "Refresh now" button
+**Architecture:** Errors are isolated per-section, not per-page. The page shell (header, breadcrumbs, footer) always renders. Individual sections that crash show a compact fallback ("Unable to display X") without affecting other sections.
 
-All error boundaries are client components (`"use client"`) and log the error to the console via `useEffect`.
+**Three layers of error isolation:**
+
+1. **Server-side safety net** — `page.tsx` wraps `getWeatherForLocation` in try/catch. Even if the 4-stage fallback chain fails unexpectedly, the page still renders with `createFallbackWeather` seasonal estimates.
+
+2. **Per-section error boundaries** — Every weather section in `WeatherDashboard.tsx` is wrapped in `ChartErrorBoundary`. If any one component crashes (e.g., chart render failure on low-memory mobile), only that section shows the fallback. Other sections keep working.
+
+3. **Page-level error boundaries** (last resort) — Only triggered if the entire page fails to render:
+   - `src/app/error.tsx` — global fallback ("Something went wrong")
+   - `src/app/[location]/error.tsx` — weather page fallback ("Weather Unavailable")
+   - `src/app/history/error.tsx` — history page fallback ("History Unavailable")
+   - Retry count is tracked in `sessionStorage` to prevent infinite reload loops (max 3 retries)
+
+4. **Inline degradation** — `WeatherUnavailableBanner` shown when all weather providers fail but the page still renders with seasonal estimates
+
+**Principle:** A component failure should never crash the app. Only the failing section shows an error. The rest of the page remains fully functional.
 
 ### Location Data
 
