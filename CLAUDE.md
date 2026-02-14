@@ -23,7 +23,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Charts:** Recharts 2 via shadcn chart component
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
-- **State:** Zustand 5.0.11 (in-memory, fresh on every page load)
+- **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
@@ -97,7 +97,7 @@ mukoko-weather/
 │   │   ├── analytics/
 │   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
 │   │   ├── layout/
-│   │   │   ├── Header.tsx            # Sticky header, location selector, theme toggle
+│   │   │   ├── Header.tsx            # Sticky header, pill icon group (map-pin/history/search), My Weather modal trigger
 │   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
@@ -107,7 +107,9 @@ mukoko-weather/
 │   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
 │   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
+│   │   │   ├── LazySection.tsx        # IntersectionObserver lazy-load wrapper for heavy sections
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
+│   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
@@ -135,7 +137,7 @@ mukoko-weather/
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
 │   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations)
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
-│   │   ├── weather-icons.tsx      # SVG weather icons + ActivityIcon component
+│   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
@@ -214,7 +216,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 **Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
 
-**UI:** `src/components/weather/ActivitySelector.tsx` — mineral-colored activity cards with icon, description, and category badge. Selected activities display as bordered cards (not badges). Modal grid items and category tabs use mineral color accents. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
+**UI:** Activity selection is centralized in the **My Weather** modal (`src/components/weather/MyWeatherModal.tsx`), accessible from the header pill icon group. The Activities tab shows mineral-colored activity cards in a 2-column grid with icon, label, and category badge. Selected activities display as bordered cards with a checkmark. Category tabs and search allow filtering. Selections are persisted in Zustand (`selectedActivities`) via localStorage and sent to the AI prompt for context-aware advice. The standalone `ActivitySelector.tsx` component is retained for reference but no longer rendered on the location page.
 
 **Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.).
 
@@ -240,21 +242,26 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 ### State Management (Zustand)
 
 `src/lib/store.ts` exports `useAppStore` with:
-- `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), resets on page load
+- `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), persisted to localStorage
 - `setTheme(theme)` — explicitly set a theme preference
 - `toggleTheme()` — cycles through light → dark → system
-- `selectedLocation: string` — current location slug (default: `"harare"`)
+- `selectedLocation: string` — current location slug (default: `"harare"`, not persisted)
 - `setSelectedLocation(slug)` — updates location
-- `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), resets on page load
+- `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage
 - `toggleActivity(id)` — adds/removes an activity selection
+- `myWeatherOpen: boolean` — controls My Weather modal visibility (not persisted)
+- `openMyWeather()` / `closeMyWeather()` — toggle the modal
+
+**Persistence:**
+- Uses Zustand `persist` middleware with `partialize` — only `theme` and `selectedActivities` are saved to localStorage under key `mukoko-weather-prefs`
+- `selectedLocation` and `myWeatherOpen` are transient (reset on page load)
+- `onRehydrateStorage` callback applies the persisted theme to the DOM on load
 
 **Theme system:**
 - `resolveTheme(pref)` — resolves `"system"` to `"light"` or `"dark"` based on `matchMedia('(prefers-color-scheme: dark)')`
 - `ThemeProvider` listens for OS theme changes when in `"system"` mode and updates `data-theme` on `<html>` in real time
-- `ThemeToggle` shows three states: sun (→ light), moon (→ dark), monitor (→ system)
-- An inline script in `layout.tsx` prevents FOUC by detecting system theme preference before first paint
-
-State is in-memory only (no localStorage persistence). Every page load starts fresh with system theme detection. Stale localStorage from previous app versions is automatically cleared.
+- Theme can be set via the Settings tab in the My Weather modal (light/dark/system radio group)
+- An inline script in `layout.tsx` prevents FOUC by reading the persisted theme from localStorage before first paint, falling back to system preference detection
 
 ### Styling / Brand System
 
@@ -295,8 +302,8 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - Weather history: unlimited retention (recorded on every fresh API fetch)
 
 **Client-side:**
-- No client-side caching — every page load fetches fresh data from the server
-- Stale localStorage from previous versions is cleared on page load
+- No weather data caching — every page load fetches fresh weather data from the server
+- User preferences (theme + selected activities) are persisted to localStorage via Zustand `persist` middleware under key `mukoko-weather-prefs`
 
 ### i18n
 
@@ -351,6 +358,36 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - Wind & Daylight: avg wind, max gusts, avg daylight hours, data point count
 
 **Data table columns:** Date, Condition, High, Low, Feels-Like, Rain, Rain Prob, Humidity, Cloud, Wind, Gusts, Direction, UV, Pressure, Sunrise, Sunset — responsively hidden on smaller screens
+
+### Header & My Weather Modal
+
+**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary/10` with three 40px circular icon buttons:
+1. **Map pin** — opens the My Weather modal (location tab)
+2. **Clock** — links to `/history`
+3. **Search** — opens the My Weather modal (location tab)
+
+The header takes no props — location context comes from the URL path.
+
+**My Weather Modal** (`src/components/weather/MyWeatherModal.tsx`): A centralized preferences modal with three tabs:
+- **Location** — search input, geolocation button, tag filter pills, scrollable location list with current-slug highlighting. Selecting a location navigates to `/{slug}` and closes the modal.
+- **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming.
+- **Settings** — theme radio group (light/dark/system) with visual indicators.
+
+Modal features: closes on Escape or overlay click, prevents body scroll, renders conditionally via `myWeatherOpen` Zustand state.
+
+### Lazy Loading & Mobile Performance
+
+Heavy chart sections are deferred using `LazySection` (`src/components/weather/LazySection.tsx`) — an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`). This prevents all Recharts charts from mounting simultaneously, which caused OOM tab-kills on mobile devices.
+
+**Lazy-wrapped sections on the location page:**
+- `HourlyForecast` (wrapped in `LazySection` + `ChartErrorBoundary`)
+- `DailyForecast` (wrapped in `LazySection` + `ChartErrorBoundary`)
+
+**Additional mobile performance optimizations:**
+- All charts across the app have `activeDot={false}` to prevent per-data-point SVG element allocation on touch interaction
+- `HistoryDashboard` uses `reduce()` instead of spread-based `Math.max(...array)` for large datasets to avoid call stack overflow
+- All 7 history dashboard charts are wrapped in `ChartErrorBoundary` for crash isolation
+- `AtmosphericDetails` charts use safe fallback values for empty data arrays
 
 ### Atmospheric Details
 
