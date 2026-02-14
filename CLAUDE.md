@@ -105,7 +105,8 @@ mukoko-weather/
 │   │   │   ├── HourlyChart.tsx        # Area chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
 │   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
-│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
+│   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
+│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (used by history; not on location page)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
 │   │   │   ├── LazySection.tsx        # IntersectionObserver lazy-load wrapper for heavy sections
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
@@ -377,7 +378,9 @@ Modal features: closes on Escape or overlay click, prevents body scroll, renders
 
 ### Lazy Loading & Mobile Performance
 
-Heavy chart sections are deferred using `LazySection` (`src/components/weather/LazySection.tsx`) — an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`). This prevents all Recharts charts from mounting simultaneously, which caused OOM tab-kills on mobile devices.
+The location page renders only **2 Recharts charts** (HourlyChart + DailyChart), deferred via `LazySection`. Atmospheric data is shown as lightweight metric cards (`AtmosphericSummary`) instead of charts — full atmospheric charts live on the `/history` page only. This follows the Apple Weather / Google Weather pattern of progressive disclosure.
+
+`LazySection` (`src/components/weather/LazySection.tsx`) is an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`).
 
 **Lazy-wrapped sections on the location page:**
 - `HourlyForecast` (wrapped in `LazySection` + `ChartErrorBoundary`)
@@ -389,9 +392,19 @@ Heavy chart sections are deferred using `LazySection` (`src/components/weather/L
 - All 7 history dashboard charts are wrapped in `ChartErrorBoundary` for crash isolation
 - `AtmosphericDetails` charts use safe fallback values for empty data arrays
 
-### Atmospheric Details
+### Atmospheric Summary (Location Page)
 
-`src/components/weather/AtmosphericDetails.tsx` — a client component rendering four 24-hour hourly atmospheric charts on the weather page:
+`src/components/weather/AtmosphericSummary.tsx` — a 2×3 grid of compact metric cards replacing the previous 4-chart `AtmosphericDetails` on the location page. Following the Apple Weather / Google Weather pattern of showing current values with contextual labels instead of full charts on the main view.
+
+**Cards shown:** Humidity, Cloud Cover, Wind (with gusts + direction), Pressure, UV Index, Feels Like. Each card has an icon, current value, and contextual label (e.g., "Comfortable", "Very High", "Cooler than actual").
+
+**Contextual helpers:** `humidityLabel(h)`, `pressureLabel(p)`, `cloudLabel(c)` — map raw values to human-readable descriptions. UV labels come from `uvLevel()` in `weather.ts`.
+
+**Link:** "24h trends →" links to `/history` where the full atmospheric charts live.
+
+### Atmospheric Details (History Page)
+
+`src/components/weather/AtmosphericDetails.tsx` — four 24-hour hourly atmospheric charts, used by the history page via `LazyAtmosphericDetails`. Not rendered on the location page.
 
 1. **Humidity & Cloud Cover** — area chart (humidity) + dashed line (cloud cover), 0–100%
 2. **Wind Speed & Gusts** — area chart (sustained speed) + dashed line (gusts), km/h
@@ -399,8 +412,6 @@ Heavy chart sections are deferred using `LazySection` (`src/components/weather/L
 4. **UV Index** — bar chart with dynamic max scale
 
 **Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
-
-All four charts use `ComposedChart` from Recharts via the shadcn `ChartContainer` wrapper, following the same pattern as `HourlyChart` and `DailyChart`.
 
 ## Testing
 
