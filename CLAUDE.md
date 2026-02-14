@@ -23,7 +23,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Charts:** Recharts 2 via shadcn chart component
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
-- **State:** Zustand 5.0.11 (in-memory, fresh on every page load)
+- **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
@@ -61,13 +61,22 @@ mukoko-weather/
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
 │   │   ├── [location]/               # Dynamic weather pages (90+ locations)
-│   │   │   ├── page.tsx              # Main weather page (force-dynamic SSR)
-│   │   │   ├── loading.tsx           # Loading skeleton
-│   │   │   ├── error.tsx             # Location-specific error boundary
+│   │   │   ├── page.tsx              # Thin server wrapper (SEO, data fetch, JSON-LD)
+│   │   │   ├── WeatherDashboard.tsx  # Client component — all weather UI with per-section error boundaries
+│   │   │   ├── loading.tsx           # Branded skeleton matching page layout
+│   │   │   ├── error.tsx             # Location-specific error boundary (sessionStorage retry tracking)
 │   │   │   ├── not-found.tsx         # 404 for invalid locations
 │   │   │   ├── FrostAlertBanner.tsx  # Frost warning/advisory banner
 │   │   │   ├── FrostAlertBanner.test.ts
-│   │   │   └── WeatherUnavailableBanner.tsx  # Weather data unavailability alert
+│   │   │   ├── WeatherUnavailableBanner.tsx  # Weather data unavailability alert
+│   │   │   ├── atmosphere/              # Atmospheric details sub-route
+│   │   │   │   ├── page.tsx             # Server wrapper (SEO, data fetch)
+│   │   │   │   ├── AtmosphereDashboard.tsx  # Client: 24h atmospheric charts
+│   │   │   │   └── loading.tsx          # Branded skeleton
+│   │   │   └── forecast/               # Forecast details sub-route
+│   │   │       ├── page.tsx             # Server wrapper (SEO, data fetch)
+│   │   │       ├── ForecastDashboard.tsx # Client: hourly + daily + sun times
+│   │   │       └── loading.tsx          # Branded skeleton
 │   │   ├── about/page.tsx            # About page
 │   │   ├── help/page.tsx             # Help/FAQ page
 │   │   ├── history/                  # Historical weather data dashboard
@@ -86,9 +95,14 @@ mukoko-weather/
 │   │       ├── history/route.ts      # GET — historical weather data
 │   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + locations)
 │   ├── components/
-│   │   ├── ui/                       # shadcn/ui primitives
+│   │   ├── ui/                       # shadcn/ui primitives (Radix UI + CVA)
+│   │   │   ├── button.tsx            # Button (6 variants, 5 sizes, asChild support)
+│   │   │   ├── badge.tsx             # Badge (4 variants)
 │   │   │   ├── card.tsx              # Card, CardHeader, CardContent, etc.
-│   │   │   └── chart.tsx             # ChartContainer, ChartTooltip (wraps Recharts)
+│   │   │   ├── chart.tsx             # ChartContainer, ChartTooltip (wraps Recharts)
+│   │   │   ├── dialog.tsx            # Dialog (Radix, portal, overlay, animations)
+│   │   │   ├── input.tsx             # Input (styled with CSS custom properties)
+│   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
 │   │   │   ├── MineralsStripe.tsx    # 5-mineral decorative stripe
@@ -97,7 +111,7 @@ mukoko-weather/
 │   │   ├── analytics/
 │   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
 │   │   ├── layout/
-│   │   │   ├── Header.tsx            # Sticky header, location selector, theme toggle
+│   │   │   ├── Header.tsx            # Sticky header, pill icon group (map-pin/history/search), My Weather modal trigger
 │   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
@@ -105,9 +119,12 @@ mukoko-weather/
 │   │   │   ├── HourlyChart.tsx        # Area chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
 │   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
-│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (humidity, wind, pressure, UV)
+│   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
+│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (used by history; not on location page)
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
+│   │   │   ├── LazySection.tsx        # IntersectionObserver lazy-load wrapper for heavy sections
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
+│   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
@@ -134,8 +151,9 @@ mukoko-weather/
 │   │   ├── weather.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
 │   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations)
+│   │   ├── observability.ts       # Structured error logging + GA4 error reporting
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
-│   │   ├── weather-icons.tsx      # SVG weather icons + ActivityIcon component
+│   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
@@ -174,15 +192,19 @@ mukoko-weather/
 
 ### Routing
 
+**Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
+
 - `/` redirects to `/harare`
-- `/[location]` — dynamic weather pages (90+ locations)
+- `/[location]` — dynamic weather pages (90+ locations) — overview: current conditions, AI summary, activity insights, atmospheric metric cards
+- `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
+- `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
 - `/about` — about page (company info, contact details)
 - `/privacy` — privacy policy
 - `/terms` — terms of service
 - `/help` — user help/FAQ
-- `/history` — historical weather data dashboard (search, charts, data table)
+- `/history` — historical weather data dashboard (search, multi-day charts, data table)
 - `/embed` — widget embedding docs
-- `/api/weather` — GET, proxies Open-Meteo (MongoDB cached 15-min TTL + historical recording)
+- `/api/weather` — GET, proxies Tomorrow.io/Open-Meteo (MongoDB cached 15-min TTL + historical recording)
 - `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
@@ -190,13 +212,44 @@ mukoko-weather/
 
 ### Error Handling
 
-Next.js error boundaries are used at three levels:
-- `src/app/error.tsx` — global fallback ("Something went wrong"), offers "Try again" and "Go home"
-- `src/app/[location]/error.tsx` — weather page errors ("Weather Unavailable"), offers retry and link to Harare
-- `src/app/history/error.tsx` — history page errors ("History Unavailable"), offers retry and home link
-- `src/app/[location]/WeatherUnavailableBanner.tsx` — inline banner shown when weather providers fail but the page still renders with seasonal estimates; includes a "Refresh now" button
+**Architecture:** Errors are isolated per-section, not per-page. The page shell (header, breadcrumbs, footer) always renders. Individual sections that crash show a compact fallback ("Unable to display X") without affecting other sections.
 
-All error boundaries are client components (`"use client"`) and log the error to the console via `useEffect`.
+**Three layers of error isolation:**
+
+1. **Server-side safety net** — `page.tsx` wraps `getWeatherForLocation` in try/catch. Even if the 4-stage fallback chain fails unexpectedly, the page still renders with `createFallbackWeather` seasonal estimates.
+
+2. **Per-section error boundaries** — Every weather section in `WeatherDashboard.tsx` is wrapped in `ChartErrorBoundary`. If any one component crashes (e.g., chart render failure on low-memory mobile), only that section shows the fallback. Other sections keep working.
+
+3. **Page-level error boundaries** (last resort) — Only triggered if the entire page fails to render:
+   - `src/app/error.tsx` — global fallback ("Something went wrong")
+   - `src/app/[location]/error.tsx` — weather page fallback ("Weather Unavailable")
+   - `src/app/history/error.tsx` — history page fallback ("History Unavailable")
+   - Retry count is tracked in `sessionStorage` to prevent infinite reload loops (max 3 retries)
+
+4. **Inline degradation** — `WeatherUnavailableBanner` shown when all weather providers fail but the page still renders with seasonal estimates
+
+**Principle:** A component failure should never crash the app. Only the failing section shows an error. The rest of the page remains fully functional.
+
+### Observability
+
+`src/lib/observability.ts` provides structured error logging and client-side error reporting.
+
+**Server-side (structured logging):**
+- `logError(ctx)` — JSON-structured error to stdout (parseable by Vercel Log Drains, Datadog, etc.)
+- `logWarn(ctx)` — structured warning with same format
+- Context fields: `source` (ErrorSource), `severity` (ErrorSeverity), `location`, `message`, `error`, `meta`
+- Error sources: `weather-api`, `ai-api`, `history-api`, `mongodb`, `tomorrow-io`, `open-meteo`, `anthropic`, `client-render`, `client-fetch`, `unhandled`
+- Severity levels: `low`, `medium`, `high`, `critical`
+
+**Client-side (GA4 error reporting):**
+- `reportErrorToAnalytics(description, fatal)` — sends GA4 `exception` events via `gtag()`
+- `reportProviderFailure(provider, errorType, location?)` — tracks weather provider failures as GA4 events
+- Used in `ChartErrorBoundary` (`componentDidCatch`), all three `error.tsx` pages, and API routes
+
+**Usage across API routes:**
+- `/api/weather` — logs `critical` on unexpected errors, `warn` on all-providers-failed fallback
+- `/api/ai` — logs `medium` on AI service unavailability
+- `/api/history` — logs `high` on history fetch failures
 
 ### Location Data
 
@@ -214,7 +267,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 **Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
 
-**UI:** `src/components/weather/ActivitySelector.tsx` — mineral-colored activity cards with icon, description, and category badge. Selected activities display as bordered cards (not badges). Modal grid items and category tabs use mineral color accents. Selections are persisted in Zustand (`selectedActivities`) and sent to the AI prompt for context-aware advice.
+**UI:** Activity selection is centralized in the **My Weather** modal (`src/components/weather/MyWeatherModal.tsx`), accessible from the header pill icon group. The Activities tab shows mineral-colored activity cards in a 2-column grid with icon, label, and category badge. Selected activities display as bordered cards with a checkmark. Category tabs and search allow filtering. Selections are persisted in Zustand (`selectedActivities`) via localStorage and sent to the AI prompt for context-aware advice. The standalone `ActivitySelector.tsx` component is retained for reference but no longer rendered on the location page.
 
 **Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.).
 
@@ -240,21 +293,26 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 ### State Management (Zustand)
 
 `src/lib/store.ts` exports `useAppStore` with:
-- `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), resets on page load
+- `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), persisted to localStorage
 - `setTheme(theme)` — explicitly set a theme preference
 - `toggleTheme()` — cycles through light → dark → system
-- `selectedLocation: string` — current location slug (default: `"harare"`)
+- `selectedLocation: string` — current location slug (default: `"harare"`, not persisted)
 - `setSelectedLocation(slug)` — updates location
-- `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), resets on page load
+- `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage
 - `toggleActivity(id)` — adds/removes an activity selection
+- `myWeatherOpen: boolean` — controls My Weather modal visibility (not persisted)
+- `openMyWeather()` / `closeMyWeather()` — toggle the modal
+
+**Persistence:**
+- Uses Zustand `persist` middleware with `partialize` — only `theme` and `selectedActivities` are saved to localStorage under key `mukoko-weather-prefs`
+- `selectedLocation` and `myWeatherOpen` are transient (reset on page load)
+- `onRehydrateStorage` callback applies the persisted theme to the DOM on load
 
 **Theme system:**
 - `resolveTheme(pref)` — resolves `"system"` to `"light"` or `"dark"` based on `matchMedia('(prefers-color-scheme: dark)')`
 - `ThemeProvider` listens for OS theme changes when in `"system"` mode and updates `data-theme` on `<html>` in real time
-- `ThemeToggle` shows three states: sun (→ light), moon (→ dark), monitor (→ system)
-- An inline script in `layout.tsx` prevents FOUC by detecting system theme preference before first paint
-
-State is in-memory only (no localStorage persistence). Every page load starts fresh with system theme detection. Stale localStorage from previous app versions is automatically cleared.
+- Theme can be set via the Settings tab in the My Weather modal (light/dark/system radio group)
+- An inline script in `layout.tsx` prevents FOUC by reading the persisted theme from localStorage before first paint, falling back to system preference detection
 
 ### Styling / Brand System
 
@@ -295,8 +353,8 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - Weather history: unlimited retention (recorded on every fresh API fetch)
 
 **Client-side:**
-- No client-side caching — every page load fetches fresh data from the server
-- Stale localStorage from previous versions is cleared on page load
+- No weather data caching — every page load fetches fresh weather data from the server
+- User preferences (theme + selected activities) are persisted to localStorage via Zustand `persist` middleware under key `mukoko-weather-prefs`
 
 ### i18n
 
@@ -352,9 +410,59 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 
 **Data table columns:** Date, Condition, High, Low, Feels-Like, Rain, Rain Prob, Humidity, Cloud, Wind, Gusts, Direction, UV, Pressure, Sunrise, Sunset — responsively hidden on smaller screens
 
-### Atmospheric Details
+### Header & My Weather Modal
 
-`src/components/weather/AtmosphericDetails.tsx` — a client component rendering four 24-hour hourly atmospheric charts on the weather page:
+**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary/10` with three 40px circular icon buttons:
+1. **Map pin** — opens the My Weather modal (location tab)
+2. **Clock** — links to `/history`
+3. **Search** — opens the My Weather modal (location tab)
+
+The header takes no props — location context comes from the URL path.
+
+**My Weather Modal** (`src/components/weather/MyWeatherModal.tsx`): A centralized preferences modal (shadcn Dialog + Tabs) with three tabs:
+- **Location** — search input, geolocation button, tag filter pills, scrollable location list with pending-slug highlighting. Selecting a location sets it as *pending* (does not navigate immediately).
+- **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming. Auto-scrolls into view after location selection.
+- **Settings** — theme radio group (light/dark/system) with visual indicators.
+
+**Deferred navigation:** Location and activity selection are unified — picking a location highlights it as pending and auto-scrolls to Activities so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
+
+### Lazy Loading & Mobile Performance
+
+Both the location page and history page use a **feed-style progressive loading** pattern — only the section nearest the viewport renders; everything below the fold is deferred via `LazySection`. This prevents mobile OOM crashes from mounting all components simultaneously.
+
+`LazySection` (`src/components/weather/LazySection.tsx`) is an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`). It is used across both pages to gate every non-critical section.
+
+**Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
+- `AISummary` → `LazySection`
+- `ActivityInsights` → `LazySection`
+- `HourlyForecast` → `LazySection` + `ChartErrorBoundary`
+- `AtmosphericSummary` → `LazySection`
+- `DailyForecast` → `LazySection` + `ChartErrorBoundary`
+- `SunTimes` → `LazySection`
+- Location info card → `LazySection`
+
+**History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
+- All 7 charts → `LazySection` + `ChartErrorBoundary` each
+- Daily records data table → `LazySection`
+
+**Additional mobile performance optimizations:**
+- All charts across the app have `activeDot={false}` to prevent per-data-point SVG element allocation on touch interaction
+- `HistoryDashboard` uses `reduce()` instead of spread-based `Math.max(...array)` for large datasets to avoid call stack overflow
+- `AtmosphericDetails` charts use safe fallback values for empty data arrays
+
+### Atmospheric Summary (Location Page)
+
+`src/components/weather/AtmosphericSummary.tsx` — a 2×3 grid of compact metric cards replacing the previous 4-chart `AtmosphericDetails` on the location page. Following the Apple Weather / Google Weather pattern of showing current values with contextual labels instead of full charts on the main view.
+
+**Cards shown:** Humidity, Cloud Cover, Wind (with gusts + direction), Pressure, UV Index, Feels Like. Each card has an icon, current value, and contextual label (e.g., "Comfortable", "Very High", "Cooler than actual").
+
+**Contextual helpers:** `humidityLabel(h)`, `pressureLabel(p)`, `cloudLabel(c)` — map raw values to human-readable descriptions. UV labels come from `uvLevel()` in `weather.ts`.
+
+**Link:** "24h trends →" links to `/${slug}/atmosphere` where the full atmospheric charts live for that location.
+
+### Atmospheric Details (Atmosphere Sub-Route & History Page)
+
+`src/components/weather/AtmosphericDetails.tsx` — four 24-hour hourly atmospheric charts, used by the `/${slug}/atmosphere` sub-route page and the history page (via `LazyAtmosphericDetails`). Not rendered on the main location page.
 
 1. **Humidity & Cloud Cover** — area chart (humidity) + dashed line (cloud cover), 0–100%
 2. **Wind Speed & Gusts** — area chart (sustained speed) + dashed line (gusts), km/h
@@ -362,8 +470,6 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 4. **UV Index** — bar chart with dynamic max scale
 
 **Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
-
-All four charts use `ComposedChart` from Recharts via the shadcn `ChartContainer` wrapper, following the same pattern as `HourlyChart` and `DailyChart`.
 
 ## Testing
 
