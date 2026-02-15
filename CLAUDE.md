@@ -20,7 +20,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
-- **Charts:** Recharts 2 via shadcn chart component
+- **Charts:** Chart.js 4 + react-chartjs-2 (Canvas 2D rendering via `src/components/ui/chart.tsx`)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
@@ -99,9 +99,10 @@ mukoko-weather/
 │   │   │   ├── button.tsx            # Button (6 variants, 5 sizes, asChild support)
 │   │   │   ├── badge.tsx             # Badge (4 variants)
 │   │   │   ├── card.tsx              # Card, CardHeader, CardContent, etc.
-│   │   │   ├── chart.tsx             # ChartContainer, ChartTooltip (wraps Recharts)
+│   │   │   ├── chart.tsx             # CanvasChart, resolveColor (wraps Chart.js Canvas)
 │   │   │   ├── dialog.tsx            # Dialog (Radix, portal, overlay, animations)
 │   │   │   ├── input.tsx             # Input (styled with CSS custom properties)
+│   │   │   ├── skeleton.tsx         # Skeleton, CardSkeleton, ChartSkeleton, BadgeSkeleton, MetricCardSkeleton
 │   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
@@ -116,17 +117,30 @@ mukoko-weather/
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
 │   │   │   ├── HourlyForecast.tsx     # 24-hour hourly forecast
-│   │   │   ├── HourlyChart.tsx        # Area chart: temperature + rain over 24h
+│   │   │   ├── HourlyChart.tsx        # Canvas chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
-│   │   │   ├── DailyChart.tsx         # Area chart: high/low temps over 7 days
+│   │   │   ├── DailyChart.tsx         # Canvas chart: high/low temps over 7 days
 │   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
-│   │   │   ├── AtmosphericDetails.tsx # 24h atmospheric charts (used by history; not on location page)
-│   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (IntersectionObserver + React.lazy)
-│   │   │   ├── LazySection.tsx        # IntersectionObserver lazy-load wrapper for heavy sections
-│   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart crash isolation
+│   │   │   ├── AtmosphericDetails.tsx # Imports chart components for 24h atmospheric views
+│   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (React.lazy + Suspense)
+│   │   │   ├── LazySection.tsx        # TikTok-style sequential lazy-load with bidirectional visibility
+│   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart/section crash isolation
+│   │   │   ├── charts/                # Reusable chart components (import TimeSeriesChart)
+│   │   │   │   ├── TimeSeriesChart.tsx     # Base reusable Canvas chart (configurable series, axes, tooltips)
+│   │   │   │   ├── TemperatureTrendChart.tsx  # High/low + feels-like temperature
+│   │   │   │   ├── PrecipitationChart.tsx  # Rain bars + probability line (dual axis)
+│   │   │   │   ├── UVCloudChart.tsx        # UV bars + cloud line (dual axis)
+│   │   │   │   ├── WindSpeedChart.tsx      # Wind area + gusts dashed line
+│   │   │   │   ├── PressureChart.tsx       # Barometric pressure (auto-scaled)
+│   │   │   │   ├── HumidityCloudChart.tsx  # Humidity area + cloud dashed line
+│   │   │   │   ├── HumidityChart.tsx       # Standalone humidity area
+│   │   │   │   ├── UVIndexChart.tsx        # UV index bars
+│   │   │   │   └── DaylightChart.tsx       # Daylight hours area
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
+│   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
+│   │   │   ├── DailyForecast.test.ts     # Temperature percent, gradient helpers
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
@@ -155,6 +169,8 @@ mukoko-weather/
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper
 │   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
+│   │   ├── circuit-breaker.ts      # Netflix Hystrix-inspired circuit breaker (per-provider resilience)
+│   │   ├── circuit-breaker.test.ts # Circuit breaker state machine tests
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
@@ -189,6 +205,83 @@ mukoko-weather/
 ```
 
 ## Architecture
+
+### Layered Component Architecture (MANDATORY)
+
+Every component and section in the app follows a strict layered architecture. This is not optional — all new components MUST implement every layer.
+
+**Layer structure (bottom to top):**
+
+```
+Layer 1: Shared base components (TimeSeriesChart, CanvasChart, StatCard)
+    ↓ imported by
+Layer 2: Domain-specific components (HourlyChart, PressureChart, AISummary, etc.)
+    ↓ imported by
+Layer 3: Dashboard/page orchestrators (WeatherDashboard, HistoryDashboard, etc.)
+    ↓ wrapped with
+Layer 4: Isolation wrappers (LazySection + ChartErrorBoundary per section)
+    ↓ rendered by
+Layer 5: Server page wrappers (page.tsx — SEO, data fetching, error boundaries)
+```
+
+**Tiered component requirements:**
+
+Not every component needs every layer. Requirements scale with component weight:
+
+| Tier | Examples | Error Boundary | LazySection | Skeleton | Accessibility | Global Styles | Tests |
+|------|----------|:-:|:-:|:-:|:-:|:-:|:-:|
+| **Primitives** | Button, Badge, Card, Input, Skeleton | N/A | No | Loading/disabled state | Yes | Yes | Yes |
+| **Composites** | StatCard, FrostAlertBanner, SeasonBadge | Parent boundary | No | Loading prop | Yes | Yes | Yes |
+| **Sections** | Charts, AISummary, HourlyForecast | ChartErrorBoundary | LazySection | ChartSkeleton | Yes | Yes | Yes |
+| **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
+
+**Every component MUST have (at minimum):**
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 44px minimum touch targets
+2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
+3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
+
+**Section-level components MUST additionally have:**
+4. **Error boundary** — `ChartErrorBoundary` wrapping each section; a section crash never takes down the page
+5. **Lazy loading** — `LazySection` with skeleton fallback; only ONE section mounts at a time (sequential queue)
+6. **Skeleton placeholder** — aspect-matched loading placeholder shown before the section enters viewport
+7. **Memory management** — bidirectional lazy loading (unmount when far off-screen), Canvas rendering (single DOM element per chart)
+8. **Circuit breaker protection** — external API calls wrapped in circuit breakers to prevent cascade failures
+
+**Chart component pattern:**
+```
+TimeSeriesChart (shared Canvas base — series configs, axes, tooltips)
+    ↓ imported by
+PressureChart / WindSpeedChart / HumidityChart / etc. (each defines its series config)
+    ↓ imported by
+AtmosphericDetails / HistoryDashboard / etc. (orchestrates layout, passes data)
+    ↓ wrapped with
+LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
+```
+
+**Rules:**
+- Components import from the layer below, never sideways or upward
+- Each chart component is a standalone file in `src/components/weather/charts/`
+- Dashboards NEVER hardcode chart rendering logic — import chart components
+- All colors and styles come from CSS custom properties in `globals.css`
+- New components must follow this pattern — no exceptions
+
+### Circuit Breaker System
+
+`src/lib/circuit-breaker.ts` — Netflix Hystrix-inspired circuit breaker for external API resilience.
+
+**State machine:** CLOSED → OPEN → HALF_OPEN → CLOSED (on success) or OPEN (on failure)
+
+**Per-provider singleton breakers:**
+- `tomorrowBreaker` — Tomorrow.io API (3 failures / 2min cooldown / 60s window)
+- `openMeteoBreaker` — Open-Meteo API (5 failures / 5min cooldown / 120s window)
+- `anthropicBreaker` — Anthropic Claude API (3 failures / 5min cooldown / 120s window)
+
+**Key classes:**
+- `CircuitBreaker` — state machine with `execute<T>()`, `recordSuccess()`, `recordFailure()`, `reset()`
+- `CircuitOpenError` — thrown when circuit is open, includes provider name
+- `withTimeout(promise, ms)` — request timeout wrapper
+
+**In-memory state:** `Map<string, CircuitBreakerState>` persists across Vercel warm function starts.
 
 ### Routing
 
@@ -329,12 +422,36 @@ Each activity category has a dedicated mineral color, defined as CSS custom prop
 
 Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) with static Tailwind classes for `bg`, `border`, `text`, and `badge` per category. Each mineral color has a corresponding `--mineral-*-fg` foreground token for badge text contrast.
 
+**Severity / Status Color System:**
+For weather alerts, status indicators, and severity levels, use the semantic severity tokens defined in `globals.css`:
+- `--color-severity-low` → safe/operational/none (green/malachite in light, bright green in dark)
+- `--color-severity-moderate` → mild/moderate (gold/warmth in light, amber in dark)
+- `--color-severity-high` → high/medium (burnt orange in light, orange in dark)
+- `--color-severity-severe` → severe/down (red in light, bright red in dark)
+- `--color-severity-extreme` → extreme (deep red in light, vivid red in dark)
+- `--color-severity-cold` → frost/cold risk (cobalt blue in light, sky blue in dark)
+
+Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
+Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
+
+**Skeleton Primitives:**
+Reusable skeleton components in `src/components/ui/skeleton.tsx`:
+- `Skeleton` — generic pulsing block (base building block)
+- `CardSkeleton` — card-shaped with title + content lines
+- `ChartSkeleton` — aspect-ratio-matched chart placeholder
+- `BadgeSkeleton` — pill-shaped badge placeholder
+- `MetricCardSkeleton` — matches AtmosphericSummary MetricCard shape
+
+All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` text for screen readers.
+
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
 - Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
 - Frost alert severity colors use `--color-frost-*` tokens, not hardcoded values
+- Status/severity indicators use `--color-severity-*` tokens, not generic Tailwind colors
+- All skeletons/loading states must include `role="status"` and screen reader text
 
 ### AI Summaries
 
@@ -391,7 +508,7 @@ Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) w
 - **Components:** `src/app/history/page.tsx` (server, metadata) + `src/app/history/HistoryDashboard.tsx` (client)
 - **Features:** location search, configurable time period (7d–1y), comprehensive charts, summary statistics, and daily records table
 - **Data source:** `GET /api/history?location=<slug>&days=<n>` backed by MongoDB `weather_history` collection
-- **Charts:** Recharts via shadcn ChartContainer (same pattern as HourlyChart/DailyChart)
+- **Charts:** Reusable chart components from `src/components/weather/charts/` (Canvas 2D via Chart.js)
 
 **Dashboard metrics (7 charts + stats + table):**
 1. **Temperature trend** — actual high/low area chart + feels-like (apparent) temperature overlay lines
@@ -426,29 +543,35 @@ The header takes no props — location context comes from the URL path.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location highlights it as pending and auto-scrolls to Activities so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
-### Lazy Loading & Mobile Performance
+### Lazy Loading & Mobile Performance (TikTok-Style)
 
-Both the location page and history page use a **feed-style progressive loading** pattern — only the section nearest the viewport renders; everything below the fold is deferred via `LazySection`. This prevents mobile OOM crashes from mounting all components simultaneously.
+All pages use a **TikTok-style sequential mounting** pattern — only ONE section mounts at a time via a global FIFO queue. This caps peak memory regardless of how many sections exist.
 
-`LazySection` (`src/components/weather/LazySection.tsx`) is an IntersectionObserver wrapper that renders a placeholder until the section scrolls near the viewport (default `rootMargin: 300px`). It is used across both pages to gate every non-critical section.
+`LazySection` (`src/components/weather/LazySection.tsx`) provides:
+1. **Sequential mount queue** — global FIFO queue mounts ONE component at a time with rAF + settle delay (150ms mobile, 50ms desktop) between mounts
+2. **Bidirectional visibility** — sections mount when entering viewport (100-300px margin) and UNMOUNT when scrolling 1500px past viewport to reclaim memory
+3. **Adaptive timing** — mobile gets longer settle delays than desktop
+4. **Skeleton fallbacks** — each section has an aspect-matched skeleton placeholder shown before mounting
+5. **Memory pressure monitoring** — `useMemoryPressure()` hook monitors `performance.memory` for JS heap pressure
 
 **Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
-- `AISummary` → `LazySection`
-- `ActivityInsights` → `LazySection`
-- `HourlyForecast` → `LazySection` + `ChartErrorBoundary`
-- `AtmosphericSummary` → `LazySection`
-- `DailyForecast` → `LazySection` + `ChartErrorBoundary`
-- `SunTimes` → `LazySection`
+- `AISummary` → `LazySection` + `Suspense`
+- `ActivityInsights` → `LazySection` + `Suspense`
+- `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AtmosphericSummary` → `LazySection` + `Suspense`
+- `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `SunTimes` → `LazySection` + `Suspense`
 - Location info card → `LazySection`
 
 **History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
-- All 7 charts → `LazySection` + `ChartErrorBoundary` each
-- Daily records data table → `LazySection`
+- All 7 charts → `LazySection(fallback=<ChartSkeleton />)` + `ChartErrorBoundary` each
+- Daily records data table → `LazySection(fallback=<ChartSkeleton />)` with infinite scroll
 
-**Additional mobile performance optimizations:**
-- All charts across the app have `activeDot={false}` to prevent per-data-point SVG element allocation on touch interaction
-- `HistoryDashboard` uses `reduce()` instead of spread-based `Math.max(...array)` for large datasets to avoid call stack overflow
-- `AtmosphericDetails` charts use safe fallback values for empty data arrays
+**Canvas rendering optimizations:**
+- Chart.js Canvas 2D rendering — single `<canvas>` DOM element per chart (not thousands of SVG nodes)
+- Mobile: `devicePixelRatio: 1`, `animation: false`, data downsampling for large datasets (>60 points on mobile)
+- CSS variable resolution via `resolveColor()` — Chart.js needs concrete values, not `var(--chart-1)`
+- `HistoryDashboard` uses `reduce()` instead of spread-based `Math.max(...array)` for large datasets
 
 ### Atmospheric Summary (Location Page)
 
@@ -462,12 +585,13 @@ Both the location page and history page use a **feed-style progressive loading**
 
 ### Atmospheric Details (Atmosphere Sub-Route & History Page)
 
-`src/components/weather/AtmosphericDetails.tsx` — four 24-hour hourly atmospheric charts, used by the `/${slug}/atmosphere` sub-route page and the history page (via `LazyAtmosphericDetails`). Not rendered on the main location page.
+`src/components/weather/AtmosphericDetails.tsx` — orchestrates four chart components for 24-hour hourly atmospheric views. Used by the `/${slug}/atmosphere` sub-route page and the history page (via `LazyAtmosphericDetails`). Not rendered on the main location page.
 
-1. **Humidity & Cloud Cover** — area chart (humidity) + dashed line (cloud cover), 0–100%
-2. **Wind Speed & Gusts** — area chart (sustained speed) + dashed line (gusts), km/h
-3. **Barometric Pressure** — line chart with auto-scaled Y axis, hPa
-4. **UV Index** — bar chart with dynamic max scale
+**Imports chart components from `src/components/weather/charts/`:**
+1. `HumidityCloudChart` — humidity area + cloud cover dashed line, 0–100%
+2. `WindSpeedChart` — wind area + gusts dashed line, km/h (auto-scaled)
+3. `PressureChart` — pressure line with auto-scaled Y axis, hPa
+4. `UVIndexChart` — UV index bars with dynamic max scale
 
 **Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
 
@@ -480,16 +604,33 @@ Both the location page and history page use a **feed-style progressive loading**
 - Path alias: `@/*` → `./src/*`
 
 **Test files:**
-- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
+- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels, fallback weather
+- `src/lib/weather-labels.test.ts` — humidity/pressure/cloud/feels-like label helpers
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
 - `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
 - `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
+- `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
+- `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
+- `src/lib/i18n.test.ts` — translations, formatting, interpolation
+- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys)
+- `src/lib/geolocation.test.ts` — browser geolocation API wrapper
+- `src/lib/observability.test.ts` — structured logging, error reporting
+- `src/lib/weather-icons.test.ts` — weather icon mapping
+- `src/lib/error-retry.test.ts` — error retry logic
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
+- `src/app/api/ai/ai-route.test.ts` — AI API route handling
+- `src/app/api/weather/weather-route.test.ts` — weather API route, provider fallback
+- `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location
+- `src/app/api/history/history-route.test.ts` — history API route
+- `src/app/api/db-init/db-init-route.test.ts` — DB init route
+- `src/app/api/status/status-route.test.ts` — status API route
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
-- `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily)
+- `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric)
+- `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
+- `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
 
 **Conventions:**
 - Tests live next to the code they test (co-located)
@@ -503,8 +644,9 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 1. **Run tests** — `npm test` must pass with zero failures. If you changed behavior, add or update tests.
 2. **Run lint** — `npm run lint` must have zero errors (warnings are acceptable).
 3. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
-4. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
-5. **Update documentation** — If your change affects any of the following, update the corresponding docs:
+4. **Run build** — `npm run build` must compile and generate all pages successfully.
+5. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
+6. **Update documentation** — If your change affects any of the following, update the corresponding docs:
    - Public API or routes → update README.md API section
    - Project structure (new files/directories) → update README.md project structure
    - Tech stack (new dependencies) → update README.md tech stack table and CLAUDE.md tech stack
@@ -512,10 +654,26 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
    - Styling patterns or tokens → update CLAUDE.md Styling section
    - AI summary format or prompt → update CLAUDE.md AI Summaries section
    - Developer workflow → update CONTRIBUTING.md
-6. **Verify no hardcoded styles** — No new hardcoded hex colors, rgba(), or inline `style={{}}` in components.
+7. **Verify no hardcoded styles** — No new hardcoded hex colors, rgba(), or inline `style={{}}` in components.
+8. **Verify layered architecture** — New components follow the Layered Component Architecture (see above): error boundary, lazy loading, skeleton, accessibility, global styles, tests.
 
 ## Conventions
 
+### Component Architecture
+- **Layered imports** — components import from the layer below, never sideways or upward
+- **Chart components** — all chart rendering lives in `src/components/weather/charts/`; dashboards import, never hardcode
+- **Error isolation** — every section wrapped in `ChartErrorBoundary`; crashes never propagate
+- **Sequential lazy loading** — every non-critical section wrapped in `LazySection` with skeleton fallback
+- **Skeleton placeholders** — aspect-matched loading skeletons for every lazy-loaded section
+- **Circuit breakers** — external API calls wrapped in circuit breakers (`src/lib/circuit-breaker.ts`)
+
+### Styling
+- **Global styles only** — all colors and tokens defined in `globals.css` as CSS custom properties
+- **Never hardcode** — no hex colors, rgba(), inline `style={{}}`, or dynamic Tailwind class construction
+- **Tailwind classes** — always use Tailwind utility classes backed by CSS custom properties
+- **Canvas chart colors** — resolved at render time via `resolveColor()` from `src/components/ui/chart.tsx`
+
+### General
 - Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `embed/`)
 - Client components use `"use client"` directive
 - Server components are the default (no directive needed)
