@@ -102,6 +102,7 @@ mukoko-weather/
 │   │   │   ├── chart.tsx             # CanvasChart, resolveColor (wraps Chart.js Canvas)
 │   │   │   ├── dialog.tsx            # Dialog (Radix, portal, overlay, animations)
 │   │   │   ├── input.tsx             # Input (styled with CSS custom properties)
+│   │   │   ├── skeleton.tsx         # Skeleton, CardSkeleton, ChartSkeleton, BadgeSkeleton, MetricCardSkeleton
 │   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
@@ -138,6 +139,8 @@ mukoko-weather/
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
+│   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
+│   │   │   ├── DailyForecast.test.ts     # Temperature percent, gradient helpers
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
@@ -221,13 +224,26 @@ Layer 4: Isolation wrappers (LazySection + ChartErrorBoundary per section)
 Layer 5: Server page wrappers (page.tsx — SEO, data fetching, error boundaries)
 ```
 
-**Every component MUST have:**
-1. **Error boundary** — `ChartErrorBoundary` wrapping each section; a section crash never takes down the page
-2. **Lazy loading** — `LazySection` with skeleton fallback; only ONE section mounts at a time (sequential queue)
-3. **Skeleton placeholder** — aspect-matched loading placeholder shown before the section enters viewport
-4. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, 44px minimum touch targets
-5. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
-6. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
+**Tiered component requirements:**
+
+Not every component needs every layer. Requirements scale with component weight:
+
+| Tier | Examples | Error Boundary | LazySection | Skeleton | Accessibility | Global Styles | Tests |
+|------|----------|:-:|:-:|:-:|:-:|:-:|:-:|
+| **Primitives** | Button, Badge, Card, Input, Skeleton | N/A | No | Loading/disabled state | Yes | Yes | Yes |
+| **Composites** | StatCard, FrostAlertBanner, SeasonBadge | Parent boundary | No | Loading prop | Yes | Yes | Yes |
+| **Sections** | Charts, AISummary, HourlyForecast | ChartErrorBoundary | LazySection | ChartSkeleton | Yes | Yes | Yes |
+| **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
+
+**Every component MUST have (at minimum):**
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 44px minimum touch targets
+2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
+3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
+
+**Section-level components MUST additionally have:**
+4. **Error boundary** — `ChartErrorBoundary` wrapping each section; a section crash never takes down the page
+5. **Lazy loading** — `LazySection` with skeleton fallback; only ONE section mounts at a time (sequential queue)
+6. **Skeleton placeholder** — aspect-matched loading placeholder shown before the section enters viewport
 7. **Memory management** — bidirectional lazy loading (unmount when far off-screen), Canvas rendering (single DOM element per chart)
 8. **Circuit breaker protection** — external API calls wrapped in circuit breakers to prevent cascade failures
 
@@ -406,12 +422,36 @@ Each activity category has a dedicated mineral color, defined as CSS custom prop
 
 Category styles are centralized in `CATEGORY_STYLES` (`src/lib/activities.ts`) with static Tailwind classes for `bg`, `border`, `text`, and `badge` per category. Each mineral color has a corresponding `--mineral-*-fg` foreground token for badge text contrast.
 
+**Severity / Status Color System:**
+For weather alerts, status indicators, and severity levels, use the semantic severity tokens defined in `globals.css`:
+- `--color-severity-low` → safe/operational/none (green/malachite in light, bright green in dark)
+- `--color-severity-moderate` → mild/moderate (gold/warmth in light, amber in dark)
+- `--color-severity-high` → high/medium (burnt orange in light, orange in dark)
+- `--color-severity-severe` → severe/down (red in light, bright red in dark)
+- `--color-severity-extreme` → extreme (deep red in light, vivid red in dark)
+- `--color-severity-cold` → frost/cold risk (cobalt blue in light, sky blue in dark)
+
+Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
+Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
+
+**Skeleton Primitives:**
+Reusable skeleton components in `src/components/ui/skeleton.tsx`:
+- `Skeleton` — generic pulsing block (base building block)
+- `CardSkeleton` — card-shaped with title + content lines
+- `ChartSkeleton` — aspect-ratio-matched chart placeholder
+- `BadgeSkeleton` — pill-shaped badge placeholder
+- `MetricCardSkeleton` — matches AtmosphericSummary MetricCard shape
+
+All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` text for screen readers.
+
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
 - Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
 - Frost alert severity colors use `--color-frost-*` tokens, not hardcoded values
+- Status/severity indicators use `--color-severity-*` tokens, not generic Tailwind colors
+- All skeletons/loading states must include `role="status"` and screen reader text
 
 ### AI Summaries
 
@@ -564,17 +604,33 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - Path alias: `@/*` → `./src/*`
 
 **Test files:**
-- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels
+- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels, fallback weather
+- `src/lib/weather-labels.test.ts` — humidity/pressure/cloud/feels-like label helpers
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
 - `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
 - `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
+- `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
+- `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
+- `src/lib/i18n.test.ts` — translations, formatting, interpolation
+- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys)
+- `src/lib/geolocation.test.ts` — browser geolocation API wrapper
+- `src/lib/observability.test.ts` — structured logging, error reporting
+- `src/lib/weather-icons.test.ts` — weather icon mapping
+- `src/lib/error-retry.test.ts` — error retry logic
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
+- `src/app/api/ai/ai-route.test.ts` — AI API route handling
+- `src/app/api/weather/weather-route.test.ts` — weather API route, provider fallback
+- `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location
+- `src/app/api/history/history-route.test.ts` — history API route
+- `src/app/api/db-init/db-init-route.test.ts` — DB init route
+- `src/app/api/status/status-route.test.ts` — status API route
 - `src/app/seo.test.ts` — metadata generation, schema validation
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
 - `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric)
-- `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
+- `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
+- `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
 
 **Conventions:**
 - Tests live next to the code they test (co-located)
