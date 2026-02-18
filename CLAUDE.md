@@ -21,6 +21,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Chart.js 4 + react-chartjs-2 (Canvas 2D rendering via `src/components/ui/chart.tsx`)
+- **Maps:** Leaflet + react-leaflet (dynamic import, SSR disabled; Tomorrow.io tile overlays via `/api/map-tiles` proxy)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
@@ -93,6 +94,7 @@ mukoko-weather/
 │   │       │   └── ai-prompt.test.ts
 │   │       ├── geo/route.ts          # GET — nearest location lookup
 │   │       ├── history/route.ts      # GET — historical weather data
+│   │       ├── map-tiles/route.ts   # GET — tile proxy for Tomorrow.io map layers
 │   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + locations)
 │   ├── components/
 │   │   ├── ui/                       # shadcn/ui primitives (Radix UI + CVA)
@@ -147,6 +149,15 @@ mukoko-weather/
 │   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
 │   │   │   ├── ActivitySelector.tsx   # Activity selection modal (personalized advice)
 │   │   │   └── ActivityInsights.tsx   # Category-specific weather insight cards
+│   │   ├── map/                       # Interactive weather map (Leaflet + Tomorrow.io tiles)
+│   │   │   ├── MapPreview.tsx         # Compact map card on location page
+│   │   │   ├── MapModal.tsx           # Full-screen map dialog with layer switcher
+│   │   │   ├── MapLayerSwitcher.tsx   # Layer toggle buttons (radiogroup)
+│   │   │   ├── MapSkeleton.tsx        # Map loading skeleton
+│   │   │   ├── LeafletMapPreview.tsx  # Leaflet preview (dynamic, ssr:false)
+│   │   │   ├── LeafletMapFull.tsx     # Leaflet full interactive map (dynamic, ssr:false)
+│   │   │   ├── leaflet-css.ts         # Leaflet CSS import
+│   │   │   └── leaflet-icon-fix.ts    # Marker icon URL fix for bundlers
 │   │   └── embed/
 │   │       ├── MukokoWeatherEmbed.tsx          # Embeddable widget (current/forecast/badge)
 │   │       ├── MukokoWeatherEmbed.module.css   # Self-contained widget CSS (no Tailwind)
@@ -171,6 +182,8 @@ mukoko-weather/
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
 │   │   ├── circuit-breaker.ts      # Netflix Hystrix-inspired circuit breaker (per-provider resilience)
 │   │   ├── circuit-breaker.test.ts # Circuit breaker state machine tests
+│   │   ├── map-layers.ts           # Map layer config (Tomorrow.io tile layers, mineral color styles)
+│   │   ├── map-layers.test.ts      # Map layer config tests
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
@@ -301,6 +314,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
+- `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
 - `/api/db-init` — POST, one-time DB setup + optional API key seeding (requires `x-init-secret` header in production)
 
 ### Error Handling
@@ -611,6 +625,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
 - `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
 - `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
+- `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys)
@@ -623,6 +638,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/app/api/weather/weather-route.test.ts` — weather API route, provider fallback
 - `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location
 - `src/app/api/history/history-route.test.ts` — history API route
+- `src/app/api/map-tiles/map-tiles-route.test.ts` — map tile proxy route, layer validation, zoom clamping
 - `src/app/api/db-init/db-init-route.test.ts` — DB init route
 - `src/app/api/status/status-route.test.ts` — status API route
 - `src/app/seo.test.ts` — metadata generation, schema validation
