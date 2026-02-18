@@ -347,7 +347,9 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   overflow-x: hidden;
-  max-width: 100vw;
+  /* overscroll-behavior-x prevents iOS Safari from bubbling horizontal
+     scroll from inner containers (e.g. hourly forecast row) to the page */
+  overscroll-behavior-x: none;
 }
 
 /* ===== Minerals Stripe — Five African Minerals ===== */

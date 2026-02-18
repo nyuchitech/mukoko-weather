@@ -840,7 +840,7 @@ export function HistoryDashboard() {
           <LazySection label="history-table" fallback={<ChartSkeleton aspect="aspect-[16/8]" />}>
             <section aria-labelledby="history-table-heading">
               <h2 id="history-table-heading" className="text-lg font-semibold text-text-primary font-heading">Daily records</h2>
-              <div className="mt-3 overflow-x-auto rounded-[var(--radius-card)] bg-surface-card shadow-sm">
+              <div className="mt-3 overflow-x-auto rounded-[var(--radius-card)] bg-surface-card shadow-sm [overscroll-behavior-x:contain]">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-text-tertiary/10">

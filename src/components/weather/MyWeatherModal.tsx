@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useAppStore, type ThemePreference } from "@/lib/store";
 import { MapPinIcon, SearchIcon, SunIcon, MoonIcon } from "@/lib/weather-icons";
 import { ActivityIcon } from "@/lib/weather-icons";
 import {
   LOCATIONS,
   TAG_LABELS,
+  getCountryName,
   type LocationTag,
   type ZimbabweLocation,
 } from "@/lib/locations";
@@ -335,11 +337,48 @@ function LocationTab({
         ))}
       </ul>
 
-      {/* Location count */}
-      <div className="px-4 pb-3">
-        <p className="text-xs text-text-tertiary">
-          {allLocations.length} locations across Zimbabwe
-        </p>
+      {/* Community location stat — prominent to inspire contributions */}
+      <LocationCountCard allLocations={allLocations} />
+    </div>
+  );
+}
+
+// ── Location Count Card ─────────────────────────────────────────────────────
+
+function LocationCountCard({ allLocations }: { allLocations: ZimbabweLocation[] }) {
+  const countryGroups = useMemo(() => {
+    const groups: Record<string, number> = {};
+    for (const loc of allLocations) {
+      const code = (loc.country ?? "ZW").toUpperCase();
+      groups[code] = (groups[code] ?? 0) + 1;
+    }
+    return groups;
+  }, [allLocations]);
+
+  const summary = useMemo(() => {
+    const entries = Object.entries(countryGroups).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) return `${allLocations.length} locations`;
+    if (entries.length === 1) {
+      const [code, count] = entries[0];
+      return `${count} locations in ${getCountryName(code)}`;
+    }
+    return entries.map(([code, count]) => `${getCountryName(code)} (${count})`).join(" · ");
+  }, [countryGroups, allLocations.length]);
+
+  return (
+    <div className="mx-4 mb-3">
+      <div className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-primary/10 bg-primary/5 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <MapPinIcon size={14} className="shrink-0 text-primary" aria-hidden="true" />
+          <span className="text-sm font-medium text-text-primary">{summary}</span>
+        </div>
+        <Link
+          href="/explore"
+          prefetch={false}
+          className="shrink-0 text-xs text-primary underline-offset-2 hover:underline"
+        >
+          Explore all
+        </Link>
       </div>
     </div>
   );
@@ -388,7 +427,7 @@ function ActivitiesTab({
       </div>
 
       {/* Category filter pills — 44px touch targets */}
-      <div className="flex gap-2 overflow-x-auto px-4 pt-1 pb-2 scrollbar-hide" role="group" aria-label="Activity categories">
+      <div className="flex gap-2 overflow-x-auto px-4 pt-1 pb-2 scrollbar-hide [overscroll-behavior-x:contain]" role="group" aria-label="Activity categories">
         <CategoryTab
           label="All"
           categoryId="all"

@@ -56,7 +56,7 @@ export function WeatherDashboard({
       <Header />
 
       {/* Breadcrumb navigation for SEO and accessibility */}
-      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:pl-6 md:pl-8">
+      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 md:px-8">
         <ol className="flex items-center gap-1 text-xs text-text-tertiary">
           <li>
             <a href={BASE_URL} className="hover:text-text-secondary transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:rounded">
@@ -76,7 +76,7 @@ export function WeatherDashboard({
 
       <main
         id="main-content"
-        className="mx-auto max-w-5xl overflow-hidden px-4 py-6 sm:pl-6 md:pl-8"
+        className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8"
         aria-label={`Weather dashboard for ${location.name}`}
       >
         {/* H1 for SEO — visually integrated but semantically correct */}
@@ -102,8 +102,16 @@ export function WeatherDashboard({
                 current={weather.current}
                 locationName={location.name}
                 daily={weather.daily}
+                slug={location.slug}
               />
             </ChartErrorBoundary>
+            <LazySection label="hourly-forecast">
+              <ChartErrorBoundary name="hourly forecast">
+                <Suspense fallback={<SectionSkeleton />}>
+                  <HourlyForecast hourly={weather.hourly} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
             <LazySection label="ai-summary">
               <ChartErrorBoundary name="AI summary">
                 <Suspense fallback={<SectionSkeleton />}>
@@ -115,13 +123,6 @@ export function WeatherDashboard({
               <ChartErrorBoundary name="activity insights">
                 <Suspense fallback={<SectionSkeleton />}>
                   <ActivityInsights insights={weather.insights} />
-                </Suspense>
-              </ChartErrorBoundary>
-            </LazySection>
-            <LazySection label="hourly-forecast">
-              <ChartErrorBoundary name="hourly forecast">
-                <Suspense fallback={<SectionSkeleton />}>
-                  <HourlyForecast hourly={weather.hourly} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
