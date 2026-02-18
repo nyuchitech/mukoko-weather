@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform for Zimbabwe. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life across 90+ Zimbabwe locations.
+mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding globally. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Locations span Zimbabwe (90+ seed locations), ASEAN countries, and developing regions across Africa — with new locations added dynamically by the community via geolocation and search.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -25,7 +25,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
-- **AI:** Anthropic Claude SDK 0.73.0 (server-side only)
+- **AI:** Anthropic Claude SDK 0.73.0 (server-side only, Haiku 3.5 model `claude-haiku-4-5-20251001`)
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
@@ -74,10 +74,14 @@ mukoko-weather/
 │   │   │   │   ├── page.tsx             # Server wrapper (SEO, data fetch)
 │   │   │   │   ├── AtmosphereDashboard.tsx  # Client: 24h atmospheric charts
 │   │   │   │   └── loading.tsx          # Branded skeleton
-│   │   │   └── forecast/               # Forecast details sub-route
-│   │   │       ├── page.tsx             # Server wrapper (SEO, data fetch)
-│   │   │       ├── ForecastDashboard.tsx # Client: hourly + daily + sun times
-│   │   │       └── loading.tsx          # Branded skeleton
+│   │   │   ├── forecast/               # Forecast details sub-route
+│   │   │   │   ├── page.tsx             # Server wrapper (SEO, data fetch)
+│   │   │   │   ├── ForecastDashboard.tsx # Client: hourly + daily + sun times
+│   │   │   │   └── loading.tsx          # Branded skeleton
+│   │   │   └── map/                     # Full-viewport weather map sub-route
+│   │   │       ├── page.tsx             # Server wrapper (SEO, no weather fetch)
+│   │   │       ├── MapDashboard.tsx     # Client: full-viewport Leaflet map + layer switcher
+│   │   │       └── loading.tsx          # Full-viewport skeleton
 │   │   ├── about/page.tsx            # About page
 │   │   ├── help/page.tsx             # Help/FAQ page
 │   │   ├── history/                  # Historical weather data dashboard
@@ -92,7 +96,8 @@ mukoko-weather/
 │   │       ├── ai/                   # POST — Claude AI summaries (tiered TTL cache)
 │   │       │   ├── route.ts
 │   │       │   └── ai-prompt.test.ts
-│   │       ├── geo/route.ts          # GET — nearest location lookup
+│   │       ├── geo/route.ts          # GET — nearest location lookup (supports autoCreate)
+│   │       ├── locations/add/route.ts # POST — add locations via search or coordinates
 │   │       ├── history/route.ts      # GET — historical weather data
 │   │       ├── map-tiles/route.ts   # GET — tile proxy for Tomorrow.io map layers
 │   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + locations)
@@ -150,8 +155,7 @@ mukoko-weather/
 │   │   │   ├── ActivitySelector.tsx   # Activity selection modal (personalized advice)
 │   │   │   └── ActivityInsights.tsx   # Category-specific weather insight cards
 │   │   ├── map/                       # Interactive weather map (Leaflet + Tomorrow.io tiles)
-│   │   │   ├── MapPreview.tsx         # Compact map card on location page
-│   │   │   ├── MapModal.tsx           # Full-screen map dialog with layer switcher
+│   │   │   ├── MapPreview.tsx         # Compact map card on location page (links to /[location]/map)
 │   │   │   ├── MapLayerSwitcher.tsx   # Layer toggle buttons (radiogroup)
 │   │   │   ├── MapSkeleton.tsx        # Map loading skeleton
 │   │   │   ├── LeafletMapPreview.tsx  # Leaflet preview (dynamic, ssr:false)
@@ -166,7 +170,7 @@ mukoko-weather/
 │   ├── lib/
 │   │   ├── store.ts               # Zustand app state (theme with system detection, location, activities)
 │   │   ├── store.test.ts          # Theme resolution tests
-│   │   ├── locations.ts           # 90+ Zimbabwe locations, search, filtering
+│   │   ├── locations.ts           # WeatherLocation type, 90+ seed locations, SUPPORTED_REGIONS, search, filtering
 │   │   ├── locations.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
 │   │   ├── activities.test.ts
@@ -175,9 +179,11 @@ mukoko-weather/
 │   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils
 │   │   ├── weather.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
-│   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations)
+│   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations, rate_limits)
+│   │   ├── geocoding.ts           # Nominatim reverse geocoding, Open-Meteo forward geocoding, slug generation
+│   │   ├── rate-limit.ts          # MongoDB-backed IP rate limiter (atomic findOneAndUpdate)
 │   │   ├── observability.ts       # Structured error logging + GA4 error reporting
-│   │   ├── geolocation.ts         # Browser Geolocation API wrapper
+│   │   ├── geolocation.ts         # Browser Geolocation API wrapper (supports auto-creation)
 │   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
 │   │   ├── circuit-breaker.ts      # Netflix Hystrix-inspired circuit breaker (per-provider resilience)
@@ -301,9 +307,10 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
 - `/` redirects to `/harare`
-- `/[location]` — dynamic weather pages (90+ locations) — overview: current conditions, AI summary, activity insights, atmospheric metric cards
+- `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
+- `/[location]/map` — full-viewport interactive weather map with layer switcher (precipitation, cloud, temperature, wind)
 - `/about` — about page (company info, contact details)
 - `/privacy` — privacy policy
 - `/terms` — terms of service
@@ -311,7 +318,8 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/history` — historical weather data dashboard (search, multi-day charts, data table)
 - `/embed` — widget embedding docs
 - `/api/weather` — GET, proxies Tomorrow.io/Open-Meteo (MongoDB cached 15-min TTL + historical recording)
-- `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`)
+- `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`, optional `autoCreate=true` for auto-creating community locations)
+- `/api/locations/add` — POST, add locations via search (`{ query }`) or coordinates (`{ lat, lon }`). Rate-limited to 5 creations/hour/IP
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
@@ -360,9 +368,21 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 
 ### Location Data
 
-All locations are defined in `src/lib/locations.ts` as a flat array. Each has: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
+**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
 
-Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`.
+**Seed locations:** 90+ Zimbabwe locations defined as a flat array in `src/lib/locations.ts`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
+
+**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
+
+**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for Zimbabwe, ASEAN, and developing Africa. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
+
+**Geocoding:** `src/lib/geocoding.ts` — Nominatim for reverse geocoding (coords → name), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. `generateSlug(name, country)` creates URL-safe slugs (appends country code for non-ZW locations).
+
+**Rate limiting:** `src/lib/rate-limit.ts` — MongoDB-backed IP rate limiter (5 location creations/hour/IP). Uses atomic `findOneAndUpdate` with TTL index.
+
+**Deduplication:** New locations within 5km of an existing location are rejected via `findDuplicateLocation()` in `src/lib/db.ts`.
+
+Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`.
 
 ### Activities
 
@@ -469,8 +489,8 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 ### AI Summaries
 
-- Generated by Claude via `POST /api/ai`, rendered in `src/components/weather/AISummary.tsx`
-- AI persona: "Shamwari Weather" (Ubuntu philosophy, Zimbabwe context)
+- Generated by Claude Haiku 3.5 (`claude-haiku-4-5-20251001`) via `POST /api/ai`, rendered in `src/components/weather/AISummary.tsx`
+- AI persona: "Shamwari Weather" (Ubuntu philosophy, region-aware context)
 - Summaries are **markdown-formatted** — the system prompt requests bold, bullet points, and no headings
 - Rendered with `react-markdown` inside Tailwind `prose` classes
 - Cached in MongoDB with tiered TTL (30/60/120 min by location tier)
@@ -629,14 +649,17 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys)
-- `src/lib/geolocation.test.ts` — browser geolocation API wrapper
+- `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
+- `src/lib/geocoding.test.ts` — geocoding module structure, slug generation (diacritics, country codes)
+- `src/lib/rate-limit.test.ts` — rate limit module structure, atomic operations
 - `src/lib/observability.test.ts` — structured logging, error reporting
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/api/ai/ai-route.test.ts` — AI API route handling
 - `src/app/api/weather/weather-route.test.ts` — weather API route, provider fallback
-- `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location
+- `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location, auto-creation
+- `src/app/api/locations/add/locations-add-route.test.ts` — location add route, search/coordinate modes, rate limiting
 - `src/app/api/history/history-route.test.ts` — history API route
 - `src/app/api/map-tiles/map-tiles-route.test.ts` — map tile proxy route, layer validation, zoom clamping
 - `src/app/api/db-init/db-init-route.test.ts` — DB init route
@@ -739,13 +762,22 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 ## Common Patterns
 
 ### Adding a location
-Add to the `LOCATIONS` array in `src/lib/locations.ts`. Include accurate GPS coordinates, elevation, province, and relevant tags. Then run `POST /api/db-init` to sync locations to MongoDB.
+
+**Seed locations (code):** Add to the `LOCATIONS` array in `src/lib/locations.ts`. Include accurate GPS coordinates, elevation, province, and relevant tags. Then run `POST /api/db-init` to sync locations to MongoDB.
+
+**Community locations (dynamic):** Users can add locations at runtime via:
+1. **Geolocation auto-create** — browser GPS → `/api/geo?autoCreate=true` → reverse geocode → create
+2. **Search** — `POST /api/locations/add` with `{ query }` → forward geocode → pick candidate → create
+3. **Coordinates** — `POST /api/locations/add` with `{ lat, lon }` → reverse geocode → create
+
+Community locations are stored in the same MongoDB `locations` collection as seed data and are immediately available at `/{slug}`.
 
 ### Database (MongoDB Atlas)
 - Client: `src/lib/mongo.ts` (module-scoped, connection-pooled via `@vercel/functions`)
-- Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations)
+- Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations, rate_limits)
 - Collections use TTL indexes for automatic cache expiration
 - Historical weather data is recorded automatically on every fresh API fetch
+- Rate limits collection has TTL index on `expiresAt` for automatic cleanup
 
 ### Modifying SEO
 - Root metadata: `src/app/layout.tsx`
