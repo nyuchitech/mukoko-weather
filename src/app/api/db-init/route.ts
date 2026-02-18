@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { ensureIndexes, syncLocations, syncActivities, setApiKey } from "@/lib/db";
+import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, setApiKey } from "@/lib/db";
 import { LOCATIONS } from "@/lib/locations";
 import { ACTIVITIES } from "@/lib/activities";
+import { COUNTRIES, PROVINCES } from "@/lib/countries";
 
 /**
  * POST /api/db-init
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
     }
 
     await ensureIndexes();
+    await syncCountries(COUNTRIES);
+    await syncProvinces(PROVINCES);
     await syncLocations(LOCATIONS);
     await syncActivities(ACTIVITIES);
 
@@ -52,6 +55,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       indexes: "created",
+      countries: COUNTRIES.length,
+      provinces: PROVINCES.length,
       locations: LOCATIONS.length,
       activities: ACTIVITIES.length,
       apiKeys: storedKeys.length > 0 ? storedKeys : "none provided",

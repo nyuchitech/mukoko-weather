@@ -5,7 +5,9 @@
  *   - weather_cache   : Short-lived weather API response cache (replaces KV WEATHER_CACHE)
  *   - ai_summaries    : Tiered-TTL AI summary cache (replaces KV AI_SUMMARIES)
  *   - weather_history : Historical weather recordings for analytics
- *   - locations       : Zimbabwe locations (single source of truth)
+ *   - locations       : Locations (single source of truth — Zimbabwe + Africa + ASEAN)
+ *   - countries       : Country metadata (auto-grown as locations are added)
+ *   - provinces       : Province/state metadata (auto-grown as locations are added)
  *   - activities      : User activities for personalized weather insights
  */
 
@@ -15,6 +17,7 @@ import { fetchWeatherFromTomorrow, TomorrowRateLimitError } from "./tomorrow";
 import { logWarn, logError } from "./observability";
 import type { ZimbabweLocation } from "./locations";
 import type { Activity, ActivityCategory } from "./activities";
+import { generateProvinceSlug, type Country, type Province } from "./countries";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,6 +63,14 @@ export interface ActivityDoc extends Activity {
   updatedAt: Date;
 }
 
+export interface CountryDoc extends Country {
+  updatedAt: Date;
+}
+
+export interface ProvinceDoc extends Province {
+  updatedAt: Date;
+}
+
 // ---------------------------------------------------------------------------
 // Collection accessors
 // ---------------------------------------------------------------------------
@@ -86,6 +97,14 @@ function activitiesCollection() {
 
 export function rateLimitsCollection() {
   return getDb().collection<{ key: string; count: number; expiresAt: Date }>("rate_limits");
+}
+
+function countriesCollection() {
+  return getDb().collection<CountryDoc>("countries");
+}
+
+function provincesCollection() {
+  return getDb().collection<ProvinceDoc>("provinces");
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +148,18 @@ export async function ensureIndexes(): Promise<void> {
     // Rate limits: auto-expire counters for abuse prevention
     rateLimitsCollection().createIndex({ key: 1 }, { unique: true }),
     rateLimitsCollection().createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+
+    // Countries: by code (unique), by region
+    countriesCollection().createIndex({ code: 1 }, { unique: true }),
+    countriesCollection().createIndex({ region: 1 }),
+
+    // Provinces: by slug (unique), by countryCode
+    provincesCollection().createIndex({ slug: 1 }, { unique: true }),
+    provincesCollection().createIndex({ countryCode: 1 }),
+
+    // Locations: by provinceSlug + country for hierarchy queries
+    locationsCollection().createIndex({ provinceSlug: 1 }),
+    locationsCollection().createIndex({ country: 1 }),
   ]);
 }
 
@@ -423,20 +454,26 @@ export async function syncLocations(
   locations: ZimbabweLocation[],
 ): Promise<void> {
   const now = new Date();
-  const bulkOps = locations.map((loc) => ({
-    updateOne: {
-      filter: { slug: loc.slug },
-      update: {
-        $set: {
-          ...loc,
-          // GeoJSON Point for 2dsphere queries (note: GeoJSON uses [lon, lat] order)
-          location: { type: "Point", coordinates: [loc.lon, loc.lat] },
-          updatedAt: now,
+  const bulkOps = locations.map((loc) => {
+    // Compute provinceSlug if not provided
+    const provinceSlug = loc.provinceSlug ??
+      generateProvinceSlug(loc.province, loc.country ?? "ZW");
+    return {
+      updateOne: {
+        filter: { slug: loc.slug },
+        update: {
+          $set: {
+            ...loc,
+            provinceSlug,
+            // GeoJSON Point for 2dsphere queries (note: GeoJSON uses [lon, lat] order)
+            location: { type: "Point", coordinates: [loc.lon, loc.lat] },
+            updatedAt: now,
+          },
         },
+        upsert: true,
       },
-      upsert: true,
-    },
-  }));
+    };
+  });
   if (bulkOps.length > 0) {
     await locationsCollection().bulkWrite(bulkOps);
   }
@@ -644,4 +681,97 @@ export async function searchActivitiesFromDb(
 
 export async function getActivityCategoriesFromDb(): Promise<ActivityCategory[]> {
   return activitiesCollection().distinct("category") as Promise<ActivityCategory[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Country operations
+// ---------------------------------------------------------------------------
+
+export async function syncCountries(countries: Country[]): Promise<void> {
+  const now = new Date();
+  const bulkOps = countries.map((c) => ({
+    updateOne: {
+      filter: { code: c.code },
+      update: { $set: { ...c, updatedAt: now } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await countriesCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function upsertCountry(country: Country): Promise<void> {
+  await countriesCollection().updateOne(
+    { code: country.code },
+    { $set: { ...country, updatedAt: new Date() } },
+    { upsert: true },
+  );
+}
+
+export async function getAllCountries(): Promise<CountryDoc[]> {
+  return countriesCollection().find({}).sort({ region: 1, name: 1 }).toArray();
+}
+
+export async function getCountryByCode(code: string): Promise<CountryDoc | null> {
+  return countriesCollection().findOne({ code: code.toUpperCase() });
+}
+
+/** Get a country with the count of its locations */
+export async function getCountryWithStats(
+  code: string,
+): Promise<(CountryDoc & { locationCount: number }) | null> {
+  const [country, locationCount] = await Promise.all([
+    getCountryByCode(code),
+    locationsCollection().countDocuments({ country: code.toUpperCase() }),
+  ]);
+  if (!country) return null;
+  return { ...country, locationCount };
+}
+
+// ---------------------------------------------------------------------------
+// Province operations
+// ---------------------------------------------------------------------------
+
+export async function syncProvinces(provinces: Province[]): Promise<void> {
+  const now = new Date();
+  const bulkOps = provinces.map((p) => ({
+    updateOne: {
+      filter: { slug: p.slug },
+      update: { $set: { ...p, updatedAt: now } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await provincesCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function upsertProvince(province: Province): Promise<void> {
+  await provincesCollection().updateOne(
+    { slug: province.slug },
+    { $set: { ...province, updatedAt: new Date() } },
+    { upsert: true },
+  );
+}
+
+export async function getProvincesByCountry(countryCode: string): Promise<ProvinceDoc[]> {
+  return provincesCollection()
+    .find({ countryCode: countryCode.toUpperCase() })
+    .sort({ name: 1 })
+    .toArray();
+}
+
+export async function getLocationsByCountry(countryCode: string): Promise<LocationDoc[]> {
+  return locationsCollection()
+    .find({ country: countryCode.toUpperCase() })
+    .sort({ name: 1 })
+    .toArray();
+}
+
+export async function getLocationsByProvince(provinceSlug: string): Promise<LocationDoc[]> {
+  return locationsCollection()
+    .find({ provinceSlug })
+    .sort({ name: 1 })
+    .toArray();
 }

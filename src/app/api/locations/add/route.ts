@@ -13,9 +13,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { reverseGeocode, forwardGeocode, getElevation, generateSlug, inferTags } from "@/lib/geocoding";
 import { isInSupportedRegion } from "@/lib/locations";
-import { createLocation, findDuplicateLocation, getLocationFromDb } from "@/lib/db";
+import { createLocation, findDuplicateLocation, getLocationFromDb, upsertCountry, upsertProvince } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/observability";
+import { generateProvinceSlug } from "@/lib/countries";
 
 export async function POST(request: NextRequest) {
   try {
@@ -115,17 +116,26 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${suffix}`;
     }
 
+    // Upsert country and province so hierarchy pages show new locations immediately
+    const province = geocoded.admin1 || geocoded.countryName;
+    const provinceSlug = generateProvinceSlug(province, geocoded.country);
+    await Promise.all([
+      upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: "Unknown", supported: true }),
+      upsertProvince({ slug: provinceSlug, name: province, countryCode: geocoded.country }),
+    ]);
+
     // Create location
     const newLocation = await createLocation({
       slug,
       name: geocoded.name,
-      province: geocoded.admin1 || geocoded.countryName,
+      province,
       lat: geocoded.lat,
       lon: geocoded.lon,
       elevation: Math.round(elevation),
       tags: await inferTags(geocoded),
       country: geocoded.country,
       source: "community",
+      provinceSlug,
     });
 
     return NextResponse.json({

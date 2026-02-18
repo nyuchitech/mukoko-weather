@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getAllLocationsFromDb } from "@/lib/db";
+import { getAllLocationsFromDb, getAllCountries } from "@/lib/db";
 import { logError } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
@@ -91,25 +91,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Explore tag pages
   const exploreTags = ["city", "farming", "mining", "tourism", "national-park", "education", "border", "travel"];
-  const explorePages: MetadataRoute.Sitemap = exploreTags.map((tag) => ({
-    url: `${baseUrl}/explore/${tag}`,
-    lastModified: now,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
+  const explorePages: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/explore/country`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    },
+    ...exploreTags.map((tag) => ({
+      url: `${baseUrl}/explore/${tag}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+  ];
 
-  // Fetch all locations from MongoDB
-  let locations: { slug: string; tags: string[] }[] = [];
+  // Fetch all locations + countries from MongoDB
+  let locations: { slug: string; tags: string[]; country?: string }[] = [];
+  let countries: { code: string }[] = [];
   try {
-    locations = await getAllLocationsFromDb();
+    [locations, countries] = await Promise.all([
+      getAllLocationsFromDb(),
+      getAllCountries(),
+    ]);
   } catch (err) {
     logError({
       source: "mongodb",
       severity: "medium",
-      message: "Failed to load locations for sitemap",
+      message: "Failed to load locations/countries for sitemap",
       error: err,
     });
   }
+
+  // Country pages
+  const countryPages: MetadataRoute.Sitemap = countries.map((c) => ({
+    url: `${baseUrl}/explore/country/${c.code.toLowerCase()}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
 
   // Harare, Bulawayo, and Victoria Falls are already in staticPages with boosted priority
   const boostedSlugs = new Set(["harare", "bulawayo", "victoria-falls"]);
@@ -144,5 +164,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]);
 
-  return [...staticPages, ...explorePages, ...locationPages, ...subRoutePages];
+  return [...staticPages, ...explorePages, ...countryPages, ...locationPages, ...subRoutePages];
 }

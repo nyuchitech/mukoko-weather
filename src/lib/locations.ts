@@ -1,3 +1,5 @@
+import { AFRICA_LOCATIONS } from "./locations-africa";
+
 export interface WeatherLocation {
   slug: string;
   name: string;
@@ -11,6 +13,8 @@ export interface WeatherLocation {
   country?: string;
   /** How this location was added */
   source?: "seed" | "community" | "geolocation";
+  /** Links location to the provinces collection — auto-computed if absent */
+  provinceSlug?: string;
 }
 
 /** @deprecated Use WeatherLocation instead */
@@ -94,7 +98,7 @@ export const TAG_LABELS: Record<LocationTag, string> = {
   "national-park": "National Parks",
 };
 
-export const LOCATIONS: ZimbabweLocation[] = [
+export const ZW_LOCATIONS: ZimbabweLocation[] = [
   // ===== CITIES & TOWNS =====
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },
   { slug: "bulawayo", name: "Bulawayo", province: "Bulawayo", lat: -20.15, lon: 28.58, elevation: 1348, tags: ["city", "education"] },
@@ -206,6 +210,99 @@ export const LOCATIONS: ZimbabweLocation[] = [
   { slug: "makuti", name: "Makuti", province: "Mashonaland West", lat: -16.30, lon: 29.22, elevation: 600, tags: ["travel"] },
   { slug: "lion-den", name: "Lion's Den", province: "Mashonaland West", lat: -16.93, lon: 29.65, elevation: 1100, tags: ["travel"] },
 ];
+
+/** Combined location array: Zimbabwe seed locations + African/ASEAN locations */
+export const LOCATIONS: ZimbabweLocation[] = [...ZW_LOCATIONS, ...AFRICA_LOCATIONS];
+
+/** Map ISO 3166-1 alpha-2 country codes to English country names for SEO text */
+export function getCountryName(code: string): string {
+  const names: Record<string, string> = {
+    // ── Southern Africa ───────────────────────────────────────────────────
+    ZW: "Zimbabwe",
+    ZA: "South Africa",
+    ZM: "Zambia",
+    MZ: "Mozambique",
+    BW: "Botswana",
+    NA: "Namibia",
+    AO: "Angola",
+    LS: "Lesotho",
+    SZ: "Eswatini",
+    // ── East Africa ───────────────────────────────────────────────────────
+    MW: "Malawi",
+    TZ: "Tanzania",
+    KE: "Kenya",
+    UG: "Uganda",
+    ET: "Ethiopia",
+    RW: "Rwanda",
+    BI: "Burundi",
+    DJ: "Djibouti",
+    ER: "Eritrea",
+    SS: "South Sudan",
+    SO: "Somalia",
+    KM: "Comoros",
+    MG: "Madagascar",
+    MU: "Mauritius",
+    SC: "Seychelles",
+    RE: "Reunion",
+    YT: "Mayotte",
+    // ── West Africa ───────────────────────────────────────────────────────
+    GH: "Ghana",
+    NG: "Nigeria",
+    SN: "Senegal",
+    CI: "Cote d'Ivoire",
+    CM: "Cameroon",
+    BF: "Burkina Faso",
+    ML: "Mali",
+    NE: "Niger",
+    BJ: "Benin",
+    TG: "Togo",
+    LR: "Liberia",
+    SL: "Sierra Leone",
+    GN: "Guinea",
+    GW: "Guinea-Bissau",
+    GM: "Gambia",
+    MR: "Mauritania",
+    CV: "Cabo Verde",
+    // ── Central Africa ────────────────────────────────────────────────────
+    CD: "DR Congo",
+    CF: "Central African Republic",
+    CG: "Republic of Congo",
+    GA: "Gabon",
+    GQ: "Equatorial Guinea",
+    ST: "Sao Tome and Principe",
+    TD: "Chad",
+    // ── North Africa ──────────────────────────────────────────────────────
+    EG: "Egypt",
+    MA: "Morocco",
+    TN: "Tunisia",
+    DZ: "Algeria",
+    LY: "Libya",
+    SD: "Sudan",
+    // ── ASEAN ─────────────────────────────────────────────────────────────
+    TH: "Thailand",
+    MY: "Malaysia",
+    ID: "Indonesia",
+    PH: "Philippines",
+    VN: "Vietnam",
+    SG: "Singapore",
+    MM: "Myanmar",
+    KH: "Cambodia",
+    LA: "Laos",
+    BN: "Brunei",
+    TL: "Timor-Leste",
+    // ── Other ─────────────────────────────────────────────────────────────
+    US: "United States",
+    GB: "United Kingdom",
+    AU: "Australia",
+    IN: "India",
+    CN: "China",
+    JP: "Japan",
+    FR: "France",
+    DE: "Germany",
+    BR: "Brazil",
+  };
+  return names[code.toUpperCase()] ?? code;
+}
 
 export function getLocationBySlug(slug: string): ZimbabweLocation | undefined {
   return LOCATIONS.find((l) => l.slug === slug);

@@ -5,6 +5,10 @@ import { Footer } from "@/components/layout/Footer";
 import { getTagCounts, getAllLocationsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
 
+// Cache for 1 hour; regenerates in the background after expiry (ISR).
+// Location data changes rarely — this eliminates cold-start DB latency for visitors.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: "Explore Zimbabwe Weather | mukoko weather",
   description:
@@ -83,7 +87,7 @@ export default async function ExplorePage() {
     <>
       <Header />
 
-      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:pl-6 md:pl-8">
+      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 md:px-8">
         <ol className="flex items-center gap-1 text-xs text-text-tertiary">
           <li>
             <Link href="/" className="hover:text-text-secondary transition-colors">
@@ -97,7 +101,7 @@ export default async function ExplorePage() {
         </ol>
       </nav>
 
-      <main id="main-content" className="mx-auto max-w-5xl px-4 py-6 sm:pl-6 md:pl-8">
+      <main id="main-content" className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8">
         <h1 className="text-2xl font-bold text-text-primary font-heading sm:text-3xl">
           Explore Zimbabwe Weather
         </h1>
@@ -138,8 +142,26 @@ export default async function ExplorePage() {
           })}
         </div>
 
+        {/* Country browse card */}
+        <div className="mt-8 rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary font-heading">Browse by Country</h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                Explore weather across Africa and ASEAN — grouped by country and province
+              </p>
+            </div>
+            <Link
+              href="/explore/country"
+              className="shrink-0 ml-4 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              Browse countries
+            </Link>
+          </div>
+        </div>
+
         {/* All locations link */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 text-center">
           <Link
             href="/explore/city"
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   LOCATIONS,
+  ZW_LOCATIONS,
   ZIMBABWE_BOUNDS,
   SUPPORTED_REGIONS,
   isInSupportedRegion,
@@ -8,12 +9,20 @@ import {
   getLocationsByTag,
   searchLocations,
   findNearestLocation,
+  getCountryName,
 } from "./locations";
 import type { WeatherLocation, ZimbabweLocation } from "./locations";
 
 describe("LOCATIONS database", () => {
   it("contains at least 90 locations", () => {
     expect(LOCATIONS.length).toBeGreaterThanOrEqual(90);
+  });
+
+  it("contains both Zimbabwe and non-Zimbabwe locations", () => {
+    const zwCount = LOCATIONS.filter((l) => !l.country || l.country === "ZW").length;
+    const nonZwCount = LOCATIONS.filter((l) => l.country && l.country !== "ZW").length;
+    expect(zwCount).toBeGreaterThanOrEqual(90);
+    expect(nonZwCount).toBeGreaterThan(0);
   });
 
   it("every location has required fields", () => {
@@ -41,8 +50,8 @@ describe("LOCATIONS database", () => {
     }
   });
 
-  it("all coordinates are within Zimbabwe bounds (with padding)", () => {
-    for (const loc of LOCATIONS) {
+  it("all Zimbabwe coordinates are within Zimbabwe bounds (with padding)", () => {
+    for (const loc of ZW_LOCATIONS) {
       expect(loc.lat).toBeGreaterThanOrEqual(ZIMBABWE_BOUNDS.south - 1);
       expect(loc.lat).toBeLessThanOrEqual(ZIMBABWE_BOUNDS.north + 1);
       expect(loc.lon).toBeGreaterThanOrEqual(ZIMBABWE_BOUNDS.west - 1);
@@ -50,9 +59,9 @@ describe("LOCATIONS database", () => {
     }
   });
 
-  it("all elevations are positive", () => {
+  it("all elevations are non-negative", () => {
     for (const loc of LOCATIONS) {
-      expect(loc.elevation).toBeGreaterThan(0);
+      expect(loc.elevation).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -296,5 +305,67 @@ describe("WeatherLocation type compatibility", () => {
     };
     expect(loc.country).toBe("PH");
     expect(loc.source).toBe("community");
+  });
+});
+
+describe("getCountryName", () => {
+  it("returns Zimbabwe for ZW", () => {
+    expect(getCountryName("ZW")).toBe("Zimbabwe");
+  });
+
+  it("returns South Africa for ZA", () => {
+    expect(getCountryName("ZA")).toBe("South Africa");
+  });
+
+  it("returns African neighbouring countries correctly", () => {
+    expect(getCountryName("ZM")).toBe("Zambia");
+    expect(getCountryName("MZ")).toBe("Mozambique");
+    expect(getCountryName("BW")).toBe("Botswana");
+    expect(getCountryName("MW")).toBe("Malawi");
+    expect(getCountryName("TZ")).toBe("Tanzania");
+    expect(getCountryName("KE")).toBe("Kenya");
+    expect(getCountryName("GH")).toBe("Ghana");
+    expect(getCountryName("NG")).toBe("Nigeria");
+  });
+
+  it("returns ASEAN countries correctly", () => {
+    expect(getCountryName("TH")).toBe("Thailand");
+    expect(getCountryName("MY")).toBe("Malaysia");
+    expect(getCountryName("ID")).toBe("Indonesia");
+    expect(getCountryName("PH")).toBe("Philippines");
+    expect(getCountryName("SG")).toBe("Singapore");
+    expect(getCountryName("VN")).toBe("Vietnam");
+    expect(getCountryName("MM")).toBe("Myanmar");
+    expect(getCountryName("KH")).toBe("Cambodia");
+  });
+
+  it("returns major global countries correctly", () => {
+    expect(getCountryName("US")).toBe("United States");
+    expect(getCountryName("GB")).toBe("United Kingdom");
+    expect(getCountryName("AU")).toBe("Australia");
+    expect(getCountryName("IN")).toBe("India");
+  });
+
+  it("falls back to the code itself for unknown countries", () => {
+    expect(getCountryName("XX")).toBe("XX");
+    expect(getCountryName("QQ")).toBe("QQ");
+    expect(getCountryName("ZZ")).toBe("ZZ");
+  });
+
+  it("is case-insensitive", () => {
+    expect(getCountryName("zw")).toBe("Zimbabwe");
+    expect(getCountryName("za")).toBe("South Africa");
+    expect(getCountryName("th")).toBe("Thailand");
+    expect(getCountryName("Sg")).toBe("Singapore");
+  });
+
+  it("covers all regions used in the platform (Zimbabwe, Africa, ASEAN)", () => {
+    const platformCodes = ["ZW", "ZA", "ZM", "MZ", "BW", "MW", "TZ", "KE", "UG", "ET", "GH", "NG", "EG", "MA", "TH", "MY", "ID", "PH", "VN", "SG", "MM", "KH", "LA", "BN"];
+    for (const code of platformCodes) {
+      const name = getCountryName(code);
+      // Should return a proper name, not fall back to the code
+      expect(name).not.toBe(code);
+      expect(name.length).toBeGreaterThan(2);
+    }
   });
 });
