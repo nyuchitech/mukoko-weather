@@ -1,3 +1,8 @@
+/**
+ * Structural compliance tests for /api/locations/add — inspects source code
+ * patterns using readFileSync because Next.js API routes cannot be imported
+ * directly in Vitest's Node environment.
+ */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";

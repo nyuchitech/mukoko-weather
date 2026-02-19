@@ -57,8 +57,12 @@ export async function POST(request: Request) {
       });
     }
     // Cache miss or stale — generate fresh AI summary
-    const locationCountry = typeof location === "object" && location !== null
-      ? String((location as Record<string, unknown>).country ?? "ZW")
+    // Validate the country field is a well-formed ISO alpha-2 code before use
+    const rawCountry = typeof location === "object" && location !== null
+      ? (location as Record<string, unknown>).country
+      : undefined;
+    const locationCountry = typeof rawCountry === "string" && /^[A-Za-z]{2}$/.test(rawCountry)
+      ? rawCountry.toUpperCase()
       : "ZW";
     const season = await getSeasonForDate(new Date(), locationCountry);
     const apiKey = process.env.ANTHROPIC_API_KEY;

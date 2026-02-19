@@ -754,17 +754,24 @@ export async function upsertCountry(country: Country): Promise<void> {
 /**
  * Returns countries that have at least one location. This prevents seeded
  * countries with no locations (e.g. Djibouti) from appearing in explore pages.
+ * Uses a single aggregation pipeline with $lookup to avoid two sequential round-trips.
  */
 export async function getAllCountries(): Promise<CountryDoc[]> {
-  const codesWithLocations = await locationsCollection().distinct("country");
-  const validCodes = codesWithLocations
-    .filter((c): c is string => !!c)
-    .map((c) => c.toUpperCase());
-  if (validCodes.length === 0) return [];
-  return countriesCollection()
-    .find({ code: { $in: validCodes } })
-    .sort({ region: 1, name: 1 })
-    .toArray();
+  return countriesCollection().aggregate<CountryDoc>([
+    {
+      $lookup: {
+        from: "locations",
+        localField: "code",
+        foreignField: "country",
+        // Check existence only — limit to 1 to avoid loading full location docs
+        pipeline: [{ $limit: 1 }, { $project: { _id: 1 } }],
+        as: "_locs",
+      },
+    },
+    { $match: { _locs: { $ne: [] } } },
+    { $project: { _locs: 0 } },
+    { $sort: { region: 1, name: 1 } },
+  ]).toArray();
 }
 
 export async function getCountryByCode(code: string): Promise<CountryDoc | null> {
@@ -804,7 +811,12 @@ export async function syncProvinces(provinces: Province[]): Promise<void> {
 export async function upsertProvince(province: Province): Promise<void> {
   await provincesCollection().updateOne(
     { slug: province.slug },
-    { $set: { ...province, updatedAt: new Date() } },
+    {
+      // name uses $setOnInsert so geocoded data never overwrites curated seed names.
+      // syncProvinces() (db-init) always uses $set and will overwrite with seeded data.
+      $set: { countryCode: province.countryCode, updatedAt: new Date() },
+      $setOnInsert: { name: province.name },
+    },
     { upsert: true },
   );
 }
@@ -918,12 +930,25 @@ export async function getAllRegions(): Promise<RegionDoc[]> {
   return regionsCollection().find({}).toArray();
 }
 
+// Module-level cache for active regions. Regions are nearly static (only change
+// when a new region is added to MongoDB), so we load once per warm function
+// instance and skip repeated DB round-trips on subsequent requests.
+let _regionCache: RegionDoc[] | null = null;
+
 /**
  * Async region check — replaces the synchronous isInSupportedRegion() from locations.ts.
  * Falls back to rejecting all coordinates if the regions collection is empty.
  */
 export async function isInSupportedRegionFromDb(lat: number, lon: number): Promise<boolean> {
-  const regions = await getActiveRegions();
+  if (_regionCache === null) {
+    try {
+      _regionCache = await getActiveRegions();
+    } catch {
+      // DB unavailable — do not cache, reject to be safe
+      return false;
+    }
+  }
+  const regions = _regionCache;
   if (regions.length === 0) return false;
   return regions.some(
     (r) =>
@@ -932,6 +957,11 @@ export async function isInSupportedRegionFromDb(lat: number, lon: number): Promi
       lon >= r.west - r.padding &&
       lon <= r.east + r.padding,
   );
+}
+
+/** Clear the in-memory region cache (for testing). */
+export function _clearRegionCache(): void {
+  _regionCache = null;
 }
 
 // ---------------------------------------------------------------------------

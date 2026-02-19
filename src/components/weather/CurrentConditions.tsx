@@ -20,6 +20,7 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
   const todayHigh = daily ? Math.round(daily.temperature_2m_max[0]) : null;
   const todayLow = daily ? Math.round(daily.temperature_2m_min[0]) : null;
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   function handleShare() {
     const url = slug ? `${BASE_URL}/${slug}` : window.location.href;
@@ -34,7 +35,10 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      }).catch(() => undefined);
+      }).catch(() => {
+        setCopyFailed(true);
+        setTimeout(() => setCopyFailed(false), 2000);
+      });
     }
   }
 
@@ -77,7 +81,9 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
               className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-[var(--radius-input)] bg-surface-base px-3 text-sm text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary"
             >
               <ShareIcon size={16} aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">{copied ? "Copied!" : "Share"}</span>
+              <span className="sr-only sm:not-sr-only">
+                {copied ? "Copied!" : copyFailed ? "Copy failed" : "Share"}
+              </span>
             </button>
           </div>
         </div>

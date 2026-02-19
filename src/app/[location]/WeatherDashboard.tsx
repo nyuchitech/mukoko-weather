@@ -14,6 +14,7 @@ import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
 import type { Activity } from "@/lib/activities";
+import { ACTIVITIES } from "@/lib/activities";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
 // These use React.lazy() so their JS chunks (Chart.js, ReactMarkdown, etc.)
@@ -35,6 +36,8 @@ interface WeatherDashboardProps {
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
   season: ZimbabweSeason;
+  /** Resolved country name — shown in breadcrumbs for non-ZW locations */
+  countryName?: string;
 }
 
 export function WeatherDashboard({
@@ -43,12 +46,14 @@ export function WeatherDashboard({
   usingFallback,
   frostAlert,
   season,
+  countryName,
 }: WeatherDashboardProps) {
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
 
-  // Fetch activities from MongoDB on mount so the bundle doesn't include
-  // the static ACTIVITIES array. Shows nothing until data arrives.
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  // Seed with ACTIVITIES so ActivityInsights always renders even if the fetch
+  // fails. The fetch upgrades to MongoDB data (which includes community-added
+  // activities) once it resolves.
+  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
   useEffect(() => {
     fetch("/api/activities")
       .then((res) => (res.ok ? res.json() : null))
@@ -68,13 +73,22 @@ export function WeatherDashboard({
 
       {/* Breadcrumb navigation for SEO and accessibility */}
       <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 md:px-8">
-        <ol className="flex items-center gap-1 text-xs text-text-tertiary">
+        <ol className="flex flex-wrap items-center gap-1 text-xs text-text-tertiary">
           <li>
             <a href={BASE_URL} className="hover:text-text-secondary transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:rounded">
               Home
             </a>
           </li>
           <li aria-hidden="true">/</li>
+          {/* Show country for non-ZW locations so global users have context */}
+          {countryName && location.country && location.country !== "ZW" && (
+            <>
+              <li>
+                <span className="text-text-secondary">{countryName}</span>
+              </li>
+              <li aria-hidden="true">/</li>
+            </>
+          )}
           <li>
             <span className="text-text-secondary">{location.province}</span>
           </li>
@@ -85,6 +99,8 @@ export function WeatherDashboard({
         </ol>
       </nav>
 
+      {/* pb-24 reserves space on mobile for a future sticky bottom nav bar;
+          sm:pb-6 restores normal padding on larger screens where there is no nav bar. */}
       <main
         id="main-content"
         className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8"

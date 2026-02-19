@@ -1,8 +1,14 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { checkFrostRisk, createFallbackWeather, weatherCodeToInfo } from "@/lib/weather";
 import { getWeatherForLocation, getLocationFromDb, getCountryByCode, getSeasonForDate } from "@/lib/db";
 import { WeatherDashboard } from "./WeatherDashboard";
+
+// Deduplicate DB calls between generateMetadata and the page component.
+// Both are called for the same request; cache() ensures a single DB round-trip.
+const loadLocation = cache((slug: string) => getLocationFromDb(slug).catch(() => null));
+const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => null));
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +20,11 @@ export async function generateMetadata({
   params: Promise<{ location: string }>;
 }): Promise<Metadata> {
   const { location: slug } = await params;
-  const loc = await getLocationFromDb(slug);
+  const loc = await loadLocation(slug);
   if (!loc) return { title: "Location not found" };
 
   const countryCode = loc.country ?? "ZW";
-  const country = await getCountryByCode(countryCode).catch(() => null);
+  const country = await loadCountry(countryCode);
   const countryName = country?.name ?? countryCode;
 
   const title = `${loc.name} Weather Today — Forecast & Conditions`;
@@ -64,7 +70,7 @@ export default async function LocationPage({
   params: Promise<{ location: string }>;
 }) {
   const { location: slug } = await params;
-  const location = await getLocationFromDb(slug);
+  const location = await loadLocation(slug);
   if (!location) notFound();
 
   // Fetch weather — double-caught so the page shell ALWAYS renders.
@@ -92,7 +98,7 @@ export default async function LocationPage({
   const conditionInfo = weatherCodeToInfo(weather.current.weather_code);
   const countryCode = (location.country ?? "ZW").toUpperCase();
   const [countryDoc, season] = await Promise.all([
-    getCountryByCode(countryCode).catch(() => null),
+    loadCountry(countryCode),
     getSeasonForDate(new Date(), location.country ?? "ZW"),
   ]);
   const countryName = countryDoc?.name ?? countryCode;
@@ -215,6 +221,7 @@ export default async function LocationPage({
         usingFallback={usingFallback}
         frostAlert={frostAlert}
         season={season}
+        countryName={countryName}
       />
     </>
   );

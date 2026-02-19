@@ -13,7 +13,13 @@ export interface Country {
   code: string;       // ISO 3166-1 alpha-2 (e.g. "ZW")
   name: string;       // "Zimbabwe"
   region: string;     // "Southern Africa"
-  supported: boolean; // true once at least one location exists
+  /**
+   * Set to `true` in seed data to signal that this country is a valid target
+   * for community-submitted locations and will appear in explore pages once it
+   * has at least one location in MongoDB. `getAllCountries()` filters by actual
+   * location presence, so this flag is currently informational only.
+   */
+  supported: boolean;
 }
 
 export interface Province {
