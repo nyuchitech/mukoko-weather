@@ -715,8 +715,20 @@ export async function upsertCountry(country: Country): Promise<void> {
   );
 }
 
+/**
+ * Returns countries that have at least one location. This prevents seeded
+ * countries with no locations (e.g. Djibouti) from appearing in explore pages.
+ */
 export async function getAllCountries(): Promise<CountryDoc[]> {
-  return countriesCollection().find({}).sort({ region: 1, name: 1 }).toArray();
+  const codesWithLocations = await locationsCollection().distinct("country");
+  const validCodes = codesWithLocations
+    .filter((c): c is string => !!c)
+    .map((c) => c.toUpperCase());
+  if (validCodes.length === 0) return [];
+  return countriesCollection()
+    .find({ code: { $in: validCodes } })
+    .sort({ region: 1, name: 1 })
+    .toArray();
 }
 
 export async function getCountryByCode(code: string): Promise<CountryDoc | null> {
@@ -761,6 +773,13 @@ export async function upsertProvince(province: Province): Promise<void> {
   );
 }
 
+/**
+ * Get provinces for a country without location counts.
+ * Use `getProvincesWithLocationCounts` instead when rendering province cards
+ * that need to show how many locations each province has (avoids N+1 queries).
+ * This simpler version is useful when you only need the province list itself
+ * (e.g., admin tools, data migration scripts).
+ */
 export async function getProvincesByCountry(countryCode: string): Promise<ProvinceDoc[]> {
   return provincesCollection()
     .find({ countryCode: countryCode.toUpperCase() })
@@ -792,12 +811,16 @@ export async function getAllProvinces(): Promise<ProvinceDoc[]> {
   return provincesCollection().find({}).sort({ countryCode: 1, name: 1 }).toArray();
 }
 
-/** Get all country codes with minimal projection (for sitemap generation) */
+/**
+ * Get all country codes that have at least one location (for sitemap generation).
+ * Derives directly from the locations collection to stay consistent with
+ * getAllCountries() — only countries with real data are indexed.
+ */
 export async function getAllCountryCodes(): Promise<string[]> {
-  const docs = await countriesCollection()
-    .find({}, { projection: { code: 1, _id: 0 } })
-    .toArray();
-  return docs.map((d) => d.code);
+  const codes = await locationsCollection().distinct("country");
+  return codes
+    .filter((c): c is string => !!c)
+    .map((c) => c.toUpperCase());
 }
 
 /** Get all location slugs + tags with minimal projection (for sitemap generation) */

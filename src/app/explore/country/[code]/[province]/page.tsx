@@ -42,6 +42,8 @@ export default async function ProvinceDetailPage({ params }: Props) {
   const { code, province: provinceSlug } = await params;
   const upperCode = code.toUpperCase();
 
+  if (!/^[A-Z]{2}$/.test(upperCode)) notFound();
+
   let locations: Awaited<ReturnType<typeof getLocationsByProvince>> = [];
   let countryName = upperCode;
   let provinceName = provinceSlug;

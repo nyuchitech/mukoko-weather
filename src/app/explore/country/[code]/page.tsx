@@ -34,6 +34,9 @@ export default async function CountryDetailPage({ params }: Props) {
   const { code } = await params;
   const upperCode = code.toUpperCase();
 
+  // Reject obviously invalid codes early — valid ISO 3166-1 alpha-2 are exactly 2 letters
+  if (!/^[A-Z]{2}$/.test(upperCode)) notFound();
+
   let country: Awaited<ReturnType<typeof getCountryWithStats>> = null;
   let provinces: Awaited<ReturnType<typeof getProvincesWithLocationCounts>> = [];
 
