@@ -17,7 +17,7 @@ import { VisibilityChart } from "@/components/weather/charts/VisibilityChart";
 import { ThunderstormChart } from "@/components/weather/charts/ThunderstormChart";
 import { GDDChart } from "@/components/weather/charts/GDDChart";
 import { ChartSkeleton } from "@/components/ui/skeleton";
-import { LOCATIONS, type ZimbabweLocation } from "@/lib/locations";
+import { type ZimbabweLocation } from "@/lib/locations";
 import { useAppStore } from "@/lib/store";
 import { weatherCodeToInfo, windDirection, uvLevel } from "@/lib/weather";
 import type { WeatherInsights } from "@/lib/weather";
@@ -386,12 +386,10 @@ export function HistoryDashboard() {
   }, []);
 
   // Auto-select the global location (from My Weather / last visited location page)
-  // on first mount so the history experience continues seamlessly.
+  // once the locations list has loaded from MongoDB.
   useEffect(() => {
-    if (didAutoSelect.current || !globalSlug) return;
-    // Find the location object from the static seed data (available immediately,
-    // no need to wait for the API response).
-    const loc = LOCATIONS.find((l) => l.slug === globalSlug);
+    if (didAutoSelect.current || !globalSlug || allLocations.length === 0) return;
+    const loc = allLocations.find((l) => l.slug === globalSlug);
     if (loc) {
       didAutoSelect.current = true;
       setSelectedLocation(loc);
@@ -417,7 +415,7 @@ export function HistoryDashboard() {
         })
         .finally(() => setLoading(false));
     }
-  }, [globalSlug]);
+  }, [globalSlug, allLocations]);
 
   const results = useMemo(() => {
     if (query.length > 0) {

@@ -9,15 +9,21 @@
  *   - countries       : Country metadata (auto-grown as locations are added)
  *   - provinces       : Province/state metadata (auto-grown as locations are added)
  *   - activities      : User activities for personalized weather insights
+ *   - regions         : Supported geographic regions (replaces SUPPORTED_REGIONS array)
+ *   - tags            : Location tag metadata (replaces TAG_LABELS / TAG_META constants)
+ *   - seasons         : Country-specific season definitions (replaces getZimbabweSeason logic)
  */
 
 import { getDb } from "./mongo";
-import { fetchWeather, createFallbackWeather, type WeatherData } from "./weather";
+import { fetchWeather, createFallbackWeather, getZimbabweSeason, type WeatherData, type ZimbabweSeason } from "./weather";
 import { fetchWeatherFromTomorrow, TomorrowRateLimitError } from "./tomorrow";
 import { logWarn, logError } from "./observability";
 import type { ZimbabweLocation } from "./locations";
 import type { Activity, ActivityCategory } from "./activities";
 import { generateProvinceSlug, type Country, type Province } from "./countries";
+import type { RegionDoc } from "./seed-regions";
+import type { TagDoc } from "./seed-tags";
+import type { SeasonDoc } from "./seed-seasons";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +77,9 @@ export interface ProvinceDoc extends Province {
   updatedAt: Date;
 }
 
+// Re-export seed types so callers only need to import from db.ts
+export type { RegionDoc, TagDoc, SeasonDoc };
+
 // ---------------------------------------------------------------------------
 // Collection accessors
 // ---------------------------------------------------------------------------
@@ -105,6 +114,18 @@ function countriesCollection() {
 
 function provincesCollection() {
   return getDb().collection<ProvinceDoc>("provinces");
+}
+
+function regionsCollection() {
+  return getDb().collection<RegionDoc>("regions");
+}
+
+function tagsCollection() {
+  return getDb().collection<TagDoc>("tags");
+}
+
+function seasonsCollection() {
+  return getDb().collection<SeasonDoc>("seasons");
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +181,17 @@ export async function ensureIndexes(): Promise<void> {
     // Locations: by provinceSlug + country for hierarchy queries
     locationsCollection().createIndex({ provinceSlug: 1 }),
     locationsCollection().createIndex({ country: 1 }),
+
+    // Regions: by id (unique), by active flag
+    regionsCollection().createIndex({ id: 1 }, { unique: true }),
+    regionsCollection().createIndex({ active: 1 }),
+
+    // Tags: by slug (unique), by featured + order for explore page
+    tagsCollection().createIndex({ slug: 1 }, { unique: true }),
+    tagsCollection().createIndex({ featured: 1, order: 1 }),
+
+    // Seasons: by countryCode for date lookups
+    seasonsCollection().createIndex({ countryCode: 1 }),
   ]);
 }
 
@@ -859,4 +891,126 @@ export async function getProvincesWithLocationCounts(
   }
 
   return provinces.map((p) => ({ ...p, locationCount: countMap[p.slug] ?? 0 }));
+}
+
+// ---------------------------------------------------------------------------
+// Region operations (replaces SUPPORTED_REGIONS static array at runtime)
+// ---------------------------------------------------------------------------
+
+export async function syncRegions(regions: RegionDoc[]): Promise<void> {
+  const bulkOps = regions.map((r) => ({
+    updateOne: {
+      filter: { id: r.id },
+      update: { $set: { ...r } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await regionsCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function getActiveRegions(): Promise<RegionDoc[]> {
+  return regionsCollection().find({ active: true }).toArray();
+}
+
+export async function getAllRegions(): Promise<RegionDoc[]> {
+  return regionsCollection().find({}).toArray();
+}
+
+/**
+ * Async region check — replaces the synchronous isInSupportedRegion() from locations.ts.
+ * Falls back to rejecting all coordinates if the regions collection is empty.
+ */
+export async function isInSupportedRegionFromDb(lat: number, lon: number): Promise<boolean> {
+  const regions = await getActiveRegions();
+  if (regions.length === 0) return false;
+  return regions.some(
+    (r) =>
+      lat >= r.south - r.padding &&
+      lat <= r.north + r.padding &&
+      lon >= r.west - r.padding &&
+      lon <= r.east + r.padding,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tag operations (replaces TAG_LABELS / TAG_META static constants at runtime)
+// ---------------------------------------------------------------------------
+
+export async function syncTags(tags: TagDoc[]): Promise<void> {
+  const bulkOps = tags.map((t) => ({
+    updateOne: {
+      filter: { slug: t.slug },
+      update: { $set: { ...t } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await tagsCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function getAllTagsFromDb(): Promise<TagDoc[]> {
+  return tagsCollection().find({}).sort({ order: 1 }).toArray();
+}
+
+export async function getTagBySlug(slug: string): Promise<TagDoc | null> {
+  return tagsCollection().findOne({ slug });
+}
+
+export async function getFeaturedTagsFromDb(): Promise<TagDoc[]> {
+  return tagsCollection().find({ featured: true }).sort({ order: 1 }).toArray();
+}
+
+// ---------------------------------------------------------------------------
+// Season operations (replaces getZimbabweSeason() hardcoded logic at runtime)
+// ---------------------------------------------------------------------------
+
+export async function syncSeasons(seasons: SeasonDoc[]): Promise<void> {
+  const bulkOps = seasons.map((s) => ({
+    updateOne: {
+      filter: { countryCode: s.countryCode, name: s.name },
+      update: { $set: { ...s } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await seasonsCollection().bulkWrite(bulkOps);
+  }
+}
+
+/**
+ * Look up the current season for a given date and country.
+ * Returns null if no matching season is found (caller should fall back to sync logic).
+ */
+export async function getSeasonFromDb(
+  date: Date,
+  countryCode: string,
+): Promise<SeasonDoc | null> {
+  const month = date.getMonth() + 1; // 1-based
+  const seasons = await seasonsCollection()
+    .find({ countryCode: countryCode.toUpperCase() })
+    .toArray();
+  return seasons.find((s) => s.months.includes(month)) ?? null;
+}
+
+/**
+ * Get the current season for a given date and country code.
+ * Reads from the seasons collection; falls back to the sync ZW logic if DB is unavailable.
+ * Server-only — do not import in client components.
+ */
+export async function getSeasonForDate(
+  date: Date = new Date(),
+  countryCode: string = "ZW",
+): Promise<ZimbabweSeason> {
+  try {
+    const doc = await getSeasonFromDb(date, countryCode);
+    if (doc) {
+      return { name: doc.name, shona: doc.localName, description: doc.description };
+    }
+  } catch {
+    // DB unavailable — fall through to sync fallback
+  }
+  return getZimbabweSeason(date);
 }

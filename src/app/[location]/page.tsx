@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { checkFrostRisk, createFallbackWeather, weatherCodeToInfo } from "@/lib/weather";
-import { getWeatherForLocation, getLocationFromDb } from "@/lib/db";
-import { getCountryName } from "@/lib/locations";
+import { getWeatherForLocation, getLocationFromDb, getCountryByCode, getSeasonForDate } from "@/lib/db";
 import { WeatherDashboard } from "./WeatherDashboard";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +18,8 @@ export async function generateMetadata({
   if (!loc) return { title: "Location not found" };
 
   const countryCode = loc.country ?? "ZW";
-  const countryName = getCountryName(countryCode);
+  const country = await getCountryByCode(countryCode).catch(() => null);
+  const countryName = country?.name ?? countryCode;
 
   const title = `${loc.name} Weather Today — Forecast & Conditions`;
   const description = `Current weather conditions, 7-day forecast, and hourly predictions for ${loc.name}, ${loc.province}, ${countryName}. AI-powered weather intelligence with frost alerts, farming insights, and accurate temperature data from mukoko weather.`;
@@ -91,7 +91,11 @@ export default async function LocationPage({
   const frostAlert = usingFallback ? null : checkFrostRisk(weather.hourly);
   const conditionInfo = weatherCodeToInfo(weather.current.weather_code);
   const countryCode = (location.country ?? "ZW").toUpperCase();
-  const countryName = getCountryName(countryCode);
+  const [countryDoc, season] = await Promise.all([
+    getCountryByCode(countryCode).catch(() => null),
+    getSeasonForDate(new Date(), location.country ?? "ZW"),
+  ]);
+  const countryName = countryDoc?.name ?? countryCode;
   const now = new Date().toISOString();
 
   // ── Schema.org structured data (SEO — server only) ──────────────────────
@@ -210,6 +214,7 @@ export default async function LocationPage({
         location={location}
         usingFallback={usingFallback}
         frostAlert={frostAlert}
+        season={season}
       />
     </>
   );

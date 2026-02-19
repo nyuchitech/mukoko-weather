@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getZimbabweSeason } from "@/lib/weather";
+import { getSeasonForDate } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import {
   getCachedAISummary,
@@ -56,7 +57,10 @@ export async function POST(request: Request) {
       });
     }
     // Cache miss or stale — generate fresh AI summary
-    const season = getZimbabweSeason();
+    const locationCountry = typeof location === "object" && location !== null
+      ? String((location as Record<string, unknown>).country ?? "ZW")
+      : "ZW";
+    const season = await getSeasonForDate(new Date(), locationCountry);
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {

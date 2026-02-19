@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findNearestLocationsFromDb, createLocation, findDuplicateLocation, upsertCountry, upsertProvince } from "@/lib/db";
-import { isInSupportedRegion } from "@/lib/locations";
+import { findNearestLocationsFromDb, createLocation, findDuplicateLocation, upsertCountry, upsertProvince, isInSupportedRegionFromDb, getCountryByCode } from "@/lib/db";
 import { reverseGeocode, getElevation, generateSlug, inferTags } from "@/lib/geocoding";
 import { logError } from "@/lib/observability";
-import { generateProvinceSlug, COUNTRIES } from "@/lib/countries";
+import { generateProvinceSlug } from "@/lib/countries";
 
 /**
  * GET /api/geo?lat=-17.83&lon=31.05&autoCreate=true
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // No nearby location found — check if in a supported region
-    if (!isInSupportedRegion(lat, lon)) {
+    if (!(await isInSupportedRegionFromDb(lat, lon))) {
       return NextResponse.json(
         { error: "Location is outside supported regions", nearest: null },
         { status: 404 },
@@ -72,10 +71,10 @@ export async function GET(request: NextRequest) {
       const provinceSlug = generateProvinceSlug(province, geocoded.country);
 
       // Upsert country and province for hierarchy pages.
-      // Look up the region from the seed so $setOnInsert preserves curated data.
-      const seedCountry = COUNTRIES.find((c) => c.code === geocoded.country);
+      // Look up the region from MongoDB so $setOnInsert preserves curated data.
+      const dbCountry = await getCountryByCode(geocoded.country).catch(() => null);
       await Promise.all([
-        upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: seedCountry?.region ?? "Unknown", supported: true }),
+        upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: dbCountry?.region ?? "Unknown", supported: true }),
         upsertProvince({ slug: provinceSlug, name: province, countryCode: geocoded.country }),
       ]);
 

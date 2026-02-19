@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CurrentConditions } from "@/components/weather/CurrentConditions";
@@ -10,10 +10,10 @@ import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
 import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
-import { getZimbabweSeason } from "@/lib/weather";
 import { useAppStore } from "@/lib/store";
-import type { WeatherData, FrostAlert } from "@/lib/weather";
+import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
+import type { Activity } from "@/lib/activities";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
 // These use React.lazy() so their JS chunks (Chart.js, ReactMarkdown, etc.)
@@ -34,6 +34,7 @@ interface WeatherDashboardProps {
   location: ZimbabweLocation;
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
+  season: ZimbabweSeason;
 }
 
 export function WeatherDashboard({
@@ -41,9 +42,19 @@ export function WeatherDashboard({
   location,
   usingFallback,
   frostAlert,
+  season,
 }: WeatherDashboardProps) {
-  const season = getZimbabweSeason();
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
+
+  // Fetch activities from MongoDB on mount so the bundle doesn't include
+  // the static ACTIVITIES array. Shows nothing until data arrives.
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  useEffect(() => {
+    fetch("/api/activities")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.activities?.length) setAllActivities(data.activities); })
+      .catch(() => {});
+  }, []);
 
   // Sync the URL-driven location to the global store so other pages
   // (history, etc.) can use it as their default.
@@ -84,7 +95,7 @@ export function WeatherDashboard({
 
         {/* Season indicator */}
         <div className="mb-4">
-          <SeasonBadge />
+          <SeasonBadge season={season} />
         </div>
 
         {/* Weather unavailable banner — shown when all providers failed */}
@@ -122,7 +133,7 @@ export function WeatherDashboard({
             <LazySection label="activity-insights">
               <ChartErrorBoundary name="activity insights">
                 <Suspense fallback={<SectionSkeleton />}>
-                  <ActivityInsights insights={weather.insights} />
+                  <ActivityInsights insights={weather.insights} activities={allActivities} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>

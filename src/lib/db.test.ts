@@ -8,6 +8,16 @@ import {
   getAllProvinces,
   getProvinceBySlug,
   getProvincesWithLocationCounts,
+  syncRegions,
+  getActiveRegions,
+  getAllRegions,
+  isInSupportedRegionFromDb,
+  syncTags,
+  getAllTagsFromDb,
+  getTagBySlug,
+  getFeaturedTagsFromDb,
+  syncSeasons,
+  getSeasonFromDb,
 } from "./db";
 
 describe("getTtlForLocation", () => {
@@ -133,5 +143,47 @@ describe("new DB helper function exports", () => {
 
   it("getProvincesWithLocationCounts is a function", () => {
     expect(typeof getProvincesWithLocationCounts).toBe("function");
+  });
+});
+
+describe("regions/tags/seasons DB function exports", () => {
+  it("syncRegions is a function", () => {
+    expect(typeof syncRegions).toBe("function");
+  });
+
+  it("getActiveRegions is a function", () => {
+    expect(typeof getActiveRegions).toBe("function");
+  });
+
+  it("getAllRegions is a function", () => {
+    expect(typeof getAllRegions).toBe("function");
+  });
+
+  it("isInSupportedRegionFromDb is a function", () => {
+    expect(typeof isInSupportedRegionFromDb).toBe("function");
+  });
+
+  it("syncTags is a function", () => {
+    expect(typeof syncTags).toBe("function");
+  });
+
+  it("getAllTagsFromDb is a function", () => {
+    expect(typeof getAllTagsFromDb).toBe("function");
+  });
+
+  it("getTagBySlug is a function", () => {
+    expect(typeof getTagBySlug).toBe("function");
+  });
+
+  it("getFeaturedTagsFromDb is a function", () => {
+    expect(typeof getFeaturedTagsFromDb).toBe("function");
+  });
+
+  it("syncSeasons is a function", () => {
+    expect(typeof syncSeasons).toBe("function");
+  });
+
+  it("getSeasonFromDb is a function", () => {
+    expect(typeof getSeasonFromDb).toBe("function");
   });
 });

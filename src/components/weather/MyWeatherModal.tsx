@@ -7,15 +7,11 @@ import { useAppStore, type ThemePreference } from "@/lib/store";
 import { MapPinIcon, SearchIcon, SunIcon, MoonIcon } from "@/lib/weather-icons";
 import { ActivityIcon } from "@/lib/weather-icons";
 import {
-  LOCATIONS,
-  TAG_LABELS,
-  getCountryName,
   type LocationTag,
   type ZimbabweLocation,
 } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import {
-  ACTIVITIES,
   ACTIVITY_CATEGORIES,
   CATEGORY_STYLES,
   type Activity,
@@ -36,6 +32,18 @@ const POPULAR_SLUGS = [
 const TAG_ORDER: LocationTag[] = [
   "city", "farming", "mining", "tourism", "national-park", "education", "border", "travel",
 ];
+
+// UI display labels for location tags — compile-time constant (safe for Tailwind JIT)
+const TAG_LABELS: Record<LocationTag, string> = {
+  city: "Cities & Towns",
+  farming: "Farming Regions",
+  mining: "Mining Areas",
+  tourism: "Tourist Destinations",
+  education: "Education Centres",
+  border: "Border Posts",
+  travel: "Travel Corridors",
+  "national-park": "National Parks",
+};
 
 function MonitorIcon({ size = 20 }: { size?: number }) {
   return (
@@ -65,27 +73,29 @@ export function MyWeatherModal() {
   const [pendingSlug, setPendingSlug] = useState(currentSlug);
   const [activeTab, setActiveTab] = useState("location");
 
-  // Initialise with static seed data so the UI is never blank, then
-  // upgrade to the MongoDB data when the API responds.
-  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
-  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
+  // Start with empty state — data fetched from MongoDB on mount.
+  // ACTIVITY_CATEGORIES is kept as compile-time constant (Tailwind JIT safe).
+  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [activityCategories, setActivityCategories] = useState<ActivityCategoryInfo[]>(ACTIVITY_CATEGORIES);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch latest data from MongoDB — silently replace static seed data.
-    // If any fetch fails the static fallback is already rendered.
-    fetch("/api/locations")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data?.locations?.length) setAllLocations(data.locations); })
-      .catch(() => {});
-    fetch("/api/activities")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data?.activities?.length) setAllActivities(data.activities); })
-      .catch(() => {});
-    fetch("/api/activities?mode=categories")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
-      .catch(() => {});
+    // Fetch data from MongoDB — no static fallback; show skeletons while loading.
+    Promise.all([
+      fetch("/api/locations")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => { if (data?.locations?.length) setAllLocations(data.locations); })
+        .catch(() => {}),
+      fetch("/api/activities")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => { if (data?.activities?.length) setAllActivities(data.activities); })
+        .catch(() => {}),
+      fetch("/api/activities?mode=categories")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
+        .catch(() => {}),
+    ]).finally(() => setDataLoading(false));
   }, []);
 
   const handleDone = () => {
@@ -150,6 +160,7 @@ export function MyWeatherModal() {
               onSelectLocation={handleSelectLocation}
               onGeoLocationResolved={handleGeoLocationResolved}
               allLocations={allLocations}
+              loading={dataLoading}
             />
           </TabsContent>
 
@@ -176,11 +187,13 @@ function LocationTab({
   onSelectLocation,
   onGeoLocationResolved,
   allLocations,
+  loading,
 }: {
   pendingSlug: string;
   onSelectLocation: (slug: string) => void;
   onGeoLocationResolved: (slug: string) => void;
   allLocations: ZimbabweLocation[];
+  loading: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<LocationTag | null>(null);
@@ -301,9 +314,16 @@ function LocationTab({
 
       {/* Location list — no nested scroll, uses tab content scroll */}
       <ul role="listbox" aria-label="Available locations" className="px-2 pb-2">
-        {displayedLocations.length === 0 && (
+        {loading && allLocations.length === 0 && (
+          Array.from({ length: 5 }).map((_, i) => (
+            <li key={i} className="px-3 py-2" aria-hidden="true">
+              <div className="h-10 animate-pulse rounded-[var(--radius-input)] bg-surface-base" />
+            </li>
+          ))
+        )}
+        {!loading && displayedLocations.length === 0 && (
           <li className="px-3 py-4 text-center text-sm text-text-tertiary">
-            No locations found for &quot;{query}&quot;
+            {query ? `No locations found for "${query}"` : "No locations available"}
           </li>
         )}
         {displayedLocations.map((loc) => (
@@ -361,9 +381,9 @@ function LocationCountCard({ allLocations }: { allLocations: ZimbabweLocation[] 
     if (entries.length === 0) return `${allLocations.length} locations`;
     if (entries.length === 1) {
       const [code, count] = entries[0];
-      return `${count} locations in ${getCountryName(code)}`;
+      return `${count} locations in ${code}`;
     }
-    return entries.map(([code, count]) => `${getCountryName(code)} (${count})`).join(" · ");
+    return entries.map(([code, count]) => `${code} (${count})`).join(" · ");
   }, [countryGroups, allLocations.length]);
 
   return (

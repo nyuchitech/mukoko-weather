@@ -2,8 +2,9 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getTagCounts, getAllLocationsFromDb } from "@/lib/db";
+import { getTagCounts, getAllLocationsFromDb, getFeaturedTagsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
+import type { TagDoc } from "@/lib/db";
 
 // Cache for 1 hour; regenerates in the background after expiry (ISR).
 // Location data changes rarely — this eliminates cold-start DB latency for visitors.
@@ -20,60 +21,20 @@ export const metadata: Metadata = {
   },
 };
 
-const TAG_META: Record<string, { label: string; description: string; icon: string }> = {
-  city: {
-    label: "Cities & Towns",
-    description: "Major urban centres across Zimbabwe",
-    icon: "building",
-  },
-  farming: {
-    label: "Farming Regions",
-    description: "Agricultural areas — tobacco, sugar, cotton, citrus",
-    icon: "sprout",
-  },
-  mining: {
-    label: "Mining Areas",
-    description: "Gold, platinum, diamond, lithium, and coal operations",
-    icon: "pickaxe",
-  },
-  tourism: {
-    label: "Tourism & Heritage",
-    description: "National parks, UNESCO sites, natural wonders",
-    icon: "camera",
-  },
-  "national-park": {
-    label: "National Parks",
-    description: "Protected wildlife and wilderness areas",
-    icon: "trees",
-  },
-  education: {
-    label: "Education Centres",
-    description: "University towns and mission schools",
-    icon: "graduation-cap",
-  },
-  border: {
-    label: "Border Posts",
-    description: "International border crossings and ports of entry",
-    icon: "flag",
-  },
-  travel: {
-    label: "Travel Corridors",
-    description: "Key transit routes and stopover points",
-    icon: "route",
-  },
-};
-
 export default async function ExplorePage() {
   let tagCounts: { tag: string; count: number }[] = [];
   let totalLocations = 0;
+  let featuredTags: TagDoc[] = [];
 
   try {
-    const [tags, locations] = await Promise.all([
+    const [tags, locations, dbTags] = await Promise.all([
       getTagCounts(),
       getAllLocationsFromDb(),
+      getFeaturedTagsFromDb(),
     ]);
     tagCounts = tags;
     totalLocations = locations.length;
+    featuredTags = dbTags;
   } catch (err) {
     logError({
       source: "mongodb",
@@ -82,6 +43,9 @@ export default async function ExplorePage() {
       error: err,
     });
   }
+
+  // Build a lookup map from DB tags for O(1) access
+  const tagMeta = new Map(featuredTags.map((t) => [t.slug, t]));
 
   return (
     <>
@@ -117,7 +81,7 @@ export default async function ExplorePage() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tagCounts.map(({ tag, count }) => {
-            const meta = TAG_META[tag];
+            const meta = tagMeta.get(tag);
             if (!meta) return null;
 
             return (

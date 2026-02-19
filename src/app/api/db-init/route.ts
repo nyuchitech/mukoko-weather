@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, setApiKey } from "@/lib/db";
+import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, syncRegions, syncTags, syncSeasons, setApiKey } from "@/lib/db";
 import { LOCATIONS } from "@/lib/locations";
 import { ACTIVITIES } from "@/lib/activities";
 import { COUNTRIES, PROVINCES } from "@/lib/countries";
+import { REGIONS } from "@/lib/seed-regions";
+import { TAGS } from "@/lib/seed-tags";
+import { SEASONS } from "@/lib/seed-seasons";
 
 /**
  * POST /api/db-init
@@ -42,6 +45,9 @@ export async function POST(request: Request) {
     await syncProvinces(PROVINCES);
     await syncLocations(LOCATIONS);
     await syncActivities(ACTIVITIES);
+    await syncRegions(REGIONS);
+    await syncTags(TAGS);
+    await syncSeasons(SEASONS);
 
     // Store any provided API keys
     const storedKeys: string[] = [];
@@ -59,6 +65,9 @@ export async function POST(request: Request) {
       provinces: PROVINCES.length,
       locations: LOCATIONS.length,
       activities: ACTIVITIES.length,
+      regions: REGIONS.length,
+      tags: TAGS.length,
+      seasons: SEASONS.length,
       apiKeys: storedKeys.length > 0 ? storedKeys : "none provided",
     });
   } catch (err) {

@@ -131,9 +131,9 @@ describe("country-aware metadata in [location]/page.tsx", () => {
     "utf-8",
   );
 
-  it("imports getCountryName from locations lib", () => {
-    expect(pageSource).toContain("getCountryName");
-    expect(pageSource).toContain("@/lib/locations");
+  it("imports getCountryByCode from db lib for country names", () => {
+    expect(pageSource).toContain("getCountryByCode");
+    expect(pageSource).toContain("@/lib/db");
   });
 
   it("derives countryCode from loc.country with ZW fallback", () => {

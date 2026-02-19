@@ -72,7 +72,7 @@ export function AtmosphereDashboard({
         </p>
 
         <div className="mt-4 mb-4">
-          <SeasonBadge />
+          <SeasonBadge season={season} />
         </div>
 
         {usingFallback && <WeatherUnavailableBanner />}
