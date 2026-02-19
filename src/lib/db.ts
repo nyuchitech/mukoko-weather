@@ -455,15 +455,19 @@ export async function syncLocations(
 ): Promise<void> {
   const now = new Date();
   const bulkOps = locations.map((loc) => {
-    // Compute provinceSlug if not provided
+    // Always store country — ZW seed locations don't set it on the object
+    // so spreading ...loc would leave the field absent from MongoDB, breaking
+    // all queries that filter by { country: "ZW" } (hierarchy pages, counts, sitemap).
+    const country = loc.country ?? "ZW";
     const provinceSlug = loc.provinceSlug ??
-      generateProvinceSlug(loc.province, loc.country ?? "ZW");
+      generateProvinceSlug(loc.province, country);
     return {
       updateOne: {
         filter: { slug: loc.slug },
         update: {
           $set: {
             ...loc,
+            country,
             provinceSlug,
             // GeoJSON Point for 2dsphere queries (note: GeoJSON uses [lon, lat] order)
             location: { type: "Point", coordinates: [loc.lon, loc.lat] },
