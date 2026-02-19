@@ -5,16 +5,24 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { getCountryByCode, getLocationsByProvince, getProvinceBySlug } from "@/lib/db";
-import { getFlagEmoji } from "@/lib/countries";
+import { getFlagEmoji, PROVINCES } from "@/lib/countries";
 import { logError } from "@/lib/observability";
 
 export const revalidate = 3600;
+
+export function generateStaticParams() {
+  return PROVINCES.map((p) => ({
+    code: p.countryCode.toLowerCase(),
+    province: p.slug,
+  }));
+}
 
 interface Props {
   params: Promise<{ code: string; province: string }>;
 }
 
-// Deduplicate DB calls between generateMetadata and the page component
+// Deduplicate DB calls between generateMetadata and the page component.
+// Metadata generation may swallow errors (returns null), but page rendering re-throws.
 const loadCountry = cache(async (upperCode: string) =>
   getCountryByCode(upperCode).catch(() => null),
 );
@@ -66,8 +74,13 @@ export default async function ProvinceDetailPage({ params }: Props) {
       error: err,
       meta: { code: upperCode, provinceSlug },
     });
+    // Re-throw at request time so Next.js routes to error.tsx instead of a silent 404.
+    // During build-time static generation (MONGODB_URI absent), fall through to notFound()
+    // so the build succeeds and ISR handles the route on first real request.
+    if (process.env.MONGODB_URI) throw err;
   }
 
+  // DB succeeded but the province has no locations — genuine 404.
   if (locations.length === 0) notFound();
 
   const flag = getFlagEmoji(upperCode);

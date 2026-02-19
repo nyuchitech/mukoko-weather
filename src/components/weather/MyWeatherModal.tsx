@@ -7,17 +7,20 @@ import { useAppStore, type ThemePreference } from "@/lib/store";
 import { MapPinIcon, SearchIcon, SunIcon, MoonIcon } from "@/lib/weather-icons";
 import { ActivityIcon } from "@/lib/weather-icons";
 import {
+  LOCATIONS,
   type LocationTag,
   type ZimbabweLocation,
 } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import {
+  ACTIVITIES,
   ACTIVITY_CATEGORIES,
   CATEGORY_STYLES,
   type Activity,
   type ActivityCategory,
   type ActivityCategoryInfo,
 } from "@/lib/activities";
+import { TAGS } from "@/lib/seed-tags";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -33,17 +36,10 @@ const TAG_ORDER: LocationTag[] = [
   "city", "farming", "mining", "tourism", "national-park", "education", "border", "travel",
 ];
 
-// UI display labels for location tags — compile-time constant (safe for Tailwind JIT)
-const TAG_LABELS: Record<LocationTag, string> = {
-  city: "Cities & Towns",
-  farming: "Farming Regions",
-  mining: "Mining Areas",
-  tourism: "Tourist Destinations",
-  education: "Education Centres",
-  border: "Border Posts",
-  travel: "Travel Corridors",
-  "national-park": "National Parks",
-};
+// Derive tag display labels from the seed-tags source of truth so they stay in sync
+const TAG_LABELS = Object.fromEntries(
+  TAGS.map((t) => [t.slug, t.label]),
+) as Record<LocationTag, string>;
 
 function MonitorIcon({ size = 20 }: { size?: number }) {
   return (
@@ -73,15 +69,16 @@ export function MyWeatherModal() {
   const [pendingSlug, setPendingSlug] = useState(currentSlug);
   const [activeTab, setActiveTab] = useState("location");
 
-  // Start with empty state — data fetched from MongoDB on mount.
+  // Seed with static arrays so the modal is immediately usable even if API calls fail.
+  // Fetch from MongoDB on mount to upgrade to live data (includes community locations).
   // ACTIVITY_CATEGORIES is kept as compile-time constant (Tailwind JIT safe).
-  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
+  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
   const [activityCategories, setActivityCategories] = useState<ActivityCategoryInfo[]>(ACTIVITY_CATEGORIES);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch data from MongoDB — no static fallback; show skeletons while loading.
+    // Upgrade seed data with live MongoDB data (includes community-added locations/activities).
     Promise.all([
       fetch("/api/locations")
         .then((res) => (res.ok ? res.json() : null))

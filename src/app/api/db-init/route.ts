@@ -41,13 +41,19 @@ export async function POST(request: Request) {
     }
 
     await ensureIndexes();
+    // Countries must exist before provinces (provinces reference country codes).
     await syncCountries(COUNTRIES);
-    await syncProvinces(PROVINCES);
-    await syncLocations(LOCATIONS);
-    await syncActivities(ACTIVITIES);
-    await syncRegions(REGIONS);
-    await syncTags(TAGS);
-    await syncSeasons(SEASONS);
+    // Remaining syncs are independent — run in parallel for speed.
+    await Promise.all([
+      syncProvinces(PROVINCES),
+      syncRegions(REGIONS),
+      syncTags(TAGS),
+      syncSeasons(SEASONS),
+    ]);
+    await Promise.all([
+      syncLocations(LOCATIONS),
+      syncActivities(ACTIVITIES),
+    ]);
 
     // Store any provided API keys
     const storedKeys: string[] = [];

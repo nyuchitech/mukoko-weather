@@ -940,11 +940,13 @@ let _regionCache: RegionDoc[] | null = null;
  * Falls back to rejecting all coordinates if the regions collection is empty.
  */
 export async function isInSupportedRegionFromDb(lat: number, lon: number): Promise<boolean> {
-  if (_regionCache === null) {
+  // Retry when cache is null OR when it's an empty array (db-init may not have run yet).
+  // An empty array is not a valid permanent sentinel — regions could be added shortly after.
+  if (_regionCache === null || _regionCache.length === 0) {
     try {
       _regionCache = await getActiveRegions();
     } catch {
-      // DB unavailable — do not cache, reject to be safe
+      // DB unavailable — do not cache failure, reject to be safe
       return false;
     }
   }

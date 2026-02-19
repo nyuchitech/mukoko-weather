@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WeatherIcon, WindIcon, DropletIcon, ThermometerIcon, EyeIcon, GaugeIcon, ShareIcon } from "@/lib/weather-icons";
 import { weatherCodeToInfo, windDirection, uvLevel, type CurrentWeather, type DailyWeather } from "@/lib/weather";
 
@@ -22,6 +22,18 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  useEffect(() => {
+    if (!copyFailed) return;
+    const t = setTimeout(() => setCopyFailed(false), 2000);
+    return () => clearTimeout(t);
+  }, [copyFailed]);
+
   function handleShare() {
     const url = slug ? `${BASE_URL}/${slug}` : window.location.href;
     const shareData = {
@@ -34,10 +46,8 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
     } else {
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
       }).catch(() => {
         setCopyFailed(true);
-        setTimeout(() => setCopyFailed(false), 2000);
       });
     }
   }

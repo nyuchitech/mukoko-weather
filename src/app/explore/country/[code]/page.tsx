@@ -5,16 +5,21 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { getCountryWithStats, getProvincesWithLocationCounts } from "@/lib/db";
-import { getFlagEmoji } from "@/lib/countries";
+import { getFlagEmoji, COUNTRIES } from "@/lib/countries";
 import { logError } from "@/lib/observability";
 
 export const revalidate = 3600;
+
+export function generateStaticParams() {
+  return COUNTRIES.map((c) => ({ code: c.code.toLowerCase() }));
+}
 
 interface Props {
   params: Promise<{ code: string }>;
 }
 
-// Deduplicate DB calls between generateMetadata and the page component
+// Deduplicate DB calls between generateMetadata and the page component.
+// Metadata generation may swallow errors (returns null), but page rendering re-throws.
 const loadCountry = cache(async (upperCode: string) =>
   getCountryWithStats(upperCode).catch(() => null),
 );
@@ -53,8 +58,13 @@ export default async function CountryDetailPage({ params }: Props) {
       error: err,
       meta: { code: upperCode },
     });
+    // Re-throw at request time so Next.js routes to error.tsx instead of a silent 404.
+    // During build-time static generation (MONGODB_URI absent), fall through to notFound()
+    // so the build succeeds and ISR handles the route on first real request.
+    if (process.env.MONGODB_URI) throw err;
   }
 
+  // DB succeeded but the country doesn't exist — genuine 404.
   if (!country) notFound();
 
   const flag = getFlagEmoji(upperCode);
