@@ -16,7 +16,7 @@ import { isInSupportedRegion } from "@/lib/locations";
 import { createLocation, findDuplicateLocation, getLocationFromDb, upsertCountry, upsertProvince } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/observability";
-import { generateProvinceSlug } from "@/lib/countries";
+import { generateProvinceSlug, COUNTRIES } from "@/lib/countries";
 
 export async function POST(request: NextRequest) {
   try {
@@ -116,11 +116,14 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${suffix}`;
     }
 
-    // Upsert country and province so hierarchy pages show new locations immediately
+    // Upsert country and province so hierarchy pages show new locations immediately.
+    // Look up the region from the seed data first so $setOnInsert preserves it
+    // if this country was already seeded (e.g. "Southern Africa" for ZA).
     const province = geocoded.admin1 || geocoded.countryName;
     const provinceSlug = generateProvinceSlug(province, geocoded.country);
+    const seedCountry = COUNTRIES.find((c) => c.code === geocoded.country);
     await Promise.all([
-      upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: "Unknown", supported: true }),
+      upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: seedCountry?.region ?? "Unknown", supported: true }),
       upsertProvince({ slug: provinceSlug, name: province, countryCode: geocoded.country }),
     ]);
 

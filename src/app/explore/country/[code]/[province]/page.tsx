@@ -1,9 +1,10 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getCountryByCode, getLocationsByProvince } from "@/lib/db";
+import { getCountryByCode, getLocationsByProvince, getProvinceBySlug } from "@/lib/db";
 import { getFlagEmoji } from "@/lib/countries";
 import { logError } from "@/lib/observability";
 
@@ -13,13 +14,24 @@ interface Props {
   params: Promise<{ code: string; province: string }>;
 }
 
+// Deduplicate DB calls between generateMetadata and the page component
+const loadCountry = cache(async (upperCode: string) =>
+  getCountryByCode(upperCode).catch(() => null),
+);
+
+const loadProvince = cache(async (provinceSlug: string) =>
+  getProvinceBySlug(provinceSlug).catch(() => null),
+);
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { code, province } = await params;
-  const country = await getCountryByCode(code.toUpperCase()).catch(() => null);
+  const { code, province: provinceSlug } = await params;
+  const [country, province] = await Promise.all([
+    loadCountry(code.toUpperCase()),
+    loadProvince(provinceSlug),
+  ]);
   const countryName = country?.name ?? code.toUpperCase();
+  const provinceName = province?.name ?? provinceSlug;
   const flag = getFlagEmoji(code.toUpperCase());
-  // Pretty-print the province slug
-  const provinceName = province.replace(new RegExp(`-${code.toLowerCase()}$`), "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return {
     title: `${flag} ${provinceName}, ${countryName} Weather | mukoko weather`,
     description: `Browse weather forecasts for locations in ${provinceName}, ${countryName}.`,
@@ -35,17 +47,15 @@ export default async function ProvinceDetailPage({ params }: Props) {
   let provinceName = provinceSlug;
 
   try {
-    const [locs, country] = await Promise.all([
+    const [locs, country, province] = await Promise.all([
       getLocationsByProvince(provinceSlug),
-      getCountryByCode(upperCode),
+      loadCountry(upperCode),
+      loadProvince(provinceSlug),
     ]);
     locations = locs;
     countryName = country?.name ?? upperCode;
-    // Derive a human-readable province name from the slug
-    provinceName = provinceSlug
-      .replace(new RegExp(`-${code.toLowerCase()}$`), "")
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    // Use the stored province name rather than reconstructing from the slug
+    provinceName = province?.name ?? provinceSlug;
   } catch (err) {
     logError({
       source: "mongodb",

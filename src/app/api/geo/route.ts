@@ -3,7 +3,7 @@ import { findNearestLocationsFromDb, createLocation, findDuplicateLocation, upse
 import { isInSupportedRegion } from "@/lib/locations";
 import { reverseGeocode, getElevation, generateSlug, inferTags } from "@/lib/geocoding";
 import { logError } from "@/lib/observability";
-import { generateProvinceSlug } from "@/lib/countries";
+import { generateProvinceSlug, COUNTRIES } from "@/lib/countries";
 
 /**
  * GET /api/geo?lat=-17.83&lon=31.05&autoCreate=true
@@ -71,9 +71,11 @@ export async function GET(request: NextRequest) {
       const province = geocoded.admin1 || geocoded.countryName;
       const provinceSlug = generateProvinceSlug(province, geocoded.country);
 
-      // Upsert country and province for hierarchy pages
+      // Upsert country and province for hierarchy pages.
+      // Look up the region from the seed so $setOnInsert preserves curated data.
+      const seedCountry = COUNTRIES.find((c) => c.code === geocoded.country);
       await Promise.all([
-        upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: "Unknown", supported: true }),
+        upsertCountry({ code: geocoded.country, name: geocoded.countryName, region: seedCountry?.region ?? "Unknown", supported: true }),
         upsertProvince({ slug: provinceSlug, name: province, countryCode: geocoded.country }),
       ]);
 

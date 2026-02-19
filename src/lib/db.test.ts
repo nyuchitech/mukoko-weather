@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { getTtlForLocation, isSummaryStale, type AISummaryDoc } from "./db";
+import {
+  getTtlForLocation,
+  isSummaryStale,
+  type AISummaryDoc,
+  getAllCountryCodes,
+  getAllLocationSlugsForSitemap,
+  getAllProvinces,
+  getProvinceBySlug,
+  getProvincesWithLocationCounts,
+} from "./db";
 
 describe("getTtlForLocation", () => {
   it("returns tier 1 (1800s) for major cities like harare", () => {
@@ -102,5 +111,27 @@ describe("isSummaryStale", () => {
     // Both +5.1 and -5.1 should be stale
     expect(isSummaryStale(baseCached, 30.1, 2)).toBe(true);
     expect(isSummaryStale(baseCached, 19.9, 2)).toBe(true);
+  });
+});
+
+describe("new DB helper function exports", () => {
+  it("getAllCountryCodes is a function", () => {
+    expect(typeof getAllCountryCodes).toBe("function");
+  });
+
+  it("getAllLocationSlugsForSitemap is a function", () => {
+    expect(typeof getAllLocationSlugsForSitemap).toBe("function");
+  });
+
+  it("getAllProvinces is a function", () => {
+    expect(typeof getAllProvinces).toBe("function");
+  });
+
+  it("getProvinceBySlug is a function", () => {
+    expect(typeof getProvinceBySlug).toBe("function");
+  });
+
+  it("getProvincesWithLocationCounts is a function", () => {
+    expect(typeof getProvincesWithLocationCounts).toBe("function");
   });
 });

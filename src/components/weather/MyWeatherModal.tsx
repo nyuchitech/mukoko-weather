@@ -346,6 +346,7 @@ function LocationTab({
 // ── Location Count Card ─────────────────────────────────────────────────────
 
 function LocationCountCard({ allLocations }: { allLocations: ZimbabweLocation[] }) {
+  const closeMyWeather = useAppStore((s) => s.closeMyWeather);
   const countryGroups = useMemo(() => {
     const groups: Record<string, number> = {};
     for (const loc of allLocations) {
@@ -375,6 +376,7 @@ function LocationCountCard({ allLocations }: { allLocations: ZimbabweLocation[] 
         <Link
           href="/explore"
           prefetch={false}
+          onClick={closeMyWeather}
           className="shrink-0 text-xs text-primary underline-offset-2 hover:underline"
         >
           Explore all

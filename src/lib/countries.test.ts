@@ -59,7 +59,7 @@ describe("COUNTRIES seed data", () => {
     expect(zw?.name).toBe("Zimbabwe");
   });
 
-  it("includes all 10 ASEAN nations", () => {
+  it("includes all 11 ASEAN/Pacific nations (including Timor-Leste)", () => {
     const asean = ["BN", "ID", "KH", "LA", "MM", "MY", "PH", "SG", "TH", "TL", "VN"];
     for (const code of asean) {
       const found = COUNTRIES.find((c) => c.code === code);

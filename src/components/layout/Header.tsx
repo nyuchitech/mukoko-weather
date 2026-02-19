@@ -124,10 +124,9 @@ export function Header() {
       {/* Mobile bottom navigation — visible only on small screens */}
       <nav
         aria-label="Mobile navigation"
-        className="fixed bottom-0 left-0 right-0 z-30 border-t border-text-tertiary/10 bg-surface-base/95 backdrop-blur-xl sm:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="fixed bottom-0 left-0 right-0 z-30 border-t border-text-tertiary/10 bg-surface-base/95 backdrop-blur-xl sm:hidden pb-safe-bottom"
       >
-        <div className="mx-auto flex items-center justify-around px-1" style={{ minHeight: "4.5rem" }}>
+        <div className="mx-auto flex items-center justify-around px-1 min-h-[4.5rem]">
           <Link
             href="/"
             className={`flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-xl transition-colors min-w-[72px] min-h-[56px] ${

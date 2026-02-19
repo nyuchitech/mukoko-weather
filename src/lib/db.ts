@@ -704,7 +704,13 @@ export async function syncCountries(countries: Country[]): Promise<void> {
 export async function upsertCountry(country: Country): Promise<void> {
   await countriesCollection().updateOne(
     { code: country.code },
-    { $set: { ...country, updatedAt: new Date() } },
+    {
+      // Always update mutable fields; use $setOnInsert for region so curated
+      // seed data (e.g. "Southern Africa") is never overwritten by "Unknown"
+      // from a geocoding call.
+      $set: { name: country.name, supported: country.supported, updatedAt: new Date() },
+      $setOnInsert: { region: country.region },
+    },
     { upsert: true },
   );
 }
@@ -774,4 +780,56 @@ export async function getLocationsByProvince(provinceSlug: string): Promise<Loca
     .find({ provinceSlug })
     .sort({ name: 1 })
     .toArray();
+}
+
+/** Get a single province by its slug */
+export async function getProvinceBySlug(slug: string): Promise<ProvinceDoc | null> {
+  return provincesCollection().findOne({ slug });
+}
+
+/** Get all provinces (for sitemap generation) */
+export async function getAllProvinces(): Promise<ProvinceDoc[]> {
+  return provincesCollection().find({}).sort({ countryCode: 1, name: 1 }).toArray();
+}
+
+/** Get all country codes with minimal projection (for sitemap generation) */
+export async function getAllCountryCodes(): Promise<string[]> {
+  const docs = await countriesCollection()
+    .find({}, { projection: { code: 1, _id: 0 } })
+    .toArray();
+  return docs.map((d) => d.code);
+}
+
+/** Get all location slugs + tags with minimal projection (for sitemap generation) */
+export async function getAllLocationSlugsForSitemap(): Promise<{ slug: string; tags: string[] }[]> {
+  return locationsCollection()
+    .find({}, { projection: { slug: 1, tags: 1, _id: 0 } })
+    .toArray() as Promise<{ slug: string; tags: string[] }[]>;
+}
+
+/**
+ * Get provinces for a country with their location counts in a single aggregation,
+ * eliminating the N+1 query pattern.
+ */
+export async function getProvincesWithLocationCounts(
+  countryCode: string,
+): Promise<(ProvinceDoc & { locationCount: number })[]> {
+  const upper = countryCode.toUpperCase();
+
+  const [provinces, counts] = await Promise.all([
+    provincesCollection().find({ countryCode: upper }).sort({ name: 1 }).toArray(),
+    locationsCollection()
+      .aggregate<{ _id: string; count: number }>([
+        { $match: { country: upper } },
+        { $group: { _id: "$provinceSlug", count: { $sum: 1 } } },
+      ])
+      .toArray(),
+  ]);
+
+  const countMap: Record<string, number> = {};
+  for (const c of counts) {
+    if (c._id) countMap[c._id] = c.count;
+  }
+
+  return provinces.map((p) => ({ ...p, locationCount: countMap[p.slug] ?? 0 }));
 }

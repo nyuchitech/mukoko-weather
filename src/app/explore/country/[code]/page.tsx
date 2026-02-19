@@ -1,9 +1,10 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getCountryWithStats, getProvincesByCountry, getLocationsByProvince } from "@/lib/db";
+import { getCountryWithStats, getProvincesWithLocationCounts } from "@/lib/db";
 import { getFlagEmoji } from "@/lib/countries";
 import { logError } from "@/lib/observability";
 
@@ -13,9 +14,14 @@ interface Props {
   params: Promise<{ code: string }>;
 }
 
+// Deduplicate DB calls between generateMetadata and the page component
+const loadCountry = cache(async (upperCode: string) =>
+  getCountryWithStats(upperCode).catch(() => null),
+);
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code } = await params;
-  const country = await getCountryWithStats(code.toUpperCase()).catch(() => null);
+  const country = await loadCountry(code.toUpperCase());
   const name = country?.name ?? code.toUpperCase();
   const flag = getFlagEmoji(code.toUpperCase());
   return {
@@ -29,12 +35,12 @@ export default async function CountryDetailPage({ params }: Props) {
   const upperCode = code.toUpperCase();
 
   let country: Awaited<ReturnType<typeof getCountryWithStats>> = null;
-  let provinces: Awaited<ReturnType<typeof getProvincesByCountry>> = [];
+  let provinces: Awaited<ReturnType<typeof getProvincesWithLocationCounts>> = [];
 
   try {
     [country, provinces] = await Promise.all([
-      getCountryWithStats(upperCode),
-      getProvincesByCountry(upperCode),
+      loadCountry(upperCode),
+      getProvincesWithLocationCounts(upperCode),
     ]);
   } catch (err) {
     logError({
@@ -49,19 +55,6 @@ export default async function CountryDetailPage({ params }: Props) {
   if (!country) notFound();
 
   const flag = getFlagEmoji(upperCode);
-
-  // Get location counts per province
-  const provinceCounts: Record<string, number> = {};
-  await Promise.all(
-    provinces.map(async (p) => {
-      try {
-        const locs = await getLocationsByProvince(p.slug);
-        provinceCounts[p.slug] = locs.length;
-      } catch {
-        provinceCounts[p.slug] = 0;
-      }
-    }),
-  );
 
   return (
     <>
@@ -103,15 +96,14 @@ export default async function CountryDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {provinces.length === 0 ? (
+        {provinces.filter((p) => p.locationCount > 0).length === 0 ? (
           <div className="mt-8 rounded-[var(--radius-card)] bg-surface-card p-6 text-center text-text-tertiary">
             <p>No provinces found. Run database initialisation to populate data.</p>
           </div>
         ) : (
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {provinces.map((province) => {
-              const count = provinceCounts[province.slug] ?? 0;
-              if (count === 0) return null;
+              if (province.locationCount === 0) return null;
               return (
                 <Link
                   key={province.slug}
@@ -123,7 +115,7 @@ export default async function CountryDetailPage({ params }: Props) {
                       {province.name}
                     </h2>
                     <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary shrink-0 ml-2">
-                      {count}
+                      {province.locationCount}
                     </span>
                   </div>
                 </Link>

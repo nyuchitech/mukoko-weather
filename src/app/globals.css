@@ -477,3 +477,8 @@ body {
     line-height: var(--text-body-leading);
   }
 }
+
+/* Safe-area utility for mobile bottom navigation — avoids inline style={{}} */
+.pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

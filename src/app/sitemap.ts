@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getAllLocationsFromDb, getAllCountries } from "@/lib/db";
+import { getAllLocationSlugsForSitemap, getAllCountryCodes, getAllProvinces } from "@/lib/db";
 import { logError } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
@@ -106,13 +106,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
 
-  // Fetch all locations + countries from MongoDB
-  let locations: { slug: string; tags: string[]; country?: string }[] = [];
-  let countries: { code: string }[] = [];
+  // Fetch all locations, country codes, and provinces from MongoDB
+  // Use minimal projections to avoid fetching full documents for sitemap generation
+  let locations: { slug: string; tags: string[] }[] = [];
+  let countryCodes: string[] = [];
+  let provinces: { slug: string; countryCode: string }[] = [];
   try {
-    [locations, countries] = await Promise.all([
-      getAllLocationsFromDb(),
-      getAllCountries(),
+    [locations, countryCodes, provinces] = await Promise.all([
+      getAllLocationSlugsForSitemap(),
+      getAllCountryCodes(),
+      getAllProvinces(),
     ]);
   } catch (err) {
     logError({
@@ -124,8 +127,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // Country pages
-  const countryPages: MetadataRoute.Sitemap = countries.map((c) => ({
-    url: `${baseUrl}/explore/country/${c.code.toLowerCase()}`,
+  const countryPages: MetadataRoute.Sitemap = countryCodes.map((code) => ({
+    url: `${baseUrl}/explore/country/${code.toLowerCase()}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.6,
@@ -164,5 +167,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]);
 
-  return [...staticPages, ...explorePages, ...countryPages, ...locationPages, ...subRoutePages];
+  // Province pages — /explore/country/{code}/{province-slug}
+  const provincePages: MetadataRoute.Sitemap = provinces.map((p) => ({
+    url: `${baseUrl}/explore/country/${p.countryCode.toLowerCase()}/${p.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
+  return [...staticPages, ...explorePages, ...countryPages, ...provincePages, ...locationPages, ...subRoutePages];
 }

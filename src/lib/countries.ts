@@ -74,7 +74,7 @@ export const COUNTRIES: Country[] = [
   { code: "SS", name: "South Sudan",                    region: "East Africa",     supported: true },
   { code: "TZ", name: "Tanzania",                       region: "East Africa",     supported: true },
   { code: "UG", name: "Uganda",                         region: "East Africa",     supported: true },
-  { code: "ZM", name: "Zambia",                         region: "East Africa",     supported: true },
+  { code: "ZM", name: "Zambia",                         region: "Southern Africa", supported: true },
   { code: "ZW", name: "Zimbabwe",                       region: "Southern Africa", supported: true },
 
   // ── Southern Africa ───────────────────────────────────────────────────────
