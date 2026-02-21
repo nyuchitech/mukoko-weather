@@ -295,6 +295,7 @@ function TypingIndicator() {
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:150ms]" />
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:300ms]" />
       </div>
+      {/* Inside role="status" so screen readers announce it */}
       <span className="sr-only">Shamwari Explorer is thinking...</span>
     </div>
   );

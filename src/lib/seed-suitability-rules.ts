@@ -40,7 +40,7 @@ export const SUITABILITY_RULES: SeedRule[] = [
         field: "dewPoint", operator: "lt", value: 5,
         level: "poor", label: "Poor",
         colorClass: "text-severity-cold", bgClass: "bg-severity-cold/10",
-        detail: "Low dew point — frost risk",
+        detail: "Low dew point — cold, dry air stress for crops",
         metricTemplate: "Dew: {value}\u00B0C",
       },
       {

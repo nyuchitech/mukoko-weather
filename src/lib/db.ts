@@ -819,13 +819,6 @@ export async function getSuitabilityRuleByKey(key: string): Promise<SuitabilityR
   return suitabilityRulesCollection().findOne({ key });
 }
 
-export async function getSuitabilityRulesForActivity(activityId: string, category: string): Promise<SuitabilityRuleDoc | null> {
-  // Try activity-specific rule first, then fall back to category rule
-  const activityRule = await suitabilityRulesCollection().findOne({ key: `activity:${activityId}` });
-  if (activityRule) return activityRule;
-  return suitabilityRulesCollection().findOne({ key: `category:${category}` });
-}
-
 // ---------------------------------------------------------------------------
 // Activity category operations (database-driven category styles)
 // ---------------------------------------------------------------------------

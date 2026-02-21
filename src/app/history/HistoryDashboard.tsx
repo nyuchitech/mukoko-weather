@@ -274,7 +274,7 @@ export function computeCategorySuitability(
     let detail = `Avg dew point: ${avgDew}°C`;
     if (avgGdd > 0) detail += ` | Avg GDD: ${avgGdd}`;
     if (avgDew > 20) { level = "fair"; detail = "High avg dew point — crop disease risk elevated"; }
-    else if (avgDew < 5) { level = "poor"; detail = "Low avg dew point — frost risk detected in period"; }
+    else if (avgDew < 5) { level = "poor"; detail = "Low avg dew point — cold, dry air stress for crops"; }
     else if (avgGdd > 15) { level = "excellent"; detail = `Strong growth period (avg GDD: ${avgGdd})`; }
     const { colorClass, bgClass, label: lvl } = suitabilityColors(level);
     results.push({ label: "Farming", level, levelLabel: lvl, colorClass, bgClass, detail, icon: "🌱", category: "farming" });
@@ -1023,7 +1023,7 @@ export function HistoryDashboard() {
                   <ChartErrorBoundary name="dew point">
                     <section aria-labelledby="history-dewpoint-chart">
                       <h2 id="history-dewpoint-chart" className="text-lg font-semibold text-text-primary font-heading">Dew point</h2>
-                      <p className="mt-1 text-xs text-text-tertiary">Below 5°C indicates frost risk, above 20°C indicates crop disease risk</p>
+                      <p className="mt-1 text-xs text-text-tertiary">Below 5°C indicates cold, dry air stress; above 20°C indicates crop disease risk</p>
                       <div className="mt-3 rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm">
                         <DewPointChart data={insightsChartData} showDots={showDots} tooltipTitle={formatDateFull} xTickFormat={formatDate} />
                       </div>
