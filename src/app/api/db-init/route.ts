@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, syncRegions, syncTags, syncSeasons, setApiKey } from "@/lib/db";
+import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, syncRegions, syncTags, syncSeasons, syncSuitabilityRules, setApiKey } from "@/lib/db";
 import { LOCATIONS } from "@/lib/locations";
 import { ACTIVITIES } from "@/lib/activities";
 import { COUNTRIES, PROVINCES } from "@/lib/countries";
 import { REGIONS } from "@/lib/seed-regions";
 import { TAGS } from "@/lib/seed-tags";
 import { SEASONS } from "@/lib/seed-seasons";
+import { SUITABILITY_RULES } from "@/lib/seed-suitability-rules";
 
 /**
  * POST /api/db-init
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
     await Promise.all([
       syncLocations(LOCATIONS),
       syncActivities(ACTIVITIES),
+      syncSuitabilityRules(SUITABILITY_RULES),
     ]);
 
     // Store any provided API keys
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
       provinces: PROVINCES.length,
       locations: LOCATIONS.length,
       activities: ACTIVITIES.length,
+      suitabilityRules: SUITABILITY_RULES.length,
       regions: REGIONS.length,
       tags: TAGS.length,
       seasons: SEASONS.length,

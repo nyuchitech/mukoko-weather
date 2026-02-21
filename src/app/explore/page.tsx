@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { ExplorePageClient } from "./ExplorePageClient";
 import { getTagCounts, getAllLocationsFromDb, getFeaturedTagsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { TagDoc } from "@/lib/db";
@@ -11,13 +12,13 @@ import type { TagDoc } from "@/lib/db";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Explore Zimbabwe Weather | mukoko weather",
+  title: "Explore Weather | mukoko weather",
   description:
-    "Browse weather conditions across Zimbabwe by category — cities, farming regions, mining areas, national parks, tourism sites, border posts, and more.",
+    "Ask Shamwari Explorer about weather, locations, and activities. Get AI-powered weather insights, activity advice, and location comparisons across Africa.",
   openGraph: {
-    title: "Explore Zimbabwe Weather | mukoko weather",
+    title: "Explore Weather | mukoko weather",
     description:
-      "Browse weather conditions across Zimbabwe by category — cities, farming regions, mining areas, national parks, tourism sites, border posts, and more.",
+      "Ask Shamwari Explorer about weather, locations, and activities. Get AI-powered weather insights, activity advice, and location comparisons across Africa.",
   },
 };
 
@@ -66,73 +67,69 @@ export default async function ExplorePage() {
       </nav>
 
       <main id="main-content" className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8">
-        <h1 className="text-2xl font-bold text-text-primary font-heading sm:text-3xl">
-          Explore Zimbabwe Weather
-        </h1>
-        <p className="mt-2 text-text-secondary">
-          Browse weather conditions across {totalLocations || "90+"} locations by category.
-        </p>
+        {/* Chatbot — the spotlight feature */}
+        <ExplorePageClient />
 
-        {tagCounts.length === 0 && (
-          <div className="mt-8 rounded-[var(--radius-card)] bg-surface-card p-6 text-center text-text-tertiary">
-            <p>Location data is loading. Please run database initialisation first.</p>
-          </div>
-        )}
+        {/* Category browse section — below the chatbot */}
+        <section aria-labelledby="browse-heading" className="mt-10">
+          <h2 id="browse-heading" className="text-xl font-bold text-text-primary font-heading">
+            Browse by Category
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            {totalLocations || "90+"} locations across Africa and ASEAN
+          </p>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tagCounts.map(({ tag, count }) => {
-            const meta = tagMeta.get(tag);
-            if (!meta) return null;
-
-            return (
-              <Link
-                key={tag}
-                href={`/explore/${tag}`}
-                className="group rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm transition-all hover:shadow-md hover:bg-surface-card/80 focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                <div className="flex items-start justify-between">
-                  <h2 className="text-lg font-semibold text-text-primary font-heading group-hover:text-primary transition-colors">
-                    {meta.label}
-                  </h2>
-                  <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    {count}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {meta.description}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Country browse card */}
-        <div className="mt-8 rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-text-primary font-heading">Browse by Country</h2>
-              <p className="mt-1 text-sm text-text-secondary">
-                Explore weather across Africa and ASEAN — grouped by country and province
-              </p>
+          {tagCounts.length === 0 && (
+            <div className="mt-6 rounded-[var(--radius-card)] bg-surface-card p-6 text-center text-text-tertiary">
+              <p>Location data is loading. Please run database initialisation first.</p>
             </div>
-            <Link
-              href="/explore/country"
-              className="shrink-0 ml-4 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              Browse countries
-            </Link>
-          </div>
-        </div>
+          )}
 
-        {/* All locations link */}
-        <div className="mt-6 text-center">
-          <Link
-            href="/explore/city"
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            Browse all cities and towns
-          </Link>
-        </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {tagCounts.map(({ tag, count }) => {
+              const meta = tagMeta.get(tag);
+              if (!meta) return null;
+
+              return (
+                <Link
+                  key={tag}
+                  href={`/explore/${tag}`}
+                  className="group rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm transition-all hover:shadow-md hover:bg-surface-card/80 focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-base font-semibold text-text-primary font-heading group-hover:text-primary transition-colors">
+                      {meta.label}
+                    </h3>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      {count}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-text-secondary line-clamp-2">
+                    {meta.description}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Country browse card */}
+          <div className="mt-6 rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-text-primary font-heading">Browse by Country</h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  Explore weather across Africa and ASEAN — grouped by country and province
+                </p>
+              </div>
+              <Link
+                href="/explore/country"
+                className="shrink-0 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+              >
+                Browse countries
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
       <Footer />

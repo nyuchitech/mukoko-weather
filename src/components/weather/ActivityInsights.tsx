@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { CATEGORY_STYLES, type Activity } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
+import { evaluateRule } from "@/lib/suitability";
+import type { SuitabilityRuleDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
 // Label helpers (exported for tests)
@@ -48,7 +50,7 @@ export function uvConcernLabel(concern: number): { label: string; className: str
 }
 
 // ---------------------------------------------------------------------------
-// Suitability rating engine
+// Suitability rating engine — hardcoded fallbacks
 // ---------------------------------------------------------------------------
 
 interface SuitabilityRating {
@@ -151,6 +153,26 @@ function casualSuitability(insights: WeatherInsights): SuitabilityRating {
   return { level: "excellent", label: "Excellent", colorClass: "text-severity-low", bgClass: "bg-severity-low/10", detail: "Perfect for outdoor plans", metric: insights.uvHealthConcern != null ? `UV: ${insights.uvHealthConcern}` : undefined };
 }
 
+export function droneSuitability(insights: WeatherInsights): SuitabilityRating {
+  if (insights.thunderstormProbability != null && insights.thunderstormProbability > 20) {
+    return { level: "poor", label: "Grounded", colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10", detail: "Storm risk — do not fly", metric: `Storm: ${Math.round(insights.thunderstormProbability)}%` };
+  }
+  if (insights.visibility != null && insights.visibility < 1) {
+    return { level: "poor", label: "Grounded", colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10", detail: "Visibility too low for safe flight", metric: `Vis: ${insights.visibility.toFixed(1)} km` };
+  }
+  if (insights.visibility != null && insights.visibility < 3) {
+    return { level: "fair", label: "Caution", colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10", detail: "Reduced visibility — fly with caution, maintain line of sight", metric: `Vis: ${insights.visibility.toFixed(1)} km` };
+  }
+  if (insights.precipitationType != null && insights.precipitationType > 0) {
+    return { level: "poor", label: "Grounded", colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10", detail: `${precipTypeName(insights.precipitationType)} — moisture risk to electronics`, metric: insights.visibility != null ? `Vis: ${insights.visibility.toFixed(1)} km` : undefined };
+  }
+  if (insights.uvHealthConcern != null && insights.uvHealthConcern > 8) {
+    return { level: "fair", label: "Fair", colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10", detail: "Extreme UV — protect yourself while operating", metric: `UV: ${insights.uvHealthConcern}` };
+  }
+  return { level: "excellent", label: "Flyable", colorClass: "text-severity-low", bgClass: "bg-severity-low/10", detail: "Clear skies — ideal drone conditions", metric: insights.visibility != null ? `Vis: ${insights.visibility.toFixed(1)} km` : undefined };
+}
+
+/** Hardcoded fallback suitability functions — used when database rules are unavailable */
 const SUITABILITY_FN: Record<string, (insights: WeatherInsights) => SuitabilityRating> = {
   farming: farmingSuitability,
   mining: miningSuitability,
@@ -164,14 +186,50 @@ const SUITABILITY_FN: Record<string, (insights: WeatherInsights) => SuitabilityR
   "national-park": tourismSuitability,
 };
 
+const ACTIVITY_SUITABILITY_FN: Record<string, (insights: WeatherInsights) => SuitabilityRating> = {
+  "drone-flying": droneSuitability,
+};
+
+// ---------------------------------------------------------------------------
+// Suitability evaluation — database-driven with hardcoded fallback
+// ---------------------------------------------------------------------------
+
+function evaluateSuitability(
+  activity: Activity,
+  insights: WeatherInsights,
+  dbRules: Map<string, SuitabilityRuleDoc>,
+): SuitabilityRating {
+  // 1. Try activity-specific rule from database
+  const activityRule = dbRules.get(`activity:${activity.id}`);
+  if (activityRule) return evaluateRule(activityRule, insights);
+
+  // 2. Try category rule from database
+  const categoryRule = dbRules.get(`category:${activity.category}`);
+  if (categoryRule) return evaluateRule(categoryRule, insights);
+
+  // 3. Fall back to hardcoded functions
+  const activityFn = ACTIVITY_SUITABILITY_FN[activity.id];
+  if (activityFn) return activityFn(insights);
+  const categoryFn = SUITABILITY_FN[activity.category];
+  if (categoryFn) return categoryFn(insights);
+  return casualSuitability(insights);
+}
+
 // ---------------------------------------------------------------------------
 // Activity suitability card (Tomorrow.io style)
 // ---------------------------------------------------------------------------
 
-function ActivityCard({ activity, insights }: { activity: Activity; insights: WeatherInsights }) {
+function ActivityCard({
+  activity,
+  insights,
+  dbRules,
+}: {
+  activity: Activity;
+  insights: WeatherInsights;
+  dbRules: Map<string, SuitabilityRuleDoc>;
+}) {
   const style = CATEGORY_STYLES[activity.category] ?? CATEGORY_STYLES.casual;
-  const getSuitability = SUITABILITY_FN[activity.category] ?? casualSuitability;
-  const rating = getSuitability(insights);
+  const rating = evaluateSuitability(activity, insights, dbRules);
 
   return (
     <div className={`flex items-center gap-3 rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm border-l-4 ${style.border}`}>
@@ -213,6 +271,26 @@ export function ActivityInsights({
   const selectedActivities = useAppStore((s) => s.selectedActivities);
   const openMyWeather = useAppStore((s) => s.openMyWeather);
 
+  // Fetch suitability rules from database
+  const [dbRules, setDbRules] = useState<Map<string, SuitabilityRuleDoc>>(new Map());
+  useEffect(() => {
+    if (!insights) return; // Only fetch when we need to evaluate
+    fetch("/api/suitability")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.rules?.length) {
+          const rulesMap = new Map<string, SuitabilityRuleDoc>();
+          for (const rule of data.rules) {
+            rulesMap.set(rule.key, rule);
+          }
+          setDbRules(rulesMap);
+        }
+      })
+      .catch(() => {
+        // Database unavailable — hardcoded fallbacks will be used
+      });
+  }, [insights != null]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedItems = useMemo(() => {
     return selectedActivities
       .map((id) => activities.find((a) => a.id === id))
@@ -241,7 +319,7 @@ export function ActivityInsights({
         </div>
         <div className="space-y-2">
           {selectedItems.map((activity) => (
-            <ActivityCard key={activity.id} activity={activity} insights={insights} />
+            <ActivityCard key={activity.id} activity={activity} insights={insights} dbRules={dbRules} />
           ))}
         </div>
       </section>

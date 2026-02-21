@@ -1,0 +1,299 @@
+/**
+ * Seed suitability rules for database-driven weather suitability evaluation.
+ *
+ * Each rule set defines an ordered list of conditions evaluated against weather insight fields.
+ * First matching condition wins. A fallback is provided for when no condition matches.
+ *
+ * Rule keys:
+ * - "category:<category>" — applies to all activities in that category
+ * - "activity:<id>" — applies to a specific activity (overrides category rule)
+ *
+ * Available weather insight fields:
+ * - thunderstormProbability (0-100, %)
+ * - heatStressIndex (0-50+)
+ * - uvHealthConcern (0-11+)
+ * - visibility (0-50+, km)
+ * - dewPoint (-20 to 35+, °C)
+ * - gdd10To30 (growing degree days)
+ * - evapotranspiration (mm)
+ * - precipitationType (0=none, 1=rain, 2=snow, 3=freezing rain, 4=ice pellets)
+ * - moonPhase (0-7)
+ */
+
+import type { SuitabilityRuleDoc } from "./db";
+
+type SeedRule = Omit<SuitabilityRuleDoc, "updatedAt">;
+
+export const SUITABILITY_RULES: SeedRule[] = [
+  // ── Category: Farming ───────────────────────────────────────────────────
+  {
+    key: "category:farming",
+    conditions: [
+      {
+        field: "dewPoint", operator: "gt", value: 20,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
+        detail: "High dew point — disease risk for crops",
+        metricTemplate: "GDD: {gdd10To30}",
+      },
+      {
+        field: "dewPoint", operator: "lt", value: 5,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-cold", bgClass: "bg-severity-cold/10",
+        detail: "Low dew point — frost risk",
+        metricTemplate: "GDD: {gdd10To30}",
+      },
+      {
+        field: "precipitationType", operator: "gte", value: 2,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Severe precipitation expected — protect crops",
+      },
+      {
+        field: "evapotranspiration", operator: "gt", value: 5,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "High water loss — irrigate early",
+        metricTemplate: "ET: {value} mm",
+      },
+    ],
+    fallback: {
+      level: "good", label: "Good",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Favorable conditions for fieldwork",
+      metricTemplate: "GDD: {gdd10To30}",
+    },
+  },
+
+  // ── Category: Mining ────────────────────────────────────────────────────
+  {
+    key: "category:mining",
+    conditions: [
+      {
+        field: "thunderstormProbability", operator: "gt", value: 50,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Suspend outdoor operations — lightning risk",
+        metricTemplate: "Storm: {value}%",
+      },
+      {
+        field: "heatStressIndex", operator: "gte", value: 28,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Severe heat stress — mandatory rest breaks",
+        metricTemplate: "Heat: {value}",
+      },
+      {
+        field: "heatStressIndex", operator: "gte", value: 24,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Moderate heat stress — hydration breaks needed",
+        metricTemplate: "Heat: {value}",
+      },
+      {
+        field: "thunderstormProbability", operator: "gt", value: 20,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Monitor storm conditions closely",
+        metricTemplate: "Storm: {value}%",
+      },
+    ],
+    fallback: {
+      level: "good", label: "Good",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Safe conditions for outdoor work",
+      metricTemplate: "Vis: {visibility} km",
+    },
+  },
+
+  // ── Category: Sports ────────────────────────────────────────────────────
+  {
+    key: "category:sports",
+    conditions: [
+      {
+        field: "thunderstormProbability", operator: "gt", value: 40,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Move indoors — thunderstorm risk",
+        metricTemplate: "Storm: {value}%",
+      },
+      {
+        field: "heatStressIndex", operator: "gte", value: 28,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Too hot for outdoor exercise",
+        metricTemplate: "Heat: {value}",
+      },
+      {
+        field: "uvHealthConcern", operator: "gt", value: 7,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
+        detail: "Very high UV — sun protection essential",
+        metricTemplate: "UV: {value}",
+      },
+      {
+        field: "heatStressIndex", operator: "gte", value: 24,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Warm — stay hydrated during exercise",
+        metricTemplate: "Heat: {value}",
+      },
+    ],
+    fallback: {
+      level: "excellent", label: "Excellent",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Great conditions for outdoor activity",
+      metricTemplate: "UV: {uvHealthConcern}",
+    },
+  },
+
+  // ── Category: Travel ────────────────────────────────────────────────────
+  {
+    key: "category:travel",
+    conditions: [
+      {
+        field: "visibility", operator: "lt", value: 1,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Very poor visibility — delay travel if possible",
+        metricTemplate: "Vis: {value} km",
+      },
+      {
+        field: "thunderstormProbability", operator: "gt", value: 50,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Storm risk — avoid unnecessary travel",
+        metricTemplate: "Storm: {value}%",
+      },
+      {
+        field: "visibility", operator: "lt", value: 5,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Reduced visibility — drive with caution",
+        metricTemplate: "Vis: {value} km",
+      },
+      {
+        field: "precipitationType", operator: "gt", value: 0,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Precipitation — wet road conditions",
+        metricTemplate: "Vis: {visibility} km",
+      },
+    ],
+    fallback: {
+      level: "good", label: "Good",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Clear conditions for travel",
+      metricTemplate: "Vis: {visibility} km",
+    },
+  },
+
+  // ── Category: Tourism ───────────────────────────────────────────────────
+  {
+    key: "category:tourism",
+    conditions: [
+      {
+        field: "uvHealthConcern", operator: "gt", value: 7,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
+        detail: "Very high UV — seek shade during midday",
+        metricTemplate: "UV: {value}",
+      },
+      {
+        field: "visibility", operator: "lt", value: 5,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Limited visibility may affect game viewing",
+        metricTemplate: "Vis: {value} km",
+      },
+    ],
+    fallback: {
+      level: "good", label: "Good",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Good conditions for outdoor activities",
+      metricTemplate: "Vis: {visibility} km",
+    },
+  },
+
+  // ── Category: Casual ────────────────────────────────────────────────────
+  {
+    key: "category:casual",
+    conditions: [
+      {
+        field: "thunderstormProbability", operator: "gt", value: 40,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Thunderstorm risk — stay indoors",
+        metricTemplate: "Storm: {value}%",
+      },
+      {
+        field: "heatStressIndex", operator: "gte", value: 28,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
+        detail: "Very warm — limit time outdoors",
+        metricTemplate: "Heat: {value}",
+      },
+      {
+        field: "uvHealthConcern", operator: "gt", value: 7,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
+        detail: "High UV — wear sunscreen and a hat",
+        metricTemplate: "UV: {value}",
+      },
+    ],
+    fallback: {
+      level: "excellent", label: "Excellent",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Perfect for outdoor plans",
+      metricTemplate: "UV: {uvHealthConcern}",
+    },
+  },
+
+  // ── Activity: Drone Flying (overrides casual) ───────────────────────────
+  {
+    key: "activity:drone-flying",
+    conditions: [
+      {
+        field: "thunderstormProbability", operator: "gt", value: 20,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Storm risk — do not fly",
+        metricTemplate: "Storm: {value}%",
+      },
+      {
+        field: "visibility", operator: "lt", value: 1,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Visibility too low for safe flight",
+        metricTemplate: "Vis: {value} km",
+      },
+      {
+        field: "visibility", operator: "lt", value: 3,
+        level: "fair", label: "Caution",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Reduced visibility — fly with caution, maintain line of sight",
+        metricTemplate: "Vis: {value} km",
+      },
+      {
+        field: "precipitationType", operator: "gt", value: 0,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Precipitation — moisture risk to electronics",
+        metricTemplate: "Vis: {visibility} km",
+      },
+      {
+        field: "uvHealthConcern", operator: "gt", value: 8,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Extreme UV — protect yourself while operating",
+        metricTemplate: "UV: {value}",
+      },
+    ],
+    fallback: {
+      level: "excellent", label: "Flyable",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Clear skies — ideal drone conditions",
+      metricTemplate: "Vis: {visibility} km",
+    },
+  },
+];

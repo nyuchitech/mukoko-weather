@@ -69,6 +69,50 @@ export interface ActivityDoc extends Activity {
   updatedAt: Date;
 }
 
+// ---------------------------------------------------------------------------
+// Suitability rules — database-driven weather suitability configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * A single condition that evaluates a weather insight field against a threshold.
+ * When matched, produces the given suitability rating.
+ */
+export interface SuitabilityCondition {
+  /** Weather insight field to check (e.g. "thunderstormProbability", "visibility", "heatStressIndex") */
+  field: string;
+  /** Comparison operator */
+  operator: "gt" | "gte" | "lt" | "lte" | "eq";
+  /** Threshold value to compare against */
+  value: number;
+  /** Suitability level when this condition matches */
+  level: "excellent" | "good" | "fair" | "poor";
+  /** Display label for this rating */
+  label: string;
+  /** CSS class for the text color (must use severity tokens) */
+  colorClass: string;
+  /** CSS class for background (must use severity tokens) */
+  bgClass: string;
+  /** Human-readable detail message */
+  detail: string;
+  /** Optional metric template — use {value} as placeholder for the actual value */
+  metricTemplate?: string;
+}
+
+/**
+ * Suitability rule set for a category or specific activity.
+ * Conditions are evaluated in order — first match wins.
+ * A fallback is always provided for when no condition matches.
+ */
+export interface SuitabilityRuleDoc {
+  /** "category:farming", "category:mining", or "activity:drone-flying" */
+  key: string;
+  /** Ordered list of conditions — first match wins */
+  conditions: SuitabilityCondition[];
+  /** Fallback rating when no condition matches */
+  fallback: Omit<SuitabilityCondition, "field" | "operator" | "value">;
+  updatedAt: Date;
+}
+
 export interface CountryDoc extends Country {
   updatedAt: Date;
 }
@@ -126,6 +170,10 @@ function tagsCollection() {
 
 function seasonsCollection() {
   return getDb().collection<SeasonDoc>("seasons");
+}
+
+function suitabilityRulesCollection() {
+  return getDb().collection<SuitabilityRuleDoc>("suitability_rules");
 }
 
 // ---------------------------------------------------------------------------
@@ -717,6 +765,39 @@ export async function searchActivitiesFromDb(
 
 export async function getActivityCategoriesFromDb(): Promise<ActivityCategory[]> {
   return activitiesCollection().distinct("category") as Promise<ActivityCategory[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Suitability rules operations
+// ---------------------------------------------------------------------------
+
+export async function syncSuitabilityRules(rules: Omit<SuitabilityRuleDoc, "updatedAt">[]): Promise<void> {
+  const now = new Date();
+  const bulkOps = rules.map((rule) => ({
+    updateOne: {
+      filter: { key: rule.key },
+      update: { $set: { ...rule, updatedAt: now } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await suitabilityRulesCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function getAllSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
+  return suitabilityRulesCollection().find({}).toArray();
+}
+
+export async function getSuitabilityRuleByKey(key: string): Promise<SuitabilityRuleDoc | null> {
+  return suitabilityRulesCollection().findOne({ key });
+}
+
+export async function getSuitabilityRulesForActivity(activityId: string, category: string): Promise<SuitabilityRuleDoc | null> {
+  // Try activity-specific rule first, then fall back to category rule
+  const activityRule = await suitabilityRulesCollection().findOne({ key: `activity:${activityId}` });
+  if (activityRule) return activityRule;
+  return suitabilityRulesCollection().findOne({ key: `category:${category}` });
 }
 
 // ---------------------------------------------------------------------------

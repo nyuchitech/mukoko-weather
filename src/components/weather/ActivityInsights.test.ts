@@ -4,6 +4,7 @@ import {
   precipTypeName,
   uvConcernLabel,
   moonPhaseName,
+  droneSuitability,
 } from "./ActivityInsights";
 
 // ── heatStressLevel ──────────────────────────────────────────────────────────
@@ -143,5 +144,53 @@ describe("moonPhaseName", () => {
     expect(moonPhaseName(8)).toBe("Unknown");
     expect(moonPhaseName(-1)).toBe("Unknown");
     expect(moonPhaseName(99)).toBe("Unknown");
+  });
+});
+
+// ── droneSuitability ───────────────────────────────────────────────────────
+
+describe("droneSuitability", () => {
+  it("returns 'Grounded' for thunderstorm probability above 20%", () => {
+    const result = droneSuitability({ thunderstormProbability: 30 });
+    expect(result.level).toBe("poor");
+    expect(result.label).toBe("Grounded");
+  });
+
+  it("returns 'Grounded' for very low visibility", () => {
+    const result = droneSuitability({ visibility: 0.5 });
+    expect(result.level).toBe("poor");
+    expect(result.label).toBe("Grounded");
+  });
+
+  it("returns 'Caution' for reduced visibility (1-3 km)", () => {
+    const result = droneSuitability({ visibility: 2 });
+    expect(result.level).toBe("fair");
+    expect(result.label).toBe("Caution");
+  });
+
+  it("returns 'Grounded' for precipitation", () => {
+    const result = droneSuitability({ precipitationType: 1 });
+    expect(result.level).toBe("poor");
+    expect(result.label).toBe("Grounded");
+  });
+
+  it("returns 'Flyable' for clear conditions", () => {
+    const result = droneSuitability({ visibility: 10 });
+    expect(result.level).toBe("excellent");
+    expect(result.label).toBe("Flyable");
+  });
+
+  it("returns 'Flyable' when no adverse conditions", () => {
+    const result = droneSuitability({});
+    expect(result.level).toBe("excellent");
+    expect(result.label).toBe("Flyable");
+  });
+
+  it("uses severity CSS classes", () => {
+    const excellent = droneSuitability({});
+    expect(excellent.colorClass).toMatch(/^text-severity-/);
+
+    const poor = droneSuitability({ thunderstormProbability: 50 });
+    expect(poor.colorClass).toMatch(/^text-severity-/);
   });
 });

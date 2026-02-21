@@ -25,7 +25,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
 const POPULAR_SLUGS = [
   "harare", "bulawayo", "mutare", "gweru", "masvingo",
@@ -323,35 +322,43 @@ function LocationTab({
             {query ? `No locations found for "${query}"` : "No locations available"}
           </li>
         )}
-        {displayedLocations.map((loc) => (
-          <li key={loc.slug} role="option" aria-selected={loc.slug === pendingSlug}>
-            <button
-              onClick={() => onSelectLocation(loc.slug)}
-              className={`flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-sm transition-colors hover:bg-surface-base focus-visible:outline-2 focus-visible:outline-primary ${
-                loc.slug === pendingSlug
-                  ? "bg-primary/10 text-primary font-semibold"
-                  : "text-text-primary"
-              }`}
-              type="button"
-            >
-              <MapPinIcon
-                size={14}
-                className={loc.slug === pendingSlug ? "text-primary" : "text-text-tertiary"}
-              />
-              <div className="flex flex-col items-start">
-                <span>{loc.name}</span>
-                <span className="text-sm text-text-tertiary">{loc.province}</span>
-              </div>
-              <div className="ml-auto flex gap-1">
-                {loc.tags.slice(0, 2).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="px-1.5 py-0.5">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </button>
-          </li>
-        ))}
+        {displayedLocations.map((loc) => {
+          const isSelected = loc.slug === pendingSlug;
+          // Country/province are automatic context, not selectable options
+          const countryCode = (loc.country ?? "ZW").toUpperCase();
+          const contextLabel = countryCode !== "ZW"
+            ? `${loc.province}, ${countryCode}`
+            : loc.province;
+          return (
+            <li key={loc.slug} role="option" aria-selected={isSelected}>
+              <button
+                onClick={() => onSelectLocation(loc.slug)}
+                className={`flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-sm transition-colors hover:bg-surface-base focus-visible:outline-2 focus-visible:outline-primary ${
+                  isSelected
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-text-primary"
+                }`}
+                type="button"
+              >
+                <MapPinIcon
+                  size={14}
+                  className={isSelected ? "text-primary" : "text-text-tertiary"}
+                />
+                <div className="min-w-0 flex-1 text-left">
+                  <span className="block truncate">{loc.name}</span>
+                  <span className="block text-xs text-text-tertiary truncate">{contextLabel}</span>
+                </div>
+                {isSelected && (
+                  <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary" aria-hidden="true">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ul>
 
       {/* Community location stat — prominent to inspire contributions */}

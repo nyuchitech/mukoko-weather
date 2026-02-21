@@ -50,6 +50,7 @@ export const ACTIVITIES: Activity[] = [
   { id: "crop-farming", label: "Crop Farming", category: "farming", relevantTags: ["farming"], description: "Maize, tobacco, cotton, and other crop cultivation" },
   { id: "livestock", label: "Livestock", category: "farming", relevantTags: ["farming"], description: "Cattle ranching and animal husbandry" },
   { id: "gardening", label: "Gardening", category: "farming", relevantTags: ["farming"], description: "Home gardens and small-scale horticulture" },
+  { id: "irrigation", label: "Irrigation", category: "farming", relevantTags: ["farming"], description: "Irrigation scheduling and water management" },
 
   // Mining — maps to "mining" location tag
   { id: "mining", label: "Mining", category: "mining", relevantTags: ["mining"], description: "Mining operations and outdoor extraction" },
@@ -58,11 +59,15 @@ export const ACTIVITIES: Activity[] = [
   // Travel — maps to "travel" and "border" location tags
   { id: "driving", label: "Driving", category: "travel", relevantTags: ["travel", "border"], description: "Road trips and long-distance driving" },
   { id: "commuting", label: "Commuting", category: "travel", relevantTags: ["travel", "city"], description: "Daily commute to work or school" },
+  { id: "flying", label: "Flying", category: "travel", relevantTags: ["travel", "city"], description: "Air travel and flight planning" },
 
   // Tourism — maps to "tourism" and "national-park" location tags
   { id: "safari", label: "Safari", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Game drives and wildlife viewing" },
   { id: "photography", label: "Photography", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Outdoor and landscape photography" },
   { id: "birdwatching", label: "Birdwatching", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Birding and wildlife observation" },
+  { id: "camping", label: "Camping", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Outdoor camping and overnight stays" },
+  { id: "stargazing", label: "Stargazing", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Night sky observation and astronomy" },
+  { id: "fishing", label: "Fishing", category: "tourism", relevantTags: ["tourism", "national-park"], description: "Lake and river fishing excursions" },
 
   // Sports — new user-activity category (not a location tag)
   { id: "running", label: "Running", category: "sports", relevantTags: ["city"], description: "Outdoor running and jogging" },
@@ -72,11 +77,16 @@ export const ACTIVITIES: Activity[] = [
   { id: "swimming", label: "Swimming", category: "sports", relevantTags: ["tourism", "city"], description: "Outdoor swimming" },
   { id: "golf", label: "Golf", category: "sports", relevantTags: ["tourism", "city"], description: "Golf rounds and practice" },
   { id: "cricket", label: "Cricket", category: "sports", relevantTags: ["city", "education"], description: "Cricket training and matches" },
+  { id: "tennis", label: "Tennis", category: "sports", relevantTags: ["city", "education"], description: "Tennis matches and practice" },
+  { id: "rugby", label: "Rugby", category: "sports", relevantTags: ["city", "education"], description: "Rugby training and matches" },
+  { id: "horse-riding", label: "Horse Riding", category: "sports", relevantTags: ["tourism", "farming"], description: "Equestrian riding and trail rides" },
 
   // Casual — new user-activity category (not a location tag)
   { id: "walking", label: "Walking", category: "casual", relevantTags: ["city"], description: "Leisure walks and strolling" },
   { id: "barbecue", label: "Barbecue", category: "casual", relevantTags: [], description: "Braai and outdoor cooking" },
   { id: "outdoor-events", label: "Outdoor Events", category: "casual", relevantTags: ["city", "tourism"], description: "Markets, festivals, and outdoor gatherings" },
+  { id: "drone-flying", label: "Drone Flying", category: "casual", relevantTags: ["city", "tourism", "farming"], description: "Recreational and commercial drone operations" },
+  { id: "picnic", label: "Picnic", category: "casual", relevantTags: ["city", "tourism"], description: "Outdoor picnics and lunch in the park" },
 ];
 
 export function getActivitiesByCategory(category: ActivityCategory): Activity[] {

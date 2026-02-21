@@ -52,14 +52,14 @@ describe("ActivityIcon mapping", () => {
     expect(activityIconMatch![0]).toContain("SunIcon");
   });
 
-  it("has exactly 20 activity cases (no duplicates or missing)", () => {
+  it("has exactly 30 activity cases (no duplicates or missing)", () => {
     // Extract the ActivityIcon switch block
     const activityIconSection = source.slice(
       source.indexOf("function ActivityIcon"),
       source.indexOf("function WeatherIcon"),
     );
     const caseMatches = activityIconSection.match(/case "/g);
-    expect(caseMatches).toHaveLength(20);
+    expect(caseMatches).toHaveLength(30);
   });
 });
 
