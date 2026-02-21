@@ -63,7 +63,8 @@ const GENERIC_FALLBACK: SuitabilityRating = {
   detail: "Conditions look suitable for this activity",
 };
 
-function evaluateSuitability(
+/** Exported for testing — resolves the best suitability rule for an activity. */
+export function evaluateSuitability(
   activity: Activity,
   insights: WeatherInsights,
   dbRules: Map<string, SuitabilityRuleDoc>,

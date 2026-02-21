@@ -81,7 +81,10 @@ export function ExploreChatbot() {
     setLoading(true);
 
     try {
-      // Build history from previous messages (text only)
+      // Build history from previous messages (text only).
+      // NOTE: `messages` here is the pre-update snapshot (before userMessage
+      // is appended via setMessages above), which is correct — the new user
+      // message is sent separately as `message` in the request body.
       const history = messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -207,7 +210,7 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) 
             <button
               key={prompt.query}
               onClick={() => onSuggestionClick(prompt.query)}
-              className="rounded-[var(--radius-card)] border border-border bg-surface-card px-3 py-2.5 text-left text-sm text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+              className="flex items-center rounded-[var(--radius-card)] border border-border bg-surface-card px-3 py-3 text-left text-sm text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
               type="button"
             >
               {prompt.label}

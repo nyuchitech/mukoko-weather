@@ -35,14 +35,10 @@ describe("input validation", () => {
     expect(source).toContain("const MAX_MESSAGE_LENGTH = 2000");
   });
 
-  it("truncates user history messages to max length", () => {
-    expect(source).toContain("msg.content.slice(0, MAX_MESSAGE_LENGTH)");
-  });
-
-  it("truncates assistant history messages to max length", () => {
-    // Both user and assistant history messages should be length-capped
-    const sliceOccurrences = source.match(/msg\.content\.slice\(0, MAX_MESSAGE_LENGTH\)/g);
-    expect(sliceOccurrences?.length).toBeGreaterThanOrEqual(2);
+  it("sanitizes and truncates history messages via sanitizeHistoryContent", () => {
+    expect(source).toContain("sanitizeHistoryContent(msg.content)");
+    // sanitizeHistoryContent strips boundary markers and enforces max length
+    expect(source).toContain(".slice(0, MAX_MESSAGE_LENGTH)");
   });
 });
 
@@ -235,8 +231,9 @@ describe("server-side suitability evaluation", () => {
     expect(source).toContain("import { evaluateRule }");
   });
 
-  it("imports getSuitabilityRulesForActivity from db", () => {
-    expect(source).toContain("getSuitabilityRulesForActivity");
+  it("batch-fetches all suitability rules via getAllSuitabilityRules", () => {
+    expect(source).toContain("getAllSuitabilityRules");
+    expect(source).toContain("ruleMap");
   });
 
   it("runs evaluateRule server-side in executeGetActivityAdvice", () => {
@@ -256,9 +253,11 @@ describe("security", () => {
     expect(source).toContain("Vercel's edge layer controls x-forwarded-for");
   });
 
-  it("documents prompt injection mitigation strategy", () => {
-    expect(source).toContain("SECURITY NOTE");
-    expect(source).toContain("context-boundary confusion");
+  it("sanitizes context-boundary markers from history content", () => {
+    expect(source).toContain("sanitizeHistoryContent");
+    expect(source).toContain("CONTEXT_BOUNDARY_RE");
+    expect(source).toContain("\\n\\nHuman:");
+    expect(source).toContain("\\n\\nAssistant:");
   });
 });
 

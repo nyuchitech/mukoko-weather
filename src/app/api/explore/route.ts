@@ -13,7 +13,7 @@ import {
   getWeatherForLocation,
   getSeasonForDate,
   getLocationsByTagFromDb,
-  getSuitabilityRulesForActivity,
+  getAllSuitabilityRules,
   type LocationDoc,
 } from "@/lib/db";
 
@@ -204,7 +204,10 @@ async function executeGetWeather(locationSlug: string) {
   // Try cache first, then fetch fresh
   const cached = await getCachedWeather(locationSlug);
   if (cached) {
-    // Look up the location name for display purposes
+    // Look up location name for display; derive season from country code.
+    // getSeasonForDate depends on country, so these remain sequential, but
+    // the season DB lookup is cheap (~1ms with index) and falls back to
+    // sync getZimbabweSeason() if the seasons collection is unavailable.
     const loc = await getLocationFromDb(locationSlug);
     const season = await getSeasonForDate(new Date(), loc?.country ?? "ZW");
     return {
@@ -309,11 +312,14 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
   // Run suitability evaluation server-side so the LLM receives structured
   // ratings (level, label, detail) instead of raw insights. This reduces
   // hallucination surface and makes AI responses more consistent.
+  // Batch-fetch all rules in one query to avoid N+1 DB round-trips.
   const suitability: Record<string, { level: string; label: string; detail: string; metric?: string }> = {};
   if (insights) {
-    for (const activity of matchedActivities) {
-      try {
-        const rule = await getSuitabilityRulesForActivity(activity.id, activity.category);
+    try {
+      const allRules = await getAllSuitabilityRules();
+      const ruleMap = new Map(allRules.map((r) => [r.key, r]));
+      for (const activity of matchedActivities) {
+        const rule = ruleMap.get(`activity:${activity.id}`) ?? ruleMap.get(`category:${activity.category}`);
         if (rule) {
           const rating = evaluateRule(rule, insights);
           suitability[activity.id] = {
@@ -323,9 +329,9 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
             metric: rating.metric,
           };
         }
-      } catch {
-        // DB unavailable for this activity — skip server-side evaluation
       }
+    } catch {
+      // DB unavailable — skip server-side suitability evaluation entirely
     }
   }
 
@@ -416,17 +422,17 @@ export async function POST(request: NextRequest) {
     //   1. System prompt guardrails (DATA GUARDRAILS section) are strong
     //   2. History is length-capped (MAX_MESSAGE_LENGTH) to limit payload size
     //   3. Only the last 10 history messages are included
-    // Future enhancement: sanitize "\n\nHuman:" / "\n\nAssistant:" patterns
-    // in history content to prevent legacy context-boundary confusion attacks.
     const messages: Anthropic.MessageParam[] = [];
 
-    // Add prior conversation history if provided (capped at 10, length-checked)
+    // Add prior conversation history if provided (capped at 10, length-checked).
+    // Sanitize legacy context-boundary markers that could confuse the model into
+    // treating injected text as a new turn (prompt injection mitigation).
     if (Array.isArray(history)) {
       for (const msg of history.slice(-10)) {
         if (msg.role === "user" && typeof msg.content === "string") {
-          messages.push({ role: "user", content: msg.content.slice(0, MAX_MESSAGE_LENGTH) });
+          messages.push({ role: "user", content: sanitizeHistoryContent(msg.content) });
         } else if (msg.role === "assistant" && typeof msg.content === "string") {
-          messages.push({ role: "assistant", content: msg.content.slice(0, MAX_MESSAGE_LENGTH) });
+          messages.push({ role: "assistant", content: sanitizeHistoryContent(msg.content) });
         }
       }
     }
@@ -585,4 +591,17 @@ export async function POST(request: NextRequest) {
       error: true,
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Sanitization helpers
+// ---------------------------------------------------------------------------
+
+/** Legacy context-boundary markers that could trick the model into treating
+ *  injected content as a new conversational turn. */
+const CONTEXT_BOUNDARY_RE = /\n\nHuman:|\\n\\nHuman:|\\nHuman:|\\n\\nAssistant:|\\nAssistant:|\n\nAssistant:/gi;
+
+/** Strip context-boundary markers and enforce max length on history content. */
+function sanitizeHistoryContent(content: string): string {
+  return content.replace(CONTEXT_BOUNDARY_RE, "").slice(0, MAX_MESSAGE_LENGTH);
 }
