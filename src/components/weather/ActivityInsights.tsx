@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
-import type { Activity } from "@/lib/activities";
+import { type Activity, CATEGORY_STYLES } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
@@ -36,15 +36,17 @@ async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
   return cachedRules!;
 }
 
-let cachedCategoryStyles: Record<string, { bg: string; border: string; text: string; badge: string }> | null = null;
+// Seed with static CATEGORY_STYLES for instant mineral color rendering on mount.
+// The API fetch upgrades this with any MongoDB-only categories.
+let cachedCategoryStyles: Record<string, { bg: string; border: string; text: string; badge: string }> = { ...CATEGORY_STYLES };
 let cachedStylesAt = 0;
 
 async function fetchCategoryStyles(): Promise<Record<string, { bg: string; border: string; text: string; badge: string }>> {
-  if (cachedCategoryStyles && Date.now() - cachedStylesAt < RULES_CACHE_TTL) {
+  if (cachedStylesAt > 0 && Date.now() - cachedStylesAt < RULES_CACHE_TTL) {
     return cachedCategoryStyles;
   }
   const res = await fetch("/api/activities?mode=categories");
-  if (!res.ok) return cachedCategoryStyles ?? {};
+  if (!res.ok) return cachedCategoryStyles;
   const data = await res.json();
   const styles: Record<string, { bg: string; border: string; text: string; badge: string }> = {};
   for (const cat of (data?.categories ?? []) as ActivityCategoryDoc[]) {

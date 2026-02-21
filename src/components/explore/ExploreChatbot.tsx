@@ -29,6 +29,9 @@ interface ExploreResponse {
 // Suggested prompts
 // ---------------------------------------------------------------------------
 
+/** Cap rendered messages to prevent unbounded memory growth in long conversations. */
+const MAX_RENDERED_MESSAGES = 30;
+
 const SUGGESTED_PROMPTS = [
   { label: "Drone flying in Harare", query: "Can I fly a drone in Harare today?" },
   { label: "Farming advice", query: "What's the best time to plant maize in Mashonaland?" },
@@ -73,7 +76,7 @@ export function ExploreChatbot() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage].slice(-MAX_RENDERED_MESSAGES));
     setInput("");
     setLoading(true);
 
@@ -104,7 +107,7 @@ export function ExploreChatbot() {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage].slice(-MAX_RENDERED_MESSAGES));
     } catch {
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
@@ -112,7 +115,7 @@ export function ExploreChatbot() {
         content: "I'm having trouble connecting right now. Please try again in a moment.",
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage].slice(-MAX_RENDERED_MESSAGES));
     } finally {
       setLoading(false);
       // Refocus input after response

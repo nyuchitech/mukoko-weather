@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { logError } from "@/lib/observability";
+import { logError, logWarn } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { anthropicBreaker, CircuitOpenError } from "@/lib/circuit-breaker";
 import {
@@ -453,6 +453,12 @@ export async function POST(request: NextRequest) {
               result = { error: `Unknown tool: ${toolUse.name}` };
           }
         } catch (err) {
+          logWarn({
+            source: "ai-api",
+            location: "explore",
+            message: `Tool ${toolUse.name} execution failed`,
+            error: err,
+          });
           result = { error: `Tool execution failed: ${err instanceof Error ? err.message : "Unknown error"}` };
         }
 

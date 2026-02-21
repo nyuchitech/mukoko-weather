@@ -211,6 +211,15 @@ describe("error handling and observability", () => {
     expect(source).toContain("location: \"explore\"");
   });
 
+  it("logs tool execution errors with logWarn", () => {
+    expect(source).toContain("logWarn");
+    expect(source).toContain("execution failed");
+  });
+
+  it("imports logWarn from observability", () => {
+    expect(source).toContain("logWarn");
+  });
+
   it("returns error flag in error responses", () => {
     expect(source).toContain("error: true");
   });

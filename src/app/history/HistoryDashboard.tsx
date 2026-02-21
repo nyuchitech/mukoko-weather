@@ -17,13 +17,14 @@ import { VisibilityChart } from "@/components/weather/charts/VisibilityChart";
 import { ThunderstormChart } from "@/components/weather/charts/ThunderstormChart";
 import { GDDChart } from "@/components/weather/charts/GDDChart";
 import { ChartSkeleton } from "@/components/ui/skeleton";
-import { type ZimbabweLocation } from "@/lib/locations";
+import { type ZimbabweLocation, LOCATIONS } from "@/lib/locations";
 import { useAppStore } from "@/lib/store";
 import { weatherCodeToInfo, windDirection, uvLevel } from "@/lib/weather";
 import type { WeatherInsights } from "@/lib/weather";
 import type { WeatherHistoryDoc } from "@/lib/db";
 import type { ActivityCategory } from "@/lib/activities";
 import type { ActivityCategoryDoc } from "@/lib/db";
+import { CATEGORIES } from "@/lib/seed-categories";
 import {
   heatStressLevel,
   uvConcernLabel,
@@ -374,8 +375,10 @@ export function HistoryDashboard() {
   const [activeTab, setActiveTab] = useState<ViewTab>("weather");
   const [categoryFilter, setCategoryFilter] = useState<ActivityCategory | "all">("all");
   const tableEndRef = useRef<HTMLDivElement>(null);
-  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
-  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>([]);
+  // Seed with static LOCATIONS for instant search rendering, then upgrade from MongoDB.
+  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
+  // Seed with static CATEGORIES for instant filter rendering, then upgrade from MongoDB.
+  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>(CATEGORIES);
   const didAutoSelect = useRef(false);
 
   // Build category filter options and styles from API data

@@ -354,6 +354,15 @@ export async function getWeatherForLocation(
     try {
       data = await fetchWeather(lat, lon);
       source = "open-meteo";
+      // Synthesize basic insights from Open-Meteo current data so suitability
+      // rules (e.g. drone wind speed) work even when Tomorrow.io is unavailable.
+      if (data && !data.insights && data.current) {
+        data.insights = {
+          windSpeed: data.current.wind_speed_10m,
+          windGust: data.current.wind_gusts_10m,
+          visibility: data.hourly?.visibility?.[0],
+        };
+      }
     } catch (err) {
       logError({
         source: "open-meteo",

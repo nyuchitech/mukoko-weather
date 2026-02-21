@@ -162,6 +162,19 @@ describe("location references", () => {
   });
 });
 
+describe("memory management", () => {
+  it("defines MAX_RENDERED_MESSAGES cap", () => {
+    expect(source).toContain("MAX_RENDERED_MESSAGES");
+  });
+
+  it("caps messages when adding user message", () => {
+    // All three setMessages calls should slice to cap
+    const sliceCalls = source.match(/\.slice\(-MAX_RENDERED_MESSAGES\)/g);
+    expect(sliceCalls).not.toBeNull();
+    expect(sliceCalls!.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("UI patterns", () => {
   it("disables input while loading", () => {
     expect(source).toContain("disabled={loading}");
