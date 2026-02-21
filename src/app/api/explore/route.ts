@@ -471,8 +471,6 @@ export async function POST(request: NextRequest) {
     const messages: Anthropic.MessageParam[] = [];
 
     // Add prior conversation history if provided (capped at 10, length-checked).
-    // Sanitize legacy context-boundary markers that could confuse the model into
-    // treating injected text as a new turn (prompt injection mitigation).
     if (Array.isArray(history)) {
       for (const msg of history.slice(-10)) {
         if (!msg || typeof msg !== "object") continue;
@@ -646,13 +644,20 @@ export async function POST(request: NextRequest) {
 // Sanitization helpers
 // ---------------------------------------------------------------------------
 
-/** Legacy context-boundary markers that could trick the model into treating
- *  injected content as a new conversational turn. */
-const CONTEXT_BOUNDARY_RE = /\n\nHuman:|\\n\\nHuman:|\\nHuman:|\\n\\nAssistant:|\\nAssistant:|\n\nAssistant:/gi;
-
-/** Strip context-boundary markers and enforce max length on history content. */
+/**
+ * Enforce max length on history content.
+ *
+ * Prompt injection defenses (all in place — no regex needed):
+ *   1. Structured messages array — the Messages API sends each turn as a
+ *      separate object with an explicit role. "\n\nHuman:" / "\n\nAssistant:"
+ *      boundary markers have NO special meaning and cannot inject new turns.
+ *   2. System prompt DATA GUARDRAILS constrain Claude's response scope.
+ *   3. History capped at 10 messages × MAX_MESSAGE_LENGTH chars each.
+ *   4. Tool output is server-controlled — Claude never sees raw API responses.
+ *   5. Circuit breaker + rate limiter bound request volume.
+ */
 function sanitizeHistoryContent(content: string): string {
-  return content.replace(CONTEXT_BOUNDARY_RE, "").slice(0, MAX_MESSAGE_LENGTH);
+  return content.slice(0, MAX_MESSAGE_LENGTH);
 }
 
 /** Deduplicate references by slug, preferring "location" type over "weather". */

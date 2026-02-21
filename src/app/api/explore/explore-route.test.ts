@@ -268,11 +268,17 @@ describe("security", () => {
     expect(source).toContain("Vercel's edge layer controls x-forwarded-for");
   });
 
-  it("sanitizes context-boundary markers from history content", () => {
+  it("enforces max length on history content via sanitizeHistoryContent", () => {
     expect(source).toContain("sanitizeHistoryContent");
-    expect(source).toContain("CONTEXT_BOUNDARY_RE");
-    expect(source).toContain("\\n\\nHuman:");
-    expect(source).toContain("\\n\\nAssistant:");
+    expect(source).toContain(".slice(0, MAX_MESSAGE_LENGTH)");
+  });
+
+  it("documents structured messages API as primary injection defense", () => {
+    // The Messages API uses structured turns — "\n\nHuman:" markers have no
+    // special meaning, so regex stripping is unnecessary. The route documents
+    // the actual defenses: structured array, system prompt, length caps, etc.
+    expect(source).toContain("Structured messages array");
+    expect(source).toContain("boundary markers have NO special meaning");
   });
 
   it("sanitizes the current user message consistently with history", () => {

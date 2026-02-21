@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   getTtlForLocation,
   isSummaryStale,
@@ -362,9 +364,60 @@ describe("Atlas Search and Vector Search functions", () => {
     expect(typeof getTagCountsAndStats).toBe("function");
   });
 
-  it("_resetSearchFlags is a function for test teardown", () => {
+  it("_resetSearchFlags resets timestamps and embedding guard", () => {
     expect(typeof _resetSearchFlags).toBe("function");
+    // Should be safe to call multiple times (idempotent)
     expect(() => _resetSearchFlags()).not.toThrow();
+    expect(() => _resetSearchFlags()).not.toThrow();
+  });
+});
+
+describe("Atlas Search time-based recovery", () => {
+  it("uses ATLAS_RETRY_AFTER_MS constant for recovery timing", () => {
+    // Verify the module exports the reset function (timestamps are internal)
+    // and that the time-based pattern is in place by reading the source
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    expect(dbSource).toContain("ATLAS_RETRY_AFTER_MS");
+    expect(dbSource).toContain("5 * 60 * 1000");
+  });
+
+  it("disables Atlas Search with a timestamp, not a permanent boolean", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    // Should use timestamp-based disabling (Date.now())
+    expect(dbSource).toContain("atlasSearchDisabledAt = Date.now()");
+    expect(dbSource).toContain("atlasActivitySearchDisabledAt = Date.now()");
+    expect(dbSource).toContain("vectorSearchDisabledAt = Date.now()");
+    // Should NOT have permanent boolean flags
+    expect(dbSource).not.toContain("atlasSearchAvailable = false");
+    expect(dbSource).not.toContain("atlasActivitySearchAvailable = false");
+    expect(dbSource).not.toContain("vectorSearchAvailable = false");
+  });
+
+  it("checks time elapsed since disable before skipping Atlas Search", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    // All three search functions should check Date.now() - disabledAt > ATLAS_RETRY_AFTER_MS
+    expect(dbSource).toContain("Date.now() - atlasSearchDisabledAt > ATLAS_RETRY_AFTER_MS");
+    expect(dbSource).toContain("Date.now() - atlasActivitySearchDisabledAt > ATLAS_RETRY_AFTER_MS");
+    expect(dbSource).toContain("Date.now() - vectorSearchDisabledAt > ATLAS_RETRY_AFTER_MS");
+  });
+});
+
+describe("Vector Search embedding guard", () => {
+  it("checks for existing embeddings before running $vectorSearch", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    expect(dbSource).toContain("embeddingsExist");
+    expect(dbSource).toContain("embedding: { $exists: true }");
+  });
+
+  it("documents vector search as foundation for future work", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    expect(dbSource).toContain("FOUNDATION FOR FUTURE WORK");
+    expect(dbSource).toContain("No code currently generates or stores embeddings");
+  });
+
+  it("returns empty array when no embeddings exist", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    expect(dbSource).toContain("if (!embeddingsExist) return []");
   });
 });
 

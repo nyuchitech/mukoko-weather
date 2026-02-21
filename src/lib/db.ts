@@ -643,11 +643,14 @@ export interface SearchResult {
 }
 
 /**
- * Track whether Atlas Search indexes are available. Set to false only when
- * the error indicates the index doesn't exist (not on transient failures).
- * Resets when the module is reloaded (cold start).
+ * Track Atlas Search availability as a timestamp-based circuit.
+ * When a missing-index error is detected, the timestamp records when it was
+ * disabled. After ATLAS_RETRY_AFTER_MS (5 min), the next request retries
+ * Atlas Search — if the index was created in the meantime it auto-recovers;
+ * if not, the timer resets.
  */
-let atlasSearchAvailable = true;
+let atlasSearchDisabledAt = 0;
+const ATLAS_RETRY_AFTER_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Check whether a MongoDB error indicates a missing Atlas Search index
@@ -689,15 +692,17 @@ export async function searchLocationsFromDb(
   const { tag, limit = 20, skip = 0 } = options;
   const q = query.trim();
 
-  // Try Atlas Search first (fuzzy + autocomplete), fall back to $text
+  // Try Atlas Search first (fuzzy + autocomplete), fall back to $text.
+  // After a missing-index error, wait ATLAS_RETRY_AFTER_MS before retrying.
+  const atlasSearchAvailable = !atlasSearchDisabledAt || Date.now() - atlasSearchDisabledAt > ATLAS_RETRY_AFTER_MS;
   if (q && atlasSearchAvailable) {
     try {
       return await atlasSearchLocations(q, { tag, limit, skip });
     } catch (err) {
-      // Only permanently disable Atlas Search if the index doesn't exist.
-      // Transient errors (network, timeout) should retry on next request.
+      // Only disable Atlas Search on missing-index errors (permanent).
+      // Transient errors (network, timeout) retry on next request automatically.
       if (isAtlasSearchIndexMissing(err)) {
-        atlasSearchAvailable = false;
+        atlasSearchDisabledAt = Date.now();
       }
     }
   }
@@ -717,7 +722,6 @@ async function atlasSearchLocations(
   const col = locationsCollection();
 
   // Build compound search clauses
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const must: Record<string, unknown>[] = [
     {
       text: {
@@ -729,7 +733,6 @@ async function atlasSearchLocations(
     },
   ];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filter: Record<string, unknown>[] = [];
   if (tag) {
     filter.push({ text: { query: tag, path: "tags" } });
@@ -900,8 +903,8 @@ export async function getActivityLabelsFromDb(
   return docs.map((d) => d.label);
 }
 
-/** Track whether Atlas Search is available for activities. */
-let atlasActivitySearchAvailable = true;
+/** Track Atlas Search availability for activities (same pattern as locations). */
+let atlasActivitySearchDisabledAt = 0;
 
 /**
  * Search activities using Atlas Search (fuzzy) with $text fallback.
@@ -914,8 +917,9 @@ export async function searchActivitiesFromDb(
   const q = query.trim();
   if (!q) return getAllActivitiesFromDb();
 
-  // Try Atlas Search first
-  if (atlasActivitySearchAvailable) {
+  // Try Atlas Search first (auto-recovers after ATLAS_RETRY_AFTER_MS)
+  const activitySearchAvailable = !atlasActivitySearchDisabledAt || Date.now() - atlasActivitySearchDisabledAt > ATLAS_RETRY_AFTER_MS;
+  if (activitySearchAvailable) {
     try {
       const col = activitiesCollection();
       const pipeline = [
@@ -934,7 +938,7 @@ export async function searchActivitiesFromDb(
       return await col.aggregate<ActivityDoc>(pipeline).toArray();
     } catch (err) {
       if (isAtlasSearchIndexMissing(err)) {
-        atlasActivitySearchAvailable = false;
+        atlasActivitySearchDisabledAt = Date.now();
       }
     }
   }
@@ -1346,13 +1350,43 @@ export async function getSeasonForDate(
  * @param embedding - Pre-computed query embedding (e.g. from Anthropic or OpenAI)
  * @param options   - limit and optional tag filter
  */
-let vectorSearchAvailable = true;
+/** Track vector search availability (same time-based pattern as Atlas Search). */
+let vectorSearchDisabledAt = 0;
+
+/**
+ * Whether at least one location has a stored embedding. Cached per warm instance.
+ * FOUNDATION FOR FUTURE WORK: No code currently generates or stores embeddings.
+ * This guard prevents the first call from triggering an Atlas error (which would
+ * disable vector search for ATLAS_RETRY_AFTER_MS) when embeddings haven't been
+ * generated yet. Once an embedding pipeline is wired up (e.g., via db-init or a
+ * separate job), this check auto-resolves on the next warm instance.
+ */
+let embeddingsExist: boolean | null = null;
 
 export async function vectorSearchLocations(
   embedding: number[],
   options: { limit?: number; tag?: string } = {},
 ): Promise<LocationDoc[]> {
-  if (!vectorSearchAvailable) return [];
+  const vectorAvailable = !vectorSearchDisabledAt || Date.now() - vectorSearchDisabledAt > ATLAS_RETRY_AFTER_MS;
+  if (!vectorAvailable) return [];
+
+  // Check if any location has a stored embedding before attempting $vectorSearch.
+  // Without embeddings, Atlas would return an error that unnecessarily disables
+  // vector search for ATLAS_RETRY_AFTER_MS.
+  if (embeddingsExist === null) {
+    try {
+      const sample = await locationsCollection().findOne(
+        { embedding: { $exists: true } },
+        { projection: { _id: 1 } },
+      );
+      embeddingsExist = sample !== null;
+    } catch {
+      // DB error — don't cache, let it retry next time
+      return [];
+    }
+  }
+  if (!embeddingsExist) return [];
+
   const { limit = 10, tag } = options;
 
   try {
@@ -1386,7 +1420,7 @@ export async function vectorSearchLocations(
     return await col.aggregate<LocationDoc>(pipeline).toArray();
   } catch (err) {
     if (isAtlasSearchIndexMissing(err)) {
-      vectorSearchAvailable = false;
+      vectorSearchDisabledAt = Date.now();
     }
     return [];
   }
@@ -1553,9 +1587,10 @@ export function getAtlasSearchIndexDefinitions(): {
   };
 }
 
-/** Reset Atlas Search availability flags (for testing). */
+/** Reset Atlas Search availability flags and embeddings guard (for testing). */
 export function _resetSearchFlags(): void {
-  atlasSearchAvailable = true;
-  atlasActivitySearchAvailable = true;
-  vectorSearchAvailable = true;
+  atlasSearchDisabledAt = 0;
+  atlasActivitySearchDisabledAt = 0;
+  vectorSearchDisabledAt = 0;
+  embeddingsExist = null;
 }
