@@ -1,12 +1,51 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
 import type { Activity } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import type { SuitabilityRuleDoc, ActivityCategoryDoc } from "@/lib/db";
+
+// ---------------------------------------------------------------------------
+// Module-level cache for suitability rules (rarely change, fetched once per session)
+// ---------------------------------------------------------------------------
+
+let cachedRules: SuitabilityRuleDoc[] | null = null;
+let cachedRulesAt = 0;
+const RULES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
+  if (cachedRules && Date.now() - cachedRulesAt < RULES_CACHE_TTL) {
+    return cachedRules;
+  }
+  const res = await fetch("/api/suitability");
+  if (!res.ok) return cachedRules ?? [];
+  const data = await res.json();
+  cachedRules = data?.rules ?? [];
+  cachedRulesAt = Date.now();
+  return cachedRules!;
+}
+
+let cachedCategoryStyles: Record<string, { bg: string; border: string; text: string; badge: string }> | null = null;
+let cachedStylesAt = 0;
+
+async function fetchCategoryStyles(): Promise<Record<string, { bg: string; border: string; text: string; badge: string }>> {
+  if (cachedCategoryStyles && Date.now() - cachedStylesAt < RULES_CACHE_TTL) {
+    return cachedCategoryStyles;
+  }
+  const res = await fetch("/api/activities?mode=categories");
+  if (!res.ok) return cachedCategoryStyles ?? {};
+  const data = await res.json();
+  const styles: Record<string, { bg: string; border: string; text: string; badge: string }> = {};
+  for (const cat of (data?.categories ?? []) as ActivityCategoryDoc[]) {
+    if (cat.style) styles[cat.id] = cat.style;
+  }
+  cachedCategoryStyles = styles;
+  cachedStylesAt = Date.now();
+  return cachedCategoryStyles;
+}
 
 // ---------------------------------------------------------------------------
 // Label helpers (exported for tests)
@@ -148,36 +187,29 @@ export function ActivityInsights({
   const selectedActivities = useAppStore((s) => s.selectedActivities);
   const openMyWeather = useAppStore((s) => s.openMyWeather);
 
-  // Fetch suitability rules from database
+  // Fetch suitability rules from database (module-level cache, 10min TTL)
   const [dbRules, setDbRules] = useState<Map<string, SuitabilityRuleDoc>>(new Map());
-  // Fetch category styles from database
+  // Fetch category styles from database (module-level cache, 10min TTL)
   const [categoryStyles, setCategoryStyles] = useState<Record<string, typeof DEFAULT_STYLE>>({});
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    // Fetch suitability rules and category styles in parallel
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     Promise.all([
-      fetch("/api/suitability")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.rules?.length) {
+      fetchSuitabilityRules()
+        .then((rules) => {
+          if (rules.length) {
             const rulesMap = new Map<string, SuitabilityRuleDoc>();
-            for (const rule of data.rules) {
-              rulesMap.set(rule.key, rule);
-            }
+            for (const rule of rules) rulesMap.set(rule.key, rule);
             setDbRules(rulesMap);
           }
         })
         .catch(() => {}),
-      fetch("/api/activities?mode=categories")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.categories?.length) {
-            const styles: Record<string, typeof DEFAULT_STYLE> = {};
-            for (const cat of data.categories as ActivityCategoryDoc[]) {
-              if (cat.style) styles[cat.id] = cat.style;
-            }
-            setCategoryStyles(styles);
-          }
+      fetchCategoryStyles()
+        .then((styles) => {
+          if (Object.keys(styles).length) setCategoryStyles(styles);
         })
         .catch(() => {}),
     ]);

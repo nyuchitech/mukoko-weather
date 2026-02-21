@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { logError } from "@/lib/observability";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { anthropicBreaker, CircuitOpenError } from "@/lib/circuit-breaker";
 import {
   getAllLocationsFromDb,
+  getLocationFromDb,
   searchLocationsFromDb,
   getAllActivitiesFromDb,
   getCachedWeather,
@@ -11,6 +14,9 @@ import {
   getLocationsByTagFromDb,
   type LocationDoc,
 } from "@/lib/db";
+
+/** Maximum allowed message length (characters). */
+const MAX_MESSAGE_LENGTH = 2000;
 
 // ---------------------------------------------------------------------------
 // System prompt for the Explore assistant
@@ -186,8 +192,7 @@ async function executeGetWeather(locationSlug: string) {
 
   // Try fetching fresh weather data
   try {
-    const allLocations = await getAllLocationsFromDb();
-    const location = allLocations.find((l: LocationDoc) => l.slug === locationSlug);
+    const location = await getLocationFromDb(locationSlug);
     if (!location) {
       return { found: false, message: `Location "${locationSlug}" not found` };
     }
@@ -275,12 +280,33 @@ async function executeListLocationsByTag(tag: string) {
 // Main POST handler
 // ---------------------------------------------------------------------------
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // ── Rate limiting ────────────────────────────────────────────────────────
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rateLimit = await checkRateLimit(ip, "explore", 20, 3600); // 20 requests/hour/IP
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)) },
+        },
+      );
+    }
+
     const { message, history } = await request.json();
 
+    // ── Input validation ─────────────────────────────────────────────────────
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` },
+        { status: 400 },
+      );
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -300,7 +326,7 @@ export async function POST(request: Request) {
     if (Array.isArray(history)) {
       for (const msg of history.slice(-10)) {
         if (msg.role === "user" && typeof msg.content === "string") {
-          messages.push({ role: "user", content: msg.content });
+          messages.push({ role: "user", content: msg.content.slice(0, MAX_MESSAGE_LENGTH) });
         } else if (msg.role === "assistant" && typeof msg.content === "string") {
           messages.push({ role: "assistant", content: msg.content });
         }
@@ -322,14 +348,16 @@ export async function POST(request: Request) {
       // Continue without location context
     }
 
-    // Initial Claude call with tools
-    let response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: EXPLORE_SYSTEM_PROMPT + locationContext,
-      tools: TOOLS,
-      messages,
-    });
+    // ── Claude call with circuit breaker ──────────────────────────────────────
+    let response = await anthropicBreaker.execute(() =>
+      anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: EXPLORE_SYSTEM_PROMPT + locationContext,
+        tools: TOOLS,
+        messages,
+      }),
+    );
 
     // Agentic tool-use loop — process tool calls until Claude returns a final text response
     const maxIterations = 5;
@@ -396,13 +424,15 @@ export async function POST(request: Request) {
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
-      response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: EXPLORE_SYSTEM_PROMPT + locationContext,
-        tools: TOOLS,
-        messages,
-      });
+      response = await anthropicBreaker.execute(() =>
+        anthropic.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          system: EXPLORE_SYSTEM_PROMPT + locationContext,
+          tools: TOOLS,
+          messages,
+        }),
+      );
     }
 
     // Extract the final text response
@@ -416,10 +446,20 @@ export async function POST(request: Request) {
       references: [...new Map(references.map((r) => [r.slug, r])).values()],
     });
   } catch (err) {
+    // Circuit breaker is open — Anthropic is temporarily unavailable
+    if (err instanceof CircuitOpenError) {
+      return NextResponse.json({
+        response: "The AI assistant is temporarily unavailable due to service issues. Please try again in a few minutes.",
+        references: [],
+        error: true,
+      });
+    }
+
     logError({
       source: "ai-api",
       severity: "medium",
       message: "Explore assistant error",
+      location: "explore",
       error: err,
     });
 

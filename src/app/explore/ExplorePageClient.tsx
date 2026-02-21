@@ -1,6 +1,7 @@
 "use client";
 
 import { ExploreChatbot } from "@/components/explore/ExploreChatbot";
+import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
 
 export function ExplorePageClient() {
   return (
@@ -14,7 +15,9 @@ export function ExplorePageClient() {
 
       {/* Chatbot container — fills available height on mobile, fixed height on desktop */}
       <div className="mt-6 flex flex-col rounded-[var(--radius-card)] border border-border bg-surface-base/50 shadow-sm overflow-hidden h-[60vh] min-h-[400px] max-h-[700px]">
-        <ExploreChatbot />
+        <ChartErrorBoundary name="Explore Chatbot">
+          <ExploreChatbot />
+        </ChartErrorBoundary>
       </div>
     </section>
   );

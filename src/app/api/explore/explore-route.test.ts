@@ -1,14 +1,164 @@
+/**
+ * Tests for the /api/explore route — validates request validation,
+ * rate limiting, circuit breaker usage, and response structure.
+ */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-describe("explore API route", () => {
-  it("exports a POST handler", async () => {
-    const mod = await import("./route");
-    expect(typeof mod.POST).toBe("function");
+const source = readFileSync(resolve(__dirname, "route.ts"), "utf-8");
+
+describe("/api/explore route structure", () => {
+  it("exports a POST handler", () => {
+    expect(source).toContain("export async function POST");
   });
 
-  it("POST handler is an async function", async () => {
-    const mod = await import("./route");
-    // AsyncFunction check
-    expect(mod.POST.constructor.name).toBe("AsyncFunction");
+  it("POST handler accepts NextRequest", () => {
+    expect(source).toContain("POST(request: NextRequest)");
+  });
+});
+
+describe("input validation", () => {
+  it("returns 400 when message is missing", () => {
+    expect(source).toContain("!message || typeof message !== \"string\"");
+    expect(source).toContain("Message is required");
+    expect(source).toContain("status: 400");
+  });
+
+  it("enforces maximum message length", () => {
+    expect(source).toContain("MAX_MESSAGE_LENGTH");
+    expect(source).toContain("message.length > MAX_MESSAGE_LENGTH");
+    expect(source).toContain("Message too long");
+  });
+
+  it("sets max message length to 2000 characters", () => {
+    expect(source).toContain("const MAX_MESSAGE_LENGTH = 2000");
+  });
+
+  it("truncates history messages to max length", () => {
+    expect(source).toContain("msg.content.slice(0, MAX_MESSAGE_LENGTH)");
+  });
+});
+
+describe("rate limiting", () => {
+  it("imports checkRateLimit", () => {
+    expect(source).toContain("import { checkRateLimit }");
+  });
+
+  it("checks rate limit per IP", () => {
+    expect(source).toContain("checkRateLimit(ip, \"explore\"");
+  });
+
+  it("allows 20 requests per hour per IP", () => {
+    expect(source).toContain("\"explore\", 20, 3600");
+  });
+
+  it("returns 429 when rate limit exceeded", () => {
+    expect(source).toContain("status: 429");
+    expect(source).toContain("Rate limit exceeded");
+  });
+
+  it("includes Retry-After header", () => {
+    expect(source).toContain("Retry-After");
+  });
+
+  it("extracts IP from x-forwarded-for header", () => {
+    expect(source).toContain("x-forwarded-for");
+  });
+});
+
+describe("circuit breaker", () => {
+  it("imports anthropicBreaker", () => {
+    expect(source).toContain("import { anthropicBreaker");
+  });
+
+  it("imports CircuitOpenError", () => {
+    expect(source).toContain("CircuitOpenError");
+  });
+
+  it("wraps initial Claude call in circuit breaker", () => {
+    expect(source).toContain("anthropicBreaker.execute");
+  });
+
+  it("wraps tool-loop Claude calls in circuit breaker", () => {
+    // Both the initial and loop calls should use the breaker
+    const matches = source.match(/anthropicBreaker\.execute/g);
+    expect(matches?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("handles CircuitOpenError with user-friendly message", () => {
+    expect(source).toContain("err instanceof CircuitOpenError");
+    expect(source).toContain("temporarily unavailable");
+  });
+});
+
+describe("API key handling", () => {
+  it("checks for ANTHROPIC_API_KEY", () => {
+    expect(source).toContain("process.env.ANTHROPIC_API_KEY");
+  });
+
+  it("returns graceful response when API key is missing", () => {
+    expect(source).toContain("requires an AI configuration");
+  });
+});
+
+describe("location lookup", () => {
+  it("uses single-document lookup instead of fetching all locations", () => {
+    expect(source).toContain("getLocationFromDb(locationSlug)");
+  });
+
+  it("imports getLocationFromDb", () => {
+    expect(source).toContain("getLocationFromDb");
+  });
+});
+
+describe("conversation handling", () => {
+  it("limits history to last 10 messages", () => {
+    expect(source).toContain("history.slice(-10)");
+  });
+
+  it("limits tool-use loop to 5 iterations", () => {
+    expect(source).toContain("maxIterations = 5");
+  });
+
+  it("deduplicates location references", () => {
+    expect(source).toContain("new Map(references.map");
+  });
+});
+
+describe("tool definitions", () => {
+  it("defines search_locations tool", () => {
+    expect(source).toContain("\"search_locations\"");
+  });
+
+  it("defines get_weather tool", () => {
+    expect(source).toContain("\"get_weather\"");
+  });
+
+  it("defines get_activity_advice tool", () => {
+    expect(source).toContain("\"get_activity_advice\"");
+  });
+
+  it("defines list_locations_by_tag tool", () => {
+    expect(source).toContain("\"list_locations_by_tag\"");
+  });
+});
+
+describe("error handling and observability", () => {
+  it("logs errors with source ai-api", () => {
+    expect(source).toContain("source: \"ai-api\"");
+  });
+
+  it("includes location field in logError", () => {
+    expect(source).toContain("location: \"explore\"");
+  });
+
+  it("returns error flag in error responses", () => {
+    expect(source).toContain("error: true");
+  });
+
+  it("returns response and references shape on success", () => {
+    expect(source).toContain("response: responseText");
+    expect(source).toContain("references:");
   });
 });

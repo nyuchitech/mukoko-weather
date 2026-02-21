@@ -132,7 +132,7 @@ export function ExploreChatbot() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && (
           <EmptyState onSuggestionClick={handleSuggestion} />
         )}

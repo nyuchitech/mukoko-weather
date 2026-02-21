@@ -249,6 +249,9 @@ export async function ensureIndexes(): Promise<void> {
     // Activity categories: by id (unique), by order for display
     activityCategoriesCollection().createIndex({ id: 1 }, { unique: true }),
     activityCategoriesCollection().createIndex({ order: 1 }),
+
+    // Suitability rules: by key (unique) for lookups
+    suitabilityRulesCollection().createIndex({ key: 1 }, { unique: true }),
   ]);
 }
 

@@ -376,7 +376,7 @@ function LocationTab({
                 </div>
                 {isSelected && (
                   <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary" aria-hidden="true">
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" className="stroke-primary-foreground" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </span>
@@ -536,7 +536,7 @@ function ActivitiesTab({
               >
                 {isSelected && (
                   <span className={`absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full ${style.badge}`} aria-hidden="true">
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </span>
@@ -636,7 +636,7 @@ function SettingsTab() {
             </div>
             {theme === option.value && (
               <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary" aria-hidden="true">
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" className="stroke-primary-foreground" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </span>
