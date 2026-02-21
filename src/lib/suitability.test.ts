@@ -45,7 +45,6 @@ const MOCK_RULE: SuitabilityRuleDoc = {
     colorClass: "text-severity-low",
     bgClass: "bg-severity-low/10",
     detail: "Clear skies — ideal drone conditions",
-    metricTemplate: "Vis: {visibility} km",
   },
   updatedAt: new Date(),
 };
@@ -76,13 +75,14 @@ describe("evaluateRule", () => {
     const result = evaluateRule(MOCK_RULE, { visibility: 10 });
     expect(result.level).toBe("excellent");
     expect(result.label).toBe("Flyable");
-    expect(result.metric).toBe("Vis: 10.0 km");
+    expect(result.metric).toBeUndefined();
   });
 
   it("returns fallback for empty insights", () => {
     const result = evaluateRule(MOCK_RULE, {});
     expect(result.level).toBe("excellent");
     expect(result.label).toBe("Flyable");
+    expect(result.metric).toBeUndefined();
   });
 
   it("skips conditions where the field is not present in insights", () => {
@@ -177,7 +177,7 @@ describe("evaluateRule with wind speed conditions", () => {
     fallback: {
       level: "excellent", label: "Flyable",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
-      detail: "Calm winds", metricTemplate: "Wind: {windSpeed} km/h",
+      detail: "Calm winds",
     },
     updatedAt: new Date(),
   };
@@ -206,6 +206,6 @@ describe("evaluateRule with wind speed conditions", () => {
     const result = evaluateRule(WIND_RULE, { windSpeed: 10, windGust: 15 });
     expect(result.level).toBe("excellent");
     expect(result.label).toBe("Flyable");
-    expect(result.metric).toBe("Wind: 10 km/h");
+    expect(result.metric).toBeUndefined();
   });
 });

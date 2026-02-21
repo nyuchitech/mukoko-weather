@@ -160,7 +160,7 @@ describe("conversation handling", () => {
   });
 
   it("deduplicates location references", () => {
-    expect(source).toContain("new Map(references.map");
+    expect(source).toContain("deduplicateReferences(references)");
   });
 
   it("uses in-request weather cache to prevent double fetching", () => {
@@ -274,6 +274,10 @@ describe("security", () => {
     expect(source).toContain("\\n\\nHuman:");
     expect(source).toContain("\\n\\nAssistant:");
   });
+
+  it("sanitizes the current user message consistently with history", () => {
+    expect(source).toContain("sanitizeHistoryContent(message)");
+  });
 });
 
 describe("error handling and observability", () => {
@@ -294,6 +298,10 @@ describe("error handling and observability", () => {
     expect(source).toContain("logWarn");
   });
 
+  it("logs weather fetch failures in executeGetWeather", () => {
+    expect(source).toContain("Weather fetch failed in explore tool");
+  });
+
   it("returns error flag in error responses", () => {
     expect(source).toContain("error: true");
   });
@@ -301,5 +309,29 @@ describe("error handling and observability", () => {
   it("returns response and references shape on success", () => {
     expect(source).toContain("response: responseText");
     expect(source).toContain("references:");
+  });
+});
+
+describe("performance and resilience", () => {
+  it("uses a module-level singleton Anthropic client", () => {
+    expect(source).toContain("getAnthropicClient(apiKey)");
+    expect(source).toContain("let _anthropicClient");
+  });
+
+  it("wraps tool executions with withToolTimeout", () => {
+    expect(source).toContain("withToolTimeout(");
+    expect(source).toContain("TOOL_TIMEOUT_MS");
+  });
+
+  it("applies timeout to all four tool types", () => {
+    expect(source).toContain('withToolTimeout(executeSearchLocations(query), "search_locations")');
+    expect(source).toContain('withToolTimeout(executeGetWeather(slug), "get_weather")');
+    expect(source).toContain('withToolTimeout(executeGetActivityAdvice(');
+    expect(source).toContain('withToolTimeout(executeListLocationsByTag(tag), "list_locations_by_tag")');
+  });
+
+  it("deduplicates references preferring location type", () => {
+    expect(source).toContain("deduplicateReferences");
+    expect(source).toContain('existing.type !== "location"');
   });
 });

@@ -61,7 +61,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "good", label: "Good",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Favorable conditions for fieldwork",
-      metricTemplate: "GDD: {gdd10To30}",
     },
   },
 
@@ -102,7 +101,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "good", label: "Good",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Safe conditions for outdoor work",
-      metricTemplate: "Vis: {visibility} km",
     },
   },
 
@@ -143,7 +141,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "excellent", label: "Excellent",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Great conditions for outdoor activity",
-      metricTemplate: "UV: {uvHealthConcern}",
     },
   },
 
@@ -177,14 +174,12 @@ export const SUITABILITY_RULES: SeedRule[] = [
         level: "fair", label: "Fair",
         colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
         detail: "Precipitation — wet road conditions",
-        metricTemplate: "Vis: {visibility} km",
       },
     ],
     fallback: {
       level: "good", label: "Good",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Clear conditions for travel",
-      metricTemplate: "Vis: {visibility} km",
     },
   },
 
@@ -211,7 +206,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "good", label: "Good",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Good conditions for outdoor activities",
-      metricTemplate: "Vis: {visibility} km",
     },
   },
 
@@ -245,7 +239,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "excellent", label: "Excellent",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Perfect for outdoor plans",
-      metricTemplate: "UV: {uvHealthConcern}",
     },
   },
 
@@ -320,7 +313,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
       level: "excellent", label: "Flyable",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
       detail: "Clear skies, calm winds — ideal drone conditions",
-      metricTemplate: "Wind: {windSpeed} km/h",
     },
   },
 ];

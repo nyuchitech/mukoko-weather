@@ -17,6 +17,39 @@ import {
   type LocationDoc,
 } from "@/lib/db";
 
+// ---------------------------------------------------------------------------
+// Module-level singleton Anthropic client (reuses HTTP connection pool across
+// warm Vercel function invocations instead of creating a new client per request)
+// ---------------------------------------------------------------------------
+
+let _anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(apiKey: string): Anthropic {
+  if (!_anthropicClient) {
+    _anthropicClient = new Anthropic({ apiKey });
+  }
+  return _anthropicClient;
+}
+
+// ---------------------------------------------------------------------------
+// Tool execution timeout — prevents a hanging MongoDB query from blocking
+// the entire serverless function until Vercel's 60s limit.
+// ---------------------------------------------------------------------------
+
+const TOOL_TIMEOUT_MS = 15_000; // 15 seconds per tool execution
+
+function withToolTimeout<T>(promise: Promise<T>, toolName: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Tool "${toolName}" timed out after ${TOOL_TIMEOUT_MS}ms`)),
+      TOOL_TIMEOUT_MS,
+    );
+    promise
+      .then((result) => { clearTimeout(timer); resolve(result); })
+      .catch((err) => { clearTimeout(timer); reject(err); });
+  });
+}
+
 /** Maximum allowed message length (characters). */
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -282,7 +315,13 @@ async function executeGetWeather(locationSlug: string) {
       insights: weather.insights ?? null,
       season: { name: season.name, shona: season.shona, description: season.description },
     };
-  } catch {
+  } catch (err) {
+    logWarn({
+      source: "weather-api",
+      location: locationSlug,
+      message: `Weather fetch failed in explore tool for "${locationSlug}"`,
+      error: err,
+    });
     return { found: false, message: `Unable to fetch weather for "${locationSlug}"` };
   }
 }
@@ -416,7 +455,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = getAnthropicClient(apiKey);
 
     // Build conversation history.
     // Trust model: the server owns the system prompt (immutable guardrails);
@@ -445,8 +484,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Add the current message
-    messages.push({ role: "user", content: message });
+    // Add the current message (sanitize consistently with history messages)
+    messages.push({ role: "user", content: sanitizeHistoryContent(message) });
 
     // Fetch location context (module-level 5min cache) for Claude awareness
     let locationContext = "";
@@ -492,7 +531,7 @@ export async function POST(request: NextRequest) {
             case "search_locations": {
               const query = typeof input.query === "string" ? input.query : "";
               if (!query) { result = { error: "Missing query parameter" }; break; }
-              result = await executeSearchLocations(query);
+              result = await withToolTimeout(executeSearchLocations(query), "search_locations");
               const searchResult = result as { found: boolean; locations?: { slug: string; name: string }[] };
               if (searchResult.found && searchResult.locations) {
                 for (const loc of searchResult.locations) {
@@ -508,7 +547,7 @@ export async function POST(request: NextRequest) {
               if (cachedWeather) {
                 result = cachedWeather;
               } else {
-                const freshWeather = await executeGetWeather(slug);
+                const freshWeather = await withToolTimeout(executeGetWeather(slug), "get_weather");
                 weatherCache.set(slug, freshWeather);
                 result = freshWeather;
               }
@@ -522,13 +561,13 @@ export async function POST(request: NextRequest) {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               const activities = (Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : []).slice(0, 10);
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
-              result = await executeGetActivityAdvice(slug, activities, weatherCache, rulesCache);
+              result = await withToolTimeout(executeGetActivityAdvice(slug, activities, weatherCache, rulesCache), "get_activity_advice");
               break;
             }
             case "list_locations_by_tag": {
               const tag = typeof input.tag === "string" ? input.tag : "";
               if (!tag) { result = { error: "Missing tag parameter" }; break; }
-              result = await executeListLocationsByTag(tag);
+              result = await withToolTimeout(executeListLocationsByTag(tag), "list_locations_by_tag");
               break;
             }
             default:
@@ -574,7 +613,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response: responseText,
-      references: [...new Map(references.map((r) => [r.slug, r])).values()],
+      // Deduplicate references, preferring "location" type over "weather"
+      references: deduplicateReferences(references),
     });
   } catch (err) {
     // Circuit breaker is open — Anthropic is temporarily unavailable
@@ -613,4 +653,17 @@ const CONTEXT_BOUNDARY_RE = /\n\nHuman:|\\n\\nHuman:|\\nHuman:|\\n\\nAssistant:|
 /** Strip context-boundary markers and enforce max length on history content. */
 function sanitizeHistoryContent(content: string): string {
   return content.replace(CONTEXT_BOUNDARY_RE, "").slice(0, MAX_MESSAGE_LENGTH);
+}
+
+/** Deduplicate references by slug, preferring "location" type over "weather". */
+function deduplicateReferences(refs: { slug: string; name: string; type: string }[]) {
+  const map = new Map<string, { slug: string; name: string; type: string }>();
+  for (const r of refs) {
+    const existing = map.get(r.slug);
+    // Keep "location" type if we already have it; otherwise take the new entry
+    if (!existing || (existing.type !== "location" && r.type === "location")) {
+      map.set(r.slug, r);
+    }
+  }
+  return [...map.values()];
 }
