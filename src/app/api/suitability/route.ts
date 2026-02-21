@@ -32,6 +32,7 @@ export async function GET(request: Request) {
       source: "mongodb",
       severity: "medium",
       message: "Failed to load suitability rules",
+      location: "suitability",
       error: err,
     });
     return NextResponse.json({ rules: [] });

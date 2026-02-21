@@ -286,7 +286,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
         level: "poor", label: "Grounded",
         colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
         detail: "Precipitation — moisture risk to electronics",
-        metricTemplate: "Vis: {visibility} km",
       },
       {
         field: "windGust", operator: "gt", value: 25,

@@ -9,11 +9,13 @@ import { ActivityIcon } from "@/lib/weather-icons";
 import {
   type LocationTag,
   type ZimbabweLocation,
+  LOCATIONS,
 } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import {
   type Activity,
   type ActivityCategory,
+  ACTIVITIES,
 } from "@/lib/activities";
 import type { ActivityCategoryDoc } from "@/lib/db";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -66,10 +68,10 @@ export function MyWeatherModal() {
   const [pendingSlug, setPendingSlug] = useState(currentSlug);
   const [activeTab, setActiveTab] = useState("location");
 
-  // All data fetched from API — no hardcoded imports.
-  // Start empty and fetch from MongoDB on mount.
-  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  // Seed with static data for instant rendering, then upgrade from MongoDB.
+  // This prevents a blank modal on slow connections or cold starts.
+  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
+  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
   const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>([]);
   const [tagLabels, setTagLabels] = useState<Record<string, string>>(DEFAULT_TAG_LABELS);
   const [dataLoading, setDataLoading] = useState(true);

@@ -112,6 +112,32 @@ describe("location lookup", () => {
   });
 });
 
+describe("server-side caching", () => {
+  it("caches location context with TTL", () => {
+    expect(source).toContain("LOCATION_CACHE_TTL");
+    expect(source).toContain("cachedLocationContext");
+    expect(source).toContain("getLocationContext");
+  });
+
+  it("caches activities with TTL", () => {
+    expect(source).toContain("ACTIVITIES_CACHE_TTL");
+    expect(source).toContain("cachedActivities");
+    expect(source).toContain("getCachedActivities");
+  });
+
+  it("uses cached activities in get_activity_advice", () => {
+    expect(source).toContain("getCachedActivities()");
+  });
+
+  it("uses shared model ID constant", () => {
+    expect(source).toContain("const CLAUDE_MODEL =");
+    expect(source).toContain("model: CLAUDE_MODEL");
+    // Should NOT have hardcoded model ID in API calls
+    const apiCallRegion = source.slice(source.indexOf("anthropicBreaker.execute"));
+    expect(apiCallRegion).not.toContain("model: \"claude-haiku");
+  });
+});
+
 describe("conversation handling", () => {
   it("limits history to last 10 messages", () => {
     expect(source).toContain("history.slice(-10)");

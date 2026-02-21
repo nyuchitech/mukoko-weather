@@ -39,7 +39,8 @@ jobs:
             -H "Content-Type: application/json" \
             -H "x-init-secret: ${DB_INIT_SECRET}" \
             "${BASE_URL}/api/db-init" \
-            --max-time 60)
+            --max-time 60 \
+            --retry 3 --retry-delay 5)
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | sed '$d')

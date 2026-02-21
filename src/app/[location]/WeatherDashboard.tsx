@@ -13,7 +13,7 @@ import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
 import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
-import type { Activity } from "@/lib/activities";
+import { type Activity, ACTIVITIES } from "@/lib/activities";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
 // These use React.lazy() so their JS chunks (Chart.js, ReactMarkdown, etc.)
@@ -50,9 +50,9 @@ export function WeatherDashboard({
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
   const selectedActivities = useAppStore((s) => s.selectedActivities);
 
-  // Fetch activities from MongoDB API — single source of truth.
-  // Start empty; ActivityInsights returns null when no activities are loaded.
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  // Seed with static ACTIVITIES for instant rendering, then upgrade from MongoDB.
+  // This prevents a blank ActivityInsights section on slow connections or cold starts.
+  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
   useEffect(() => {
     if (selectedActivities.length === 0) return;
     fetch("/api/activities")

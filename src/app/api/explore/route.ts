@@ -18,6 +18,45 @@ import {
 /** Maximum allowed message length (characters). */
 const MAX_MESSAGE_LENGTH = 2000;
 
+/** Shared model ID for Claude Haiku. */
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
+
+// ---------------------------------------------------------------------------
+// Module-level caches (persist across warm function invocations)
+// ---------------------------------------------------------------------------
+
+let cachedLocationContext: string | null = null;
+let cachedLocationContextAt = 0;
+const LOCATION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getLocationContext(): Promise<string> {
+  if (cachedLocationContext && Date.now() - cachedLocationContextAt < LOCATION_CACHE_TTL) {
+    return cachedLocationContext;
+  }
+  const allLocations = await getAllLocationsFromDb();
+  const locationNames = allLocations.slice(0, 50).map(
+    (l: LocationDoc) => `${l.name} (/${l.slug}) — ${l.province}, ${(l.country ?? "ZW").toUpperCase()}`
+  );
+  cachedLocationContext = `\n\nAvailable locations (sample of ${allLocations.length} total):\n${locationNames.join("\n")}`;
+  cachedLocationContextAt = Date.now();
+  return cachedLocationContext;
+}
+
+interface ActivityRecord { id: string; label: string; category: string; description: string }
+let cachedActivities: ActivityRecord[] | null = null;
+let cachedActivitiesAt = 0;
+const ACTIVITIES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedActivities(): Promise<ActivityRecord[]> {
+  if (cachedActivities && Date.now() - cachedActivitiesAt < ACTIVITIES_CACHE_TTL) {
+    return cachedActivities;
+  }
+  const all = await getAllActivitiesFromDb();
+  cachedActivities = all.map((a) => ({ id: a.id, label: a.label, category: a.category, description: a.description }));
+  cachedActivitiesAt = Date.now();
+  return cachedActivities;
+}
+
 // ---------------------------------------------------------------------------
 // System prompt for the Explore assistant
 // ---------------------------------------------------------------------------
@@ -246,7 +285,7 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
     return weatherResult;
   }
 
-  const allActivities = await getAllActivitiesFromDb();
+  const allActivities = await getCachedActivities();
   const matchedActivities = activityIds
     .map((id) => allActivities.find((a) => a.id === id))
     .filter((a) => a != null);
@@ -255,12 +294,7 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
     found: true,
     locationSlug,
     weather: weatherResult,
-    activities: matchedActivities.map((a) => ({
-      id: a.id,
-      label: a.label,
-      category: a.category,
-      description: a.description,
-    })),
+    activities: matchedActivities,
     insights: "insights" in weatherResult ? weatherResult.insights : null,
   };
 }
@@ -339,14 +373,10 @@ export async function POST(request: NextRequest) {
     // Add the current message
     messages.push({ role: "user", content: message });
 
-    // Fetch location context to give Claude awareness of available locations
+    // Fetch location context (module-level 5min cache) for Claude awareness
     let locationContext = "";
     try {
-      const allLocations = await getAllLocationsFromDb();
-      const locationNames = allLocations.slice(0, 50).map(
-        (l: LocationDoc) => `${l.name} (/${l.slug}) — ${l.province}, ${(l.country ?? "ZW").toUpperCase()}`
-      );
-      locationContext = `\n\nAvailable locations (sample of ${allLocations.length} total):\n${locationNames.join("\n")}`;
+      locationContext = await getLocationContext();
     } catch {
       // Continue without location context
     }
@@ -354,7 +384,7 @@ export async function POST(request: NextRequest) {
     // ── Claude call with circuit breaker ──────────────────────────────────────
     let response = await anthropicBreaker.execute(() =>
       anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: CLAUDE_MODEL,
         max_tokens: 1024,
         system: EXPLORE_SYSTEM_PROMPT + locationContext,
         tools: TOOLS,
@@ -435,7 +465,7 @@ export async function POST(request: NextRequest) {
 
       response = await anthropicBreaker.execute(() =>
         anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
+          model: CLAUDE_MODEL,
           max_tokens: 1024,
           system: EXPLORE_SYSTEM_PROMPT + locationContext,
           tools: TOOLS,
