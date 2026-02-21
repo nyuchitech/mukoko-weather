@@ -109,14 +109,3 @@ export function evaluateRule(rule: SuitabilityRuleDoc, insights: WeatherInsights
     metric: resolveMetric(rule.fallback.metricTemplate, insights),
   };
 }
-
-/**
- * Get the suitability rule key for an activity.
- * Returns "activity:<id>" if a specific rule exists, otherwise "category:<category>".
- */
-export function getRuleKey(activityId: string, category: string): { activityKey: string; categoryKey: string } {
-  return {
-    activityKey: `activity:${activityId}`,
-    categoryKey: `category:${category}`,
-  };
-}

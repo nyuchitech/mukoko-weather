@@ -32,8 +32,10 @@ describe("key-based lookup", () => {
     expect(source).toContain("{ rule }");
   });
 
-  it("uses getSuitabilityRuleByKey for key lookups", () => {
+  it("uses getSuitabilityRuleByKey via static import (not dynamic)", () => {
     expect(source).toContain("getSuitabilityRuleByKey(key)");
+    // Verify static import — no dynamic import("@/lib/db") for this function
+    expect(source).not.toContain("await import(");
   });
 });
 

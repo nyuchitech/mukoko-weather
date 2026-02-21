@@ -9,7 +9,15 @@ import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import type { SuitabilityRuleDoc, ActivityCategoryDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
-// Module-level cache for suitability rules (rarely change, fetched once per session)
+// Module-level cache for suitability rules and category styles.
+//
+// These module-scoped variables are shared across all component instances and
+// persist across HMR reloads in dev. This is intentional: suitability rules
+// and category styles rarely change, so a short TTL cache avoids redundant
+// network requests when the component remounts. Trade-offs:
+//   - In development, stale cache may survive HMR — hard-refresh to clear.
+//   - In tests, cache bleeds between cases — call the exported resetters or
+//     use separate describe blocks with fresh module imports if needed.
 // ---------------------------------------------------------------------------
 
 let cachedRules: SuitabilityRuleDoc[] | null = null;

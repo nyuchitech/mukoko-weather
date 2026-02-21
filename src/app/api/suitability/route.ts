@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllSuitabilityRules } from "@/lib/db";
+import { getAllSuitabilityRules, getSuitabilityRuleByKey } from "@/lib/db";
 import { logError } from "@/lib/observability";
 
 /**
@@ -17,7 +17,6 @@ export async function GET(request: Request) {
     const key = searchParams.get("key");
 
     if (key) {
-      const { getSuitabilityRuleByKey } = await import("@/lib/db");
       const rule = await getSuitabilityRuleByKey(key);
       if (!rule) {
         return NextResponse.json({ error: "Rule not found" }, { status: 404 });

@@ -356,10 +356,14 @@ export async function POST(request: NextRequest) {
 
     const anthropic = new Anthropic({ apiKey });
 
-    // Build conversation history
+    // Build conversation history.
+    // Trust model: the server owns the system prompt (immutable guardrails);
+    // history messages are user-controlled and placed in user/assistant roles.
+    // Claude's system prompt explicitly prohibits fabricating weather data,
+    // which is the primary defense against prompt injection via history.
     const messages: Anthropic.MessageParam[] = [];
 
-    // Add prior conversation history if provided
+    // Add prior conversation history if provided (capped at 10, length-checked)
     if (Array.isArray(history)) {
       for (const msg of history.slice(-10)) {
         if (msg.role === "user" && typeof msg.content === "string") {

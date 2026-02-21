@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateRule, getRuleKey } from "./suitability";
+import { evaluateRule } from "./suitability";
 import type { SuitabilityRuleDoc } from "./db";
 
 const MOCK_RULE: SuitabilityRuleDoc = {
@@ -207,13 +207,5 @@ describe("evaluateRule with wind speed conditions", () => {
     expect(result.level).toBe("excellent");
     expect(result.label).toBe("Flyable");
     expect(result.metric).toBe("Wind: 10 km/h");
-  });
-});
-
-describe("getRuleKey", () => {
-  it("returns both activity and category keys", () => {
-    const keys = getRuleKey("drone-flying", "casual");
-    expect(keys.activityKey).toBe("activity:drone-flying");
-    expect(keys.categoryKey).toBe("category:casual");
   });
 });

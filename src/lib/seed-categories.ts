@@ -18,7 +18,14 @@ export interface ActivityCategoryDoc {
   label: string;
   /** Sort order for UI display */
   order: number;
-  /** Mineral color CSS classes (must be complete Tailwind class names) */
+  /**
+   * Mineral color CSS classes (must be complete Tailwind class names).
+   *
+   * Trust boundary: these class strings are applied directly via className in
+   * React components. They come from app-seeded data (this file → db-init →
+   * MongoDB), NOT from user input. Never derive these values from untrusted
+   * sources (user submissions, query params, etc.).
+   */
   style: {
     bg: string;
     border: string;
