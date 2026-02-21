@@ -14,7 +14,6 @@ import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
 import type { Activity } from "@/lib/activities";
-import { ACTIVITIES } from "@/lib/activities";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
 // These use React.lazy() so their JS chunks (Chart.js, ReactMarkdown, etc.)
@@ -51,11 +50,9 @@ export function WeatherDashboard({
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
   const selectedActivities = useAppStore((s) => s.selectedActivities);
 
-  // Seed with ACTIVITIES so ActivityInsights always renders even if the fetch
-  // fails. The fetch upgrades to MongoDB data (which includes community-added
-  // activities) once it resolves — but only when the user has activities selected,
-  // since ActivityInsights returns null when selectedActivities is empty.
-  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
+  // Fetch activities from MongoDB API — single source of truth.
+  // Start empty; ActivityInsights returns null when no activities are loaded.
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   useEffect(() => {
     if (selectedActivities.length === 0) return;
     fetch("/api/activities")

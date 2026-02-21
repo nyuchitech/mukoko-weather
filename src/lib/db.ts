@@ -24,6 +24,7 @@ import { generateProvinceSlug, type Country, type Province } from "./countries";
 import type { RegionDoc } from "./seed-regions";
 import type { TagDoc } from "./seed-tags";
 import type { SeasonDoc } from "./seed-seasons";
+import type { ActivityCategoryDoc } from "./seed-categories";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -122,7 +123,7 @@ export interface ProvinceDoc extends Province {
 }
 
 // Re-export seed types so callers only need to import from db.ts
-export type { RegionDoc, TagDoc, SeasonDoc };
+export type { RegionDoc, TagDoc, SeasonDoc, ActivityCategoryDoc };
 
 // ---------------------------------------------------------------------------
 // Collection accessors
@@ -170,6 +171,10 @@ function tagsCollection() {
 
 function seasonsCollection() {
   return getDb().collection<SeasonDoc>("seasons");
+}
+
+function activityCategoriesCollection() {
+  return getDb().collection<ActivityCategoryDoc>("activity_categories");
 }
 
 function suitabilityRulesCollection() {
@@ -240,6 +245,10 @@ export async function ensureIndexes(): Promise<void> {
 
     // Seasons: by countryCode for date lookups
     seasonsCollection().createIndex({ countryCode: 1 }),
+
+    // Activity categories: by id (unique), by order for display
+    activityCategoriesCollection().createIndex({ id: 1 }, { unique: true }),
+    activityCategoriesCollection().createIndex({ order: 1 }),
   ]);
 }
 
@@ -798,6 +807,32 @@ export async function getSuitabilityRulesForActivity(activityId: string, categor
   const activityRule = await suitabilityRulesCollection().findOne({ key: `activity:${activityId}` });
   if (activityRule) return activityRule;
   return suitabilityRulesCollection().findOne({ key: `category:${category}` });
+}
+
+// ---------------------------------------------------------------------------
+// Activity category operations (database-driven category styles)
+// ---------------------------------------------------------------------------
+
+export async function syncActivityCategories(categories: ActivityCategoryDoc[]): Promise<void> {
+  const now = new Date();
+  const bulkOps = categories.map((cat) => ({
+    updateOne: {
+      filter: { id: cat.id },
+      update: { $set: { ...cat, updatedAt: now } },
+      upsert: true,
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await activityCategoriesCollection().bulkWrite(bulkOps);
+  }
+}
+
+export async function getAllActivityCategories(): Promise<ActivityCategoryDoc[]> {
+  return activityCategoriesCollection().find({}).sort({ order: 1 }).toArray();
+}
+
+export async function getActivityCategoryById(id: string): Promise<ActivityCategoryDoc | null> {
+  return activityCategoriesCollection().findOne({ id });
 }
 
 // ---------------------------------------------------------------------------

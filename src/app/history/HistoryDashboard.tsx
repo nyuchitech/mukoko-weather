@@ -22,11 +22,8 @@ import { useAppStore } from "@/lib/store";
 import { weatherCodeToInfo, windDirection, uvLevel } from "@/lib/weather";
 import type { WeatherInsights } from "@/lib/weather";
 import type { WeatherHistoryDoc } from "@/lib/db";
-import {
-  ACTIVITY_CATEGORIES,
-  CATEGORY_STYLES,
-  type ActivityCategory,
-} from "@/lib/activities";
+import type { ActivityCategory } from "@/lib/activities";
+import type { ActivityCategoryDoc } from "@/lib/db";
 import {
   heatStressLevel,
   uvConcernLabel,
@@ -175,10 +172,13 @@ const DAY_OPTIONS: { value: DayRange; label: string }[] = [
   { value: 365, label: "1 year" },
 ];
 
-const CATEGORY_FILTER_OPTIONS: { id: ActivityCategory | "all"; label: string }[] = [
-  { id: "all", label: "All Data" },
-  ...ACTIVITY_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
-];
+/** Category style shape */
+interface CategoryStyleShape {
+  bg: string;
+  border: string;
+  text: string;
+  badge: string;
+}
 
 function avg(arr: number[]): number {
   return arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : 0;
@@ -375,14 +375,40 @@ export function HistoryDashboard() {
   const [categoryFilter, setCategoryFilter] = useState<ActivityCategory | "all">("all");
   const tableEndRef = useRef<HTMLDivElement>(null);
   const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
+  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>([]);
   const didAutoSelect = useRef(false);
 
-  // Fetch all locations from MongoDB on mount
+  // Build category filter options and styles from API data
+  const categoryFilterOptions = useMemo(() => {
+    const opts: { id: ActivityCategory | "all"; label: string }[] = [
+      { id: "all", label: "All Data" },
+    ];
+    for (const cat of activityCategories) {
+      opts.push({ id: cat.id as ActivityCategory, label: cat.label });
+    }
+    return opts;
+  }, [activityCategories]);
+
+  const categoryStyles = useMemo(() => {
+    const map: Record<string, CategoryStyleShape> = {};
+    for (const cat of activityCategories) {
+      if (cat.style) map[cat.id] = cat.style;
+    }
+    return map;
+  }, [activityCategories]);
+
+  // Fetch all locations and categories from MongoDB on mount
   useEffect(() => {
-    fetch("/api/locations")
-      .then((res) => (res.ok ? res.json() : { locations: [] }))
-      .then((data) => setAllLocations(data.locations ?? []))
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/locations")
+        .then((res) => (res.ok ? res.json() : { locations: [] }))
+        .then((data) => setAllLocations(data.locations ?? []))
+        .catch(() => {}),
+      fetch("/api/activities?mode=categories")
+        .then((res) => (res.ok ? res.json() : { categories: [] }))
+        .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
+        .catch(() => {}),
+    ]);
   }, []);
 
   // Auto-select the global location (from My Weather / last visited location page)
@@ -617,9 +643,9 @@ export function HistoryDashboard() {
       {/* Category filter pills */}
       {fetched && !loading && records.length > 0 && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by activity category">
-          {CATEGORY_FILTER_OPTIONS.map((opt) => {
+          {categoryFilterOptions.map((opt) => {
             const active = categoryFilter === opt.id;
-            const style = opt.id !== "all" ? CATEGORY_STYLES[opt.id] : null;
+            const style = opt.id !== "all" ? (categoryStyles[opt.id] ?? null) : null;
             return (
               <button
                 key={opt.id}

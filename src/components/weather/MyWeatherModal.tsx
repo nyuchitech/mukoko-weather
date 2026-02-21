@@ -7,20 +7,15 @@ import { useAppStore, type ThemePreference } from "@/lib/store";
 import { MapPinIcon, SearchIcon, SunIcon, MoonIcon } from "@/lib/weather-icons";
 import { ActivityIcon } from "@/lib/weather-icons";
 import {
-  LOCATIONS,
   type LocationTag,
   type ZimbabweLocation,
 } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import {
-  ACTIVITIES,
-  ACTIVITY_CATEGORIES,
-  CATEGORY_STYLES,
   type Activity,
   type ActivityCategory,
-  type ActivityCategoryInfo,
 } from "@/lib/activities";
-import { TAGS } from "@/lib/seed-tags";
+import type { ActivityCategoryDoc } from "@/lib/db";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -35,10 +30,18 @@ const TAG_ORDER: LocationTag[] = [
   "city", "farming", "mining", "tourism", "national-park", "education", "border", "travel",
 ];
 
-// Derive tag display labels from the seed-tags source of truth so they stay in sync
-const TAG_LABELS = Object.fromEntries(
-  TAGS.map((t) => [t.slug, t.label]),
-) as Record<LocationTag, string>;
+// Tag labels — fetched from API when available, with inline fallbacks.
+// These are display labels only; not structural data.
+const DEFAULT_TAG_LABELS: Record<string, string> = {
+  city: "Cities", farming: "Farming", mining: "Mining", tourism: "Tourism",
+  "national-park": "National Parks", education: "Education", border: "Border", travel: "Travel",
+};
+
+/** Default category style for unknown categories */
+const DEFAULT_CATEGORY_STYLE = {
+  bg: "bg-primary/10", border: "border-primary", text: "text-primary",
+  badge: "bg-primary text-primary-foreground",
+};
 
 function MonitorIcon({ size = 20 }: { size?: number }) {
   return (
@@ -48,11 +51,6 @@ function MonitorIcon({ size = 20 }: { size?: number }) {
       <line x1="12" x2="12" y1="17" y2="21" />
     </svg>
   );
-}
-
-/** Get the category style or fall back to casual/primary */
-function getCategoryStyle(category: string) {
-  return CATEGORY_STYLES[category] ?? CATEGORY_STYLES.casual;
 }
 
 export function MyWeatherModal() {
@@ -68,16 +66,30 @@ export function MyWeatherModal() {
   const [pendingSlug, setPendingSlug] = useState(currentSlug);
   const [activeTab, setActiveTab] = useState("location");
 
-  // Seed with static arrays so the modal is immediately usable even if API calls fail.
-  // Fetch from MongoDB on mount to upgrade to live data (includes community locations).
-  // ACTIVITY_CATEGORIES is kept as compile-time constant (Tailwind JIT safe).
-  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
-  const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
-  const [activityCategories, setActivityCategories] = useState<ActivityCategoryInfo[]>(ACTIVITY_CATEGORIES);
+  // All data fetched from API — no hardcoded imports.
+  // Start empty and fetch from MongoDB on mount.
+  const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>([]);
+  const [tagLabels, setTagLabels] = useState<Record<string, string>>(DEFAULT_TAG_LABELS);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Build a category styles lookup from API data
+  const categoryStyles = useMemo(() => {
+    const map: Record<string, typeof DEFAULT_CATEGORY_STYLE> = {};
+    for (const cat of activityCategories) {
+      if (cat.style) map[cat.id] = cat.style;
+    }
+    return map;
+  }, [activityCategories]);
+
+  /** Get the category style or fall back to default */
+  const getCategoryStyle = useCallback((category: string) => {
+    return categoryStyles[category] ?? DEFAULT_CATEGORY_STYLE;
+  }, [categoryStyles]);
+
   useEffect(() => {
-    // Upgrade seed data with live MongoDB data (includes community-added locations/activities).
+    // Fetch all data from MongoDB API — single source of truth.
     Promise.all([
       fetch("/api/locations")
         .then((res) => (res.ok ? res.json() : null))
@@ -90,6 +102,16 @@ export function MyWeatherModal() {
       fetch("/api/activities?mode=categories")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
+        .catch(() => {}),
+      fetch("/api/tags")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.tags?.length) {
+            const labels: Record<string, string> = {};
+            for (const t of data.tags) labels[t.slug] = t.label;
+            setTagLabels(labels);
+          }
+        })
         .catch(() => {}),
     ]).finally(() => setDataLoading(false));
   }, []);
@@ -157,6 +179,7 @@ export function MyWeatherModal() {
               onGeoLocationResolved={handleGeoLocationResolved}
               allLocations={allLocations}
               loading={dataLoading}
+              tagLabels={tagLabels}
             />
           </TabsContent>
 
@@ -164,6 +187,7 @@ export function MyWeatherModal() {
             <ActivitiesTab
               allActivities={allActivities}
               activityCategories={activityCategories}
+              getCategoryStyle={getCategoryStyle}
             />
           </TabsContent>
 
@@ -184,12 +208,14 @@ function LocationTab({
   onGeoLocationResolved,
   allLocations,
   loading,
+  tagLabels,
 }: {
   pendingSlug: string;
   onSelectLocation: (slug: string) => void;
   onGeoLocationResolved: (slug: string) => void;
   allLocations: ZimbabweLocation[];
   loading: boolean;
+  tagLabels: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<LocationTag | null>(null);
@@ -302,7 +328,7 @@ function LocationTab({
               aria-pressed={activeTag === tag}
               className="min-h-[44px]"
             >
-              {TAG_LABELS[tag]}
+              {tagLabels[tag] ?? tag}
             </Button>
           ))}
         </div>
@@ -415,9 +441,11 @@ function LocationCountCard({ allLocations }: { allLocations: ZimbabweLocation[] 
 function ActivitiesTab({
   allActivities,
   activityCategories,
+  getCategoryStyle,
 }: {
   allActivities: Activity[];
-  activityCategories: ActivityCategoryInfo[];
+  activityCategories: ActivityCategoryDoc[];
+  getCategoryStyle: (category: string) => { bg: string; border: string; text: string; badge: string };
 }) {
   const selectedActivities = useAppStore((s) => s.selectedActivities);
   const toggleActivity = useAppStore((s) => s.toggleActivity);
@@ -459,6 +487,7 @@ function ActivitiesTab({
           categoryId="all"
           active={activeCategory === "all"}
           onClick={() => setActiveCategory("all")}
+          getCategoryStyle={getCategoryStyle}
         />
         {activityCategories.map((cat) => (
           <CategoryTab
@@ -466,7 +495,8 @@ function ActivitiesTab({
             label={cat.label}
             categoryId={cat.id}
             active={activeCategory === cat.id}
-            onClick={() => setActiveCategory(cat.id)}
+            onClick={() => setActiveCategory(cat.id as ActivityCategory)}
+            getCategoryStyle={getCategoryStyle}
           />
         ))}
       </div>
@@ -513,6 +543,7 @@ function ActivitiesTab({
                 )}
                 <ActivityIcon
                   activity={activity.id}
+                  icon={activity.icon}
                   size={28}
                   className={isSelected ? style.text : "text-text-tertiary"}
                 />
@@ -539,11 +570,13 @@ function CategoryTab({
   categoryId,
   active,
   onClick,
+  getCategoryStyle,
 }: {
   label: string;
   categoryId: string;
   active: boolean;
   onClick: () => void;
+  getCategoryStyle: (category: string) => { bg: string; border: string; text: string; badge: string };
 }) {
   const style = categoryId === "all" ? null : getCategoryStyle(categoryId);
 

@@ -1,4 +1,5 @@
 /* SVG weather icons as React components */
+import type React from "react";
 
 interface IconProps {
   className?: string;
@@ -500,41 +501,59 @@ export function PicnicIcon({ className = "", size = 24 }: IconProps) {
   );
 }
 
-/** Map activity IDs to icon components */
-export function ActivityIcon({ activity, className = "", size = 24 }: { activity: string } & IconProps) {
-  switch (activity) {
-    case "crop-farming": return <CropIcon className={className} size={size} />;
-    case "livestock": return <LivestockIcon className={className} size={size} />;
-    case "gardening": return <ShovelIcon className={className} size={size} />;
-    case "irrigation": return <WaterIcon className={className} size={size} />;
-    case "mining": return <PickaxeIcon className={className} size={size} />;
-    case "construction": return <HardHatIcon className={className} size={size} />;
-    case "driving": return <CarIcon className={className} size={size} />;
-    case "commuting": return <BusIcon className={className} size={size} />;
-    case "flying": return <PlaneIcon className={className} size={size} />;
-    case "safari": return <BinocularsIcon className={className} size={size} />;
-    case "photography": return <CameraIcon className={className} size={size} />;
-    case "birdwatching": return <BirdIcon className={className} size={size} />;
-    case "camping": return <TentIcon className={className} size={size} />;
-    case "stargazing": return <StarIcon className={className} size={size} />;
-    case "fishing": return <FishIcon className={className} size={size} />;
-    case "running": return <RunningIcon className={className} size={size} />;
-    case "cycling": return <BicycleIcon className={className} size={size} />;
-    case "hiking": return <MountainIcon className={className} size={size} />;
-    case "football": return <FootballIcon className={className} size={size} />;
-    case "swimming": return <SwimmingIcon className={className} size={size} />;
-    case "golf": return <GolfIcon className={className} size={size} />;
-    case "cricket": return <CricketIcon className={className} size={size} />;
-    case "tennis": return <TennisIcon className={className} size={size} />;
-    case "rugby": return <RugbyIcon className={className} size={size} />;
-    case "horse-riding": return <HorseIcon className={className} size={size} />;
-    case "walking": return <FootprintsIcon className={className} size={size} />;
-    case "barbecue": return <GrillIcon className={className} size={size} />;
-    case "outdoor-events": return <TentIcon className={className} size={size} />;
-    case "drone-flying": return <DroneIcon className={className} size={size} />;
-    case "picnic": return <PicnicIcon className={className} size={size} />;
-    default: return <SunIcon className={className} size={size} />;
+/**
+ * Icon registry — maps icon identifiers (stored in MongoDB) to SVG components.
+ * New activities can reference any icon in this registry via their `icon` field.
+ */
+export const ICON_REGISTRY: Record<string, (props: IconProps) => React.JSX.Element> = {
+  crop: CropIcon,
+  livestock: LivestockIcon,
+  shovel: ShovelIcon,
+  water: WaterIcon,
+  pickaxe: PickaxeIcon,
+  hardhat: HardHatIcon,
+  car: CarIcon,
+  bus: BusIcon,
+  plane: PlaneIcon,
+  binoculars: BinocularsIcon,
+  camera: CameraIcon,
+  bird: BirdIcon,
+  tent: TentIcon,
+  star: StarIcon,
+  fish: FishIcon,
+  running: RunningIcon,
+  bicycle: BicycleIcon,
+  mountain: MountainIcon,
+  football: FootballIcon,
+  swimming: SwimmingIcon,
+  golf: GolfIcon,
+  cricket: CricketIcon,
+  tennis: TennisIcon,
+  rugby: RugbyIcon,
+  horse: HorseIcon,
+  footprints: FootprintsIcon,
+  grill: GrillIcon,
+  drone: DroneIcon,
+  picnic: PicnicIcon,
+  sun: SunIcon,
+};
+
+/**
+ * Render an activity icon by identifier or activity ID.
+ * Looks up the `icon` prop in ICON_REGISTRY first, then falls back to
+ * legacy activity-ID mapping for backward compatibility, then SunIcon.
+ */
+export function ActivityIcon({ activity, icon, className = "", size = 24 }: { activity: string; icon?: string } & IconProps) {
+  // 1. Try icon identifier from DB (data-driven)
+  if (icon) {
+    const IconComponent = ICON_REGISTRY[icon];
+    if (IconComponent) return <IconComponent className={className} size={size} />;
   }
+  // 2. Fallback: try activity ID directly in the registry (for any that match)
+  const DirectMatch = ICON_REGISTRY[activity];
+  if (DirectMatch) return <DirectMatch className={className} size={size} />;
+  // 3. Default
+  return <SunIcon className={className} size={size} />;
 }
 
 /** Map weather icon names to components */
