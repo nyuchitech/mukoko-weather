@@ -137,7 +137,7 @@ export function Header() {
             aria-current={isHome ? "page" : undefined}
           >
             <HomeIcon size={22} />
-            <span className="text-[10px] font-medium">Weather</span>
+            <span className="text-[length:var(--text-nav-label)] font-medium">Weather</span>
           </Link>
           <Link
             href="/explore"
@@ -149,7 +149,7 @@ export function Header() {
             aria-current={isExplore ? "page" : undefined}
           >
             <CompassIcon size={22} />
-            <span className="text-[10px] font-medium">Explore</span>
+            <span className="text-[length:var(--text-nav-label)] font-medium">Explore</span>
           </Link>
           <Link
             href="/shamwari"
@@ -161,7 +161,7 @@ export function Header() {
             aria-current={isShamwari ? "page" : undefined}
           >
             <SparklesIcon size={22} />
-            <span className="text-[10px] font-medium">Shamwari</span>
+            <span className="text-[length:var(--text-nav-label)] font-medium">Shamwari</span>
           </Link>
           <Link
             href="/history"
@@ -173,7 +173,7 @@ export function Header() {
             aria-current={isHistory ? "page" : undefined}
           >
             <ClockIcon size={22} />
-            <span className="text-[10px] font-medium">History</span>
+            <span className="text-[length:var(--text-nav-label)] font-medium">History</span>
           </Link>
           <button
             onClick={openMyWeather}
@@ -182,7 +182,7 @@ export function Header() {
             type="button"
           >
             <MapPinIcon size={22} />
-            <span className="text-[10px] font-medium">My Weather</span>
+            <span className="text-[length:var(--text-nav-label)] font-medium">My Weather</span>
           </button>
         </div>
       </nav>

@@ -55,6 +55,12 @@ function withToolTimeout<T>(promise: Promise<T>, toolName: string): Promise<T> {
 /** Maximum allowed message length (characters). */
 const MAX_MESSAGE_LENGTH = 2000;
 
+/** Slug format guard — prevents pathological strings from reaching DB queries. */
+const SLUG_RE = /^[a-z0-9-]{1,80}$/;
+
+/** Known location tags — returned to Claude when an invalid tag is provided. */
+const KNOWN_TAGS = ["city", "farming", "mining", "tourism", "education", "border", "travel", "national-park"];
+
 /** Weather result type returned by executeGetWeather. */
 type WeatherResult = Awaited<ReturnType<typeof executeGetWeather>>;
 
@@ -360,7 +366,7 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
   const suitability: Record<string, { level: string; label: string; detail: string; metric?: string }> = {};
   if (insights) {
     try {
-      if (rulesCache && rulesCache.rules === null) {
+      if (rulesCache && !rulesCache.rules) {
         rulesCache.rules = await getAllSuitabilityRules();
       }
       const allRules = rulesCache?.rules ?? await getAllSuitabilityRules();
@@ -556,6 +562,7 @@ export async function POST(request: NextRequest) {
             case "get_weather": {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
+              if (!SLUG_RE.test(slug)) { result = { error: "Invalid location identifier" }; break; }
               const cachedWeather = weatherCache.get(slug);
               if (cachedWeather) {
                 result = cachedWeather;
@@ -574,12 +581,14 @@ export async function POST(request: NextRequest) {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               const activities = (Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : []).slice(0, 10);
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
+              if (!SLUG_RE.test(slug)) { result = { error: "Invalid location identifier" }; break; }
               result = await withToolTimeout(executeGetActivityAdvice(slug, activities, weatherCache, rulesCache), "get_activity_advice");
               break;
             }
             case "list_locations_by_tag": {
               const tag = typeof input.tag === "string" ? input.tag : "";
               if (!tag) { result = { error: "Missing tag parameter" }; break; }
+              if (!KNOWN_TAGS.includes(tag)) { result = { error: `Unknown tag "${tag}". Valid tags: ${KNOWN_TAGS.join(", ")}` }; break; }
               result = await withToolTimeout(executeListLocationsByTag(tag), "list_locations_by_tag");
               break;
             }

@@ -103,9 +103,9 @@ export function synthesizeOpenMeteoInsights(data: WeatherData): WeatherInsights 
   // Derive precipitationType from WMO weather codes:
   //   0=none, 1=rain, 2=snow, 3=freezing rain, 4=ice pellets
   let precipitationType = 0;
-  if (weatherCode >= 71 && weatherCode <= 77) precipitationType = 2;       // Snow
-  else if (weatherCode === 66 || weatherCode === 67) precipitationType = 3; // Freezing rain
-  else if (weatherCode >= 51 || (weatherCode >= 80 && weatherCode <= 82) || weatherCode >= 95) precipitationType = 1; // Rain/drizzle/thunderstorm
+  if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) precipitationType = 2;       // Snow + snow showers
+  else if (weatherCode === 66 || weatherCode === 67 || weatherCode === 56 || weatherCode === 57) precipitationType = 3; // Freezing rain + freezing drizzle
+  else if (weatherCode >= 51) precipitationType = 1; // Rain/drizzle/thunderstorm
 
   return {
     windSpeed: data.current.wind_speed_10m,

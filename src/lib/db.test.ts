@@ -393,6 +393,16 @@ describe("Atlas Search time-based recovery", () => {
     expect(dbSource).not.toContain("vectorSearchAvailable = false");
   });
 
+  it("only matches code 40324 and 'index not found' — not broad $search or PlanExecutor strings", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    // Should match specific permanent-error indicators
+    expect(dbSource).toContain("mongoErr.code === 40324");
+    expect(dbSource).toContain('msg.includes("index not found")');
+    // Should NOT match broad strings that could hit transient errors
+    expect(dbSource).not.toContain('msg.includes("$search")');
+    expect(dbSource).not.toContain('msg.includes("PlanExecutor")');
+  });
+
   it("checks time elapsed since disable before skipping Atlas Search", () => {
     const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
     // All three search functions should check Date.now() - disabledAt > ATLAS_RETRY_AFTER_MS

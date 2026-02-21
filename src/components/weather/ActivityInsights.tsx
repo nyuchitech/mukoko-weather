@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import { type Activity } from "@/lib/activities";
+import { type Activity, CATEGORY_STYLES } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
@@ -153,8 +153,9 @@ export function ActivityInsights({
 
   // Fetch suitability rules from database (module-level cache, 10min TTL)
   const [dbRules, setDbRules] = useState<Map<string, SuitabilityRuleDoc>>(new Map());
-  // Fetch category styles from database (module-level cache, 10min TTL)
-  const [categoryStyles, setCategoryStyles] = useState<Record<string, CategoryStyle>>({});
+  // Seed with static CATEGORY_STYLES for instant mineral color rendering;
+  // upgraded with DB-only categories after fetch resolves.
+  const [categoryStyles, setCategoryStyles] = useState<Record<string, CategoryStyle>>(CATEGORY_STYLES);
 
   useEffect(() => {
     Promise.all([

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, syncRegions, syncTags, syncSeasons, syncSuitabilityRules, syncActivityCategories, setApiKey, getAtlasSearchIndexDefinitions } from "@/lib/db";
+import { ensureIndexes, syncLocations, syncActivities, syncCountries, syncProvinces, syncRegions, syncTags, syncSeasons, syncSuitabilityRules, syncActivityCategories, setApiKey } from "@/lib/db";
 import { LOCATIONS } from "@/lib/locations";
 import { ACTIVITIES } from "@/lib/activities";
 import { COUNTRIES, PROVINCES } from "@/lib/countries";
@@ -81,7 +81,8 @@ export async function POST(request: Request) {
       tags: TAGS.length,
       seasons: SEASONS.length,
       apiKeys: storedKeys.length > 0 ? storedKeys : "none provided",
-      atlasSearchIndexes: getAtlasSearchIndexDefinitions(),
+      // Atlas Search index definitions are in the codebase (db.ts) — not
+      // included in the response to avoid unnecessary schema disclosure.
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -390,10 +390,24 @@ describe("synthesizeOpenMeteoInsights", () => {
     snowData.current.weather_code = 71;
     expect(synthesizeOpenMeteoInsights(snowData).precipitationType).toBe(2);
 
+    // Snow showers (WMO 85-86)
+    const snowShowerData = createFallbackWeather(-17.83, 31.05, 1483);
+    snowShowerData.current.weather_code = 85;
+    expect(synthesizeOpenMeteoInsights(snowShowerData).precipitationType).toBe(2);
+    snowShowerData.current.weather_code = 86;
+    expect(synthesizeOpenMeteoInsights(snowShowerData).precipitationType).toBe(2);
+
     // Freezing rain code (WMO 66)
     const freezingData = createFallbackWeather(-17.83, 31.05, 1483);
     freezingData.current.weather_code = 66;
     expect(synthesizeOpenMeteoInsights(freezingData).precipitationType).toBe(3);
+
+    // Freezing drizzle (WMO 56-57)
+    const freezingDrizzleData = createFallbackWeather(-17.83, 31.05, 1483);
+    freezingDrizzleData.current.weather_code = 56;
+    expect(synthesizeOpenMeteoInsights(freezingDrizzleData).precipitationType).toBe(3);
+    freezingDrizzleData.current.weather_code = 57;
+    expect(synthesizeOpenMeteoInsights(freezingDrizzleData).precipitationType).toBe(3);
   });
 
   it("maps uvHealthConcern from current uv_index", () => {

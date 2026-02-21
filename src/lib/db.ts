@@ -666,9 +666,9 @@ function isAtlasSearchIndexMissing(err: unknown): boolean {
     const mongoErr = err as { code?: number; codeName?: string; message?: string };
     // code 40324: Unrecognized pipeline stage or missing search index
     if (mongoErr.code === 40324) return true;
-    // Common error messages when Atlas Search index is not provisioned
+    // Explicit "index not found" message from Atlas Search
     const msg = mongoErr.message ?? "";
-    if (msg.includes("index not found") || msg.includes("$search") || msg.includes("PlanExecutor")) return true;
+    if (msg.includes("index not found")) return true;
   }
   return false;
 }

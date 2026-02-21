@@ -418,7 +418,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/api/status` — GET, system health checks (MongoDB ping, API key verification, provider checks)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
-- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Returns Atlas Search index definitions in response. Requires `x-init-secret` header in production
+- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Requires `x-init-secret` header in production
 
 ### Error Handling
 
@@ -789,7 +789,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 **API:** `POST /api/explore` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
-- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars), activities array capped at 10 items
+- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars), activities array capped at 10 items, location slugs validated via `SLUG_RE` (`/^[a-z0-9-]{1,80}$/`), tags validated against `KNOWN_TAGS` allowlist
 - **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
 - **Resilience:** module-level singleton Anthropic client with key-rotation invalidation (`getAnthropicClient` — recreates client when API key changes), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`), `list_locations_by_tag` capped to 20 results with note to Claude
 - **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL, used for dynamic system prompt activity list)
@@ -995,7 +995,7 @@ Community locations are stored in the same MongoDB `locations` collection as see
 **Atlas Search (fuzzy text search):**
 - `searchLocationsFromDb(query, options)` — tries Atlas Search first (fuzzy + autocomplete via `$search`), falls back to `$text` index if Atlas Search index is unavailable
 - `searchActivitiesFromDb(query)` — same pattern for activities (Atlas Search → `$text` fallback)
-- Requires Atlas Search indexes named `location_search` and `activity_search` (definitions available via `getAtlasSearchIndexDefinitions()` in the db-init response)
+- Requires Atlas Search indexes named `location_search` and `activity_search` (definitions in `src/lib/db.ts` via `getAtlasSearchIndexDefinitions()`)
 - **Time-based recovery:** When a missing-index error is detected (MongoDB code 40324), search is disabled for `ATLAS_RETRY_AFTER_MS` (5 minutes), then automatically retries. Transient errors (network, timeout) do not disable the search — only permanent index-missing errors do.
 
 **Vector Search (semantic search — infrastructure):**

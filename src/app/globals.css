@@ -65,6 +65,7 @@
   /* Typography — minimum sizes for mobile readability */
   --text-body: 0.875rem;      /* 14px — minimum for body/footer text */
   --text-body-leading: 1.5;
+  --text-nav-label: 0.625rem; /* 10px — mobile bottom nav labels */
 
   /* Radii */
   --radius-button: 12px;

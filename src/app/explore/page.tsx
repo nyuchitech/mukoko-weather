@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getTagCounts, getAllLocationsFromDb, getFeaturedTagsFromDb } from "@/lib/db";
+import { getTagCountsAndStats, getFeaturedTagsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { TagDoc } from "@/lib/db";
 
@@ -27,13 +27,13 @@ export default async function ExplorePage() {
   let featuredTags: TagDoc[] = [];
 
   try {
-    const [tags, locations, dbTags] = await Promise.all([
-      getTagCounts(),
-      getAllLocationsFromDb(),
+    // Single $facet aggregation replaces separate getTagCounts + getAllLocationsFromDb calls
+    const [stats, dbTags] = await Promise.all([
+      getTagCountsAndStats(),
       getFeaturedTagsFromDb(),
     ]);
-    tagCounts = tags;
-    totalLocations = locations.length;
+    tagCounts = stats.tags;
+    totalLocations = stats.totalLocations;
     featuredTags = dbTags;
   } catch (err) {
     logError({

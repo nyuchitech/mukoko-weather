@@ -217,6 +217,12 @@ describe("tool input validation", () => {
     expect(source).toContain("Missing location_slug parameter");
   });
 
+  it("validates location_slug format with SLUG_RE regex", () => {
+    expect(source).toContain("SLUG_RE");
+    expect(source).toContain("SLUG_RE.test(slug)");
+    expect(source).toContain("Invalid location identifier");
+  });
+
   it("validates get_activity_advice activities is an array of strings", () => {
     expect(source).toContain("Array.isArray(input.activities)");
   });
@@ -228,6 +234,13 @@ describe("tool input validation", () => {
   it("validates list_locations_by_tag tag is a string", () => {
     expect(source).toContain("typeof input.tag === \"string\"");
     expect(source).toContain("Missing tag parameter");
+  });
+
+  it("validates list_locations_by_tag tag against KNOWN_TAGS", () => {
+    expect(source).toContain("KNOWN_TAGS");
+    expect(source).toContain("KNOWN_TAGS.includes(tag)");
+    expect(source).toContain("Unknown tag");
+    expect(source).toContain("Valid tags:");
   });
 });
 
@@ -271,7 +284,7 @@ describe("robustness", () => {
 
   it("caches suitability rules within the request via rulesCache", () => {
     expect(source).toContain("rulesCache");
-    expect(source).toContain("rulesCache.rules === null");
+    expect(source).toContain("!rulesCache.rules");
   });
 
   it("caps list_locations_by_tag results to prevent unbounded context", () => {
