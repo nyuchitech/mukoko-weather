@@ -57,13 +57,15 @@ mukoko-weather/
 │   │   ├── globals.css               # Brand System v6 CSS custom properties
 │   │   ├── loading.tsx               # Root loading skeleton
 │   │   ├── error.tsx                 # Global error boundary (client component)
-│   │   ├── favicon.ico               # Site favicon
+│   │   ├── icon.svg                  # SVG favicon
+│   │   ├── apple-icon.png            # Apple touch icon
 │   │   ├── robots.ts                 # Dynamic robots.txt
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
 │   │   ├── [location]/               # Dynamic weather pages (90+ locations)
 │   │   │   ├── page.tsx              # Thin server wrapper (SEO, data fetch, JSON-LD)
 │   │   │   ├── WeatherDashboard.tsx  # Client component — all weather UI with per-section error boundaries
+│   │   │   ├── WeatherDashboard.test.ts
 │   │   │   ├── loading.tsx           # Branded skeleton matching page layout
 │   │   │   ├── error.tsx             # Location-specific error boundary (sessionStorage retry tracking)
 │   │   │   ├── not-found.tsx         # 404 for invalid locations
@@ -82,25 +84,60 @@ mukoko-weather/
 │   │   │       ├── page.tsx             # Server wrapper (SEO, no weather fetch)
 │   │   │       ├── MapDashboard.tsx     # Client: full-viewport Leaflet map + layer switcher
 │   │   │       └── loading.tsx          # Full-viewport skeleton
+│   │   ├── explore/                  # AI chatbot + location/tag/country browse
+│   │   │   ├── page.tsx              # Explore page (ISR 1h, chatbot + category browse)
+│   │   │   ├── ExplorePageClient.tsx # Client: React.lazy chatbot + ChartErrorBoundary
+│   │   │   ├── loading.tsx           # Explore loading skeleton
+│   │   │   ├── explore.test.ts       # Explore page tests
+│   │   │   ├── [tag]/               # Browse locations by tag
+│   │   │   │   ├── page.tsx          # Tag-filtered location list
+│   │   │   │   └── loading.tsx
+│   │   │   └── country/             # Browse locations by country/province
+│   │   │       ├── page.tsx          # Country index page
+│   │   │       ├── loading.tsx
+│   │   │       ├── error.tsx
+│   │   │       ├── [code]/           # Country detail (locations in country)
+│   │   │       │   ├── page.tsx
+│   │   │       │   ├── loading.tsx
+│   │   │       │   ├── error.tsx
+│   │   │       │   ├── not-found.tsx
+│   │   │       │   └── [province]/   # Province detail (locations in province)
+│   │   │       │       ├── page.tsx
+│   │   │       │       ├── loading.tsx
+│   │   │       │       ├── error.tsx
+│   │   │       │       └── not-found.tsx
+│   │   ├── status/                   # System health dashboard
+│   │   │   ├── page.tsx              # Status page (metadata, layout)
+│   │   │   └── StatusDashboard.tsx   # Client: live health checks for all services
 │   │   ├── about/page.tsx            # About page
 │   │   ├── help/page.tsx             # Help/FAQ page
 │   │   ├── history/                  # Historical weather data dashboard
 │   │   │   ├── page.tsx              # History page (metadata, layout)
 │   │   │   ├── HistoryDashboard.tsx  # Client-side dashboard (search, charts, table)
+│   │   │   ├── HistoryDashboard.test.ts
 │   │   │   └── error.tsx             # History page error boundary
 │   │   ├── privacy/page.tsx          # Privacy policy
 │   │   ├── terms/page.tsx            # Terms of service
 │   │   ├── embed/page.tsx            # Widget embedding docs
 │   │   └── api/
-│   │       ├── weather/route.ts      # GET — proxy Open-Meteo (MongoDB cached)
+│   │       ├── weather/route.ts      # GET — proxy Tomorrow.io/Open-Meteo (MongoDB cached)
 │   │       ├── ai/                   # POST — Claude AI summaries (tiered TTL cache)
 │   │       │   ├── route.ts
 │   │       │   └── ai-prompt.test.ts
+│   │       ├── explore/route.ts      # POST — Shamwari Explorer chatbot (Claude + tool use)
+│   │       ├── search/route.ts       # GET — location search (text, tag, geo queries)
 │   │       ├── geo/route.ts          # GET — nearest location lookup (supports autoCreate)
-│   │       ├── locations/add/route.ts # POST — add locations via search or coordinates
+│   │       ├── locations/            # Location data endpoints
+│   │       │   ├── route.ts          # GET — list/filter locations from MongoDB
+│   │       │   └── add/route.ts      # POST — add locations via search or coordinates
+│   │       ├── activities/route.ts   # GET — activities (by ID, category, search, labels, categories)
+│   │       ├── suitability/route.ts  # GET — suitability rules from MongoDB
+│   │       ├── tags/route.ts         # GET — tag metadata (all or featured)
+│   │       ├── regions/route.ts      # GET — active supported regions
+│   │       ├── status/route.ts       # GET — system health checks (MongoDB, APIs, cache)
 │   │       ├── history/route.ts      # GET — historical weather data
-│   │       ├── map-tiles/route.ts   # GET — tile proxy for Tomorrow.io map layers
-│   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + locations)
+│   │       ├── map-tiles/route.ts    # GET — tile proxy for Tomorrow.io map layers
+│   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + seed data)
 │   ├── components/
 │   │   ├── ui/                       # shadcn/ui primitives (Radix UI + CVA)
 │   │   │   ├── button.tsx            # Button (6 variants, 5 sizes, asChild support)
@@ -109,7 +146,8 @@ mukoko-weather/
 │   │   │   ├── chart.tsx             # CanvasChart, resolveColor (wraps Chart.js Canvas)
 │   │   │   ├── dialog.tsx            # Dialog (Radix, portal, overlay, animations)
 │   │   │   ├── input.tsx             # Input (styled with CSS custom properties)
-│   │   │   ├── skeleton.tsx         # Skeleton, CardSkeleton, ChartSkeleton, BadgeSkeleton, MetricCardSkeleton
+│   │   │   ├── skeleton.tsx         # Skeleton, CardSkeleton, ChartSkeleton, BadgeSkeleton, MetricCardSkeleton, ChatSkeleton
+│   │   │   ├── chart-fallbacks.test.ts # CSS fallback table key parity tests
 │   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
@@ -118,8 +156,12 @@ mukoko-weather/
 │   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
 │   │   ├── analytics/
 │   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
+│   │   ├── explore/                  # Explore chatbot components
+│   │   │   ├── ExploreChatbot.tsx    # AI chatbot UI (message bubbles, typing indicator, suggested prompts)
+│   │   │   └── ExploreChatbot.test.ts
 │   │   ├── layout/
 │   │   │   ├── Header.tsx            # Sticky header, pill icon group (map-pin/history/search), My Weather modal trigger
+│   │   │   ├── HeaderSkeleton.tsx    # Header loading skeleton
 │   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
 │   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
@@ -130,8 +172,13 @@ mukoko-weather/
 │   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
 │   │   │   ├── AtmosphericDetails.tsx # Imports chart components for 24h atmospheric views
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (React.lazy + Suspense)
+│   │   │   ├── StatCard.tsx            # Reusable stat card (label + value)
+│   │   │   ├── SectionSkeleton.tsx    # Generic section loading skeleton
 │   │   │   ├── LazySection.tsx        # TikTok-style sequential lazy-load with bidirectional visibility
+│   │   │   ├── LazySection.test.ts
 │   │   │   ├── ChartErrorBoundary.tsx # Error boundary for chart/section crash isolation
+│   │   │   ├── ChartErrorBoundary.test.ts
+│   │   │   ├── CurrentConditions.test.ts
 │   │   │   ├── charts/                # Reusable chart components (import TimeSeriesChart)
 │   │   │   │   ├── TimeSeriesChart.tsx     # Base reusable Canvas chart (configurable series, axes, tooltips)
 │   │   │   │   ├── TemperatureTrendChart.tsx  # High/low + feels-like temperature
@@ -142,7 +189,12 @@ mukoko-weather/
 │   │   │   │   ├── HumidityCloudChart.tsx  # Humidity area + cloud dashed line
 │   │   │   │   ├── HumidityChart.tsx       # Standalone humidity area
 │   │   │   │   ├── UVIndexChart.tsx        # UV index bars
-│   │   │   │   └── DaylightChart.tsx       # Daylight hours area
+│   │   │   │   ├── DaylightChart.tsx       # Daylight hours area
+│   │   │   │   ├── DewPointChart.tsx       # Dew point temperature
+│   │   │   │   ├── GDDChart.tsx            # Growing degree days (farming)
+│   │   │   │   ├── HeatStressChart.tsx     # Heat stress index
+│   │   │   │   ├── ThunderstormChart.tsx   # Thunderstorm probability
+│   │   │   │   └── VisibilityChart.tsx     # Visibility distance
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
@@ -152,16 +204,15 @@ mukoko-weather/
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
 │   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
-│   │   │   ├── ActivitySelector.tsx   # Activity selection modal (personalized advice)
-│   │   │   └── ActivityInsights.tsx   # Category-specific weather insight cards
-│   │   ├── map/                       # Interactive weather map (Leaflet + Tomorrow.io tiles)
-│   │   │   ├── MapPreview.tsx         # Compact map card on location page (links to /[location]/map)
-│   │   │   ├── MapLayerSwitcher.tsx   # Layer toggle buttons (radiogroup)
-│   │   │   ├── MapSkeleton.tsx        # Map loading skeleton
-│   │   │   ├── LeafletMapPreview.tsx  # Leaflet preview (dynamic, ssr:false)
-│   │   │   ├── LeafletMapFull.tsx     # Leaflet full interactive map (dynamic, ssr:false)
-│   │   │   ├── leaflet-css.ts         # Leaflet CSS import
-│   │   │   └── leaflet-icon-fix.ts    # Marker icon URL fix for bundlers
+│   │   │   ├── ActivityInsights.tsx   # Category-specific weather insight cards
+│   │   │   └── map/                   # Interactive weather map (Leaflet + Tomorrow.io tiles)
+│   │   │       ├── MapPreview.tsx         # Compact map card on location page (links to /[location]/map)
+│   │   │       ├── MapLayerSwitcher.tsx   # Layer toggle buttons (radiogroup)
+│   │   │       ├── MapSkeleton.tsx        # Map loading skeleton
+│   │   │       ├── LeafletMapPreview.tsx  # Leaflet preview (dynamic, ssr:false)
+│   │   │       ├── LeafletMapFull.tsx     # Leaflet full interactive map (dynamic, ssr:false)
+│   │   │       ├── leaflet-css.ts         # Leaflet CSS import
+│   │   │       └── leaflet-icon-fix.ts    # Marker icon URL fix for bundlers
 │   │   └── embed/
 │   │       ├── MukokoWeatherEmbed.tsx          # Embeddable widget (current/forecast/badge)
 │   │       ├── MukokoWeatherEmbed.module.css   # Self-contained widget CSS (no Tailwind)
@@ -170,27 +221,51 @@ mukoko-weather/
 │   ├── lib/
 │   │   ├── store.ts               # Zustand app state (theme with system detection, location, activities)
 │   │   ├── store.test.ts          # Theme resolution tests
-│   │   ├── locations.ts           # WeatherLocation type, 90+ seed locations, SUPPORTED_REGIONS, search, filtering
+│   │   ├── locations.ts           # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS, search, filtering
 │   │   ├── locations.test.ts
+│   │   ├── locations-africa.ts    # African city seed data (capitals + major cities across 54 AU member states)
+│   │   ├── countries.ts           # Country/province types, seed data (54 AU + ASEAN), flag emoji, province slug generation
+│   │   ├── countries.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
 │   │   ├── activities.test.ts
-│   │   ├── tomorrow.ts             # Tomorrow.io API client + WMO normalization
+│   │   ├── suitability.ts         # Database-driven suitability evaluation engine (evaluateRule)
+│   │   ├── suitability.test.ts
+│   │   ├── suitability-cache.ts   # Client-side cache for suitability rules + category styles (TTL-based)
+│   │   ├── tomorrow.ts            # Tomorrow.io API client + WMO normalization
 │   │   ├── tomorrow.test.ts
-│   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils
+│   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils, synthesizeOpenMeteoInsights
 │   │   ├── weather.test.ts
+│   │   ├── weather-labels.ts      # Contextual label helpers (humidityLabel, pressureLabel, cloudLabel, feelsLikeContext)
+│   │   ├── weather-labels.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
-│   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations, rate_limits)
+│   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, suitability_rules, tags, regions, seasons)
+│   │   ├── db.test.ts
 │   │   ├── geocoding.ts           # Nominatim reverse geocoding, Open-Meteo forward geocoding, slug generation
+│   │   ├── geocoding.test.ts
 │   │   ├── rate-limit.ts          # MongoDB-backed IP rate limiter (atomic findOneAndUpdate)
+│   │   ├── rate-limit.test.ts
 │   │   ├── observability.ts       # Structured error logging + GA4 error reporting
+│   │   ├── observability.test.ts
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper (supports auto-creation)
+│   │   ├── geolocation.test.ts
 │   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
+│   │   ├── weather-icons.test.ts
 │   │   ├── i18n.ts                # Lightweight i18n (en complete, sn/nd ready)
-│   │   ├── circuit-breaker.ts      # Netflix Hystrix-inspired circuit breaker (per-provider resilience)
-│   │   ├── circuit-breaker.test.ts # Circuit breaker state machine tests
-│   │   ├── map-layers.ts           # Map layer config (Tomorrow.io tile layers, mineral color styles)
-│   │   ├── map-layers.test.ts      # Map layer config tests
+│   │   ├── i18n.test.ts
+│   │   ├── circuit-breaker.ts     # Netflix Hystrix-inspired circuit breaker (per-provider resilience)
+│   │   ├── circuit-breaker.test.ts
+│   │   ├── map-layers.ts          # Map layer config (Tomorrow.io tile layers, mineral color styles)
+│   │   ├── map-layers.test.ts
+│   │   ├── error-retry.ts         # Error retry logic with sessionStorage tracking (max 3 retries)
+│   │   ├── error-retry.test.ts
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
+│   │   ├── utils.test.ts
+│   │   ├── accessibility.test.ts  # Accessibility helpers tests
+│   │   ├── seed-suitability-rules.ts # Seed suitability rules for db-init (condition-based evaluation)
+│   │   ├── seed-categories.ts     # Seed activity categories with mineral color styles for db-init
+│   │   ├── seed-tags.ts           # Seed tag metadata for db-init (powers explore page cards)
+│   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
+│   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
 │       └── cloudflare.d.ts        # DEPRECATED — empty (KV migration complete)
@@ -311,6 +386,12 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
 - `/[location]/map` — full-viewport interactive weather map with layer switcher (precipitation, cloud, temperature, wind)
+- `/explore` — AI-powered Shamwari Explorer chatbot + category/country browse (ISR 1h)
+- `/explore/[tag]` — browse locations filtered by tag (city, farming, mining, tourism, etc.)
+- `/explore/country` — browse locations by country index
+- `/explore/country/[code]` — browse locations in a specific country (ISO alpha-2 code)
+- `/explore/country/[code]/[province]` — browse locations in a specific province
+- `/status` — system health dashboard (live checks: MongoDB, Tomorrow.io, Open-Meteo, Anthropic, cache)
 - `/about` — about page (company info, contact details)
 - `/privacy` — privacy policy
 - `/terms` — terms of service
@@ -318,12 +399,20 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/history` — historical weather data dashboard (search, multi-day charts, data table)
 - `/embed` — widget embedding docs
 - `/api/weather` — GET, proxies Tomorrow.io/Open-Meteo (MongoDB cached 15-min TTL + historical recording)
-- `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`, optional `autoCreate=true` for auto-creating community locations)
-- `/api/locations/add` — POST, add locations via search (`{ query }`) or coordinates (`{ lat, lon }`). Rate-limited to 5 creations/hour/IP
 - `/api/ai` — POST, AI weather summaries (MongoDB cached with tiered TTL: 30/60/120 min)
+- `/api/explore` — POST, Shamwari Explorer chatbot (Claude + tool use: search_locations, get_weather, get_activity_advice, list_locations_by_tag). Rate-limited 20 req/hour/IP
+- `/api/search` — GET, location search (text search, tag filter, geospatial nearest, pagination)
+- `/api/geo` — GET, nearest location lookup (query: `lat`, `lon`, optional `autoCreate=true` for auto-creating community locations)
+- `/api/locations` — GET, list/filter locations from MongoDB (by slug, tag, or all; includes stats mode)
+- `/api/locations/add` — POST, add locations via search (`{ query }`) or coordinates (`{ lat, lon }`). Rate-limited to 5 creations/hour/IP
+- `/api/activities` — GET, activities (by id, category, search query, labels, or categories mode)
+- `/api/suitability` — GET, suitability rules from MongoDB (all rules or by key)
+- `/api/tags` — GET, tag metadata (all or featured only)
+- `/api/regions` — GET, active supported regions (bounding boxes)
+- `/api/status` — GET, system health checks (MongoDB ping, API key verification, provider checks)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
-- `/api/db-init` — POST, one-time DB setup + optional API key seeding (requires `x-init-secret` header in production)
+- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Requires `x-init-secret` header in production
 
 ### Error Handling
 
@@ -370,7 +459,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 
 **Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
 
-**Seed locations:** 90+ Zimbabwe locations defined as a flat array in `src/lib/locations.ts`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
+**Seed locations:** 90+ Zimbabwe locations defined in `src/lib/locations.ts`, plus African cities across 54 AU member states in `src/lib/locations-africa.ts`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
 
@@ -382,7 +471,9 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 
 **Deduplication:** New locations within 5km of an existing location are rejected via `findDuplicateLocation()` in `src/lib/db.ts`.
 
-Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`.
+**Countries & Provinces:** `src/lib/countries.ts` — `Country` type (code, name, region, supported), `Province` type (slug, name, countryCode), 64 seed countries (54 AU + ASEAN), 80+ province definitions, `getFlagEmoji(code)`, `generateProvinceSlug(name, code)`.
+
+Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context).
 
 ### Activities
 
@@ -394,9 +485,39 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 **Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
 
-**UI:** Activity selection is centralized in the **My Weather** modal (`src/components/weather/MyWeatherModal.tsx`), accessible from the header pill icon group. The Activities tab shows mineral-colored activity cards in a 2-column grid with icon, label, and category badge. Selected activities display as bordered cards with a checkmark. Category tabs and search allow filtering. Selections are persisted in Zustand (`selectedActivities`) via localStorage and sent to the AI prompt for context-aware advice. The standalone `ActivitySelector.tsx` component is retained for reference but no longer rendered on the location page.
+**UI:** Activity selection is centralized in the **My Weather** modal (`src/components/weather/MyWeatherModal.tsx`), accessible from the header pill icon group. The Activities tab shows mineral-colored activity cards in a 2-column grid with icon, label, and category badge. Selected activities display as bordered cards with a checkmark. Category tabs and search allow filtering. Selections are persisted in Zustand (`selectedActivities`) via localStorage and sent to the AI prompt for context-aware advice.
 
-**Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.).
+**Insights:** `src/components/weather/ActivityInsights.tsx` — category-specific weather insight cards (farming GDD, mining safety, sports fitness, travel driving, tourism photography, casual comfort). Each card uses its category's mineral color border and icon accent. Only shown when Tomorrow.io data provides extended fields (GDD, heat stress, thunderstorm probability, etc.). Uses `suitability-cache.ts` for client-side caching of rules and category styles.
+
+### Suitability Rules Engine
+
+`src/lib/suitability.ts` — database-driven suitability evaluation engine.
+
+**Core function:** `evaluateRule(rule, insights)` — evaluates `WeatherInsights` against a `SuitabilityRuleDoc`. Conditions are checked in order (first match wins). Returns a `SuitabilityRating` with level, label, colorClass, bgClass, detail, and optional metric.
+
+**Rating levels:** `excellent`, `good`, `fair`, `poor`
+
+**Rule storage:** Rules are stored in MongoDB `suitability_rules` collection, seeded from `src/lib/seed-suitability-rules.ts` via `/api/db-init`. Rule keys follow the pattern `category:<category>` (applies to all activities in that category) or `activity:<id>` (overrides category rule for a specific activity).
+
+**Condition fields:** `thunderstormProbability`, `heatStressIndex`, `uvHealthConcern`, `visibility`, `windSpeed`, `windGust`, `precipitationIntensity`, `snowIntensity`, `gdd10To30`, `dewPoint`, `evapotranspiration`
+
+**Operators:** `gt`, `gte`, `lt`, `lte`, `eq`
+
+**Metric templates:** Conditions can include a `metricTemplate` string with `{value}` and `{fieldName}` placeholders, resolved at evaluation time.
+
+**Client-side caching:** `src/lib/suitability-cache.ts` — caches suitability rules and category styles on the client with 10-minute TTL. Exports `fetchSuitabilityRules()`, `fetchCategoryStyles()`, `resetCaches()`. Category styles are seeded from static `CATEGORY_STYLES` for instant mineral color rendering on mount.
+
+**Server-side evaluation:** The explore chatbot route (`/api/explore`) runs `evaluateRule` server-side in `executeGetActivityAdvice`, returning structured level/label/detail to Claude instead of raw weather data, reducing hallucination surface.
+
+### Seed Data
+
+Database seed data files are read by `/api/db-init` for one-time bootstrap:
+
+- `src/lib/seed-suitability-rules.ts` — ordered condition-based rules per activity/category
+- `src/lib/seed-categories.ts` — activity categories with mineral color styles
+- `src/lib/seed-tags.ts` — tag metadata (slug, label, description, icon, featured flag)
+- `src/lib/seed-regions.ts` — supported geographic regions (bounding boxes + center points)
+- `src/lib/seed-seasons.ts` — country-specific season definitions (ZW, KE, TZ, etc.)
 
 ### Weather Data
 
@@ -414,6 +535,13 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 - `getZimbabweSeason(date)` — Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe)
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
+- `synthesizeOpenMeteoInsights(data)` — constructs a `WeatherInsights` object from Open-Meteo data (wind speed, gusts, visibility) for suitability evaluation
+
+**Weather labels:** `src/lib/weather-labels.ts` — extracted contextual label helpers for weather metrics:
+- `humidityLabel(h)` — Dry / Comfortable / Humid / Very humid
+- `pressureLabel(p)` — Low / Normal / High
+- `cloudLabel(c)` — Clear / Mostly clear / Partly cloudy / Mostly cloudy / Overcast
+- `feelsLikeContext(apparent, actual)` — Cooler than actual / Warmer than actual / Same as actual
 
 **Provider strategy:** The weather API route (`/api/weather`) tries Tomorrow.io first. If the API key is missing, rate-limited (429), or the request fails, it falls back to Open-Meteo. The `X-Weather-Provider` response header indicates which provider served the data.
 
@@ -475,6 +603,10 @@ Reusable skeleton components in `src/components/ui/skeleton.tsx`:
 - `ChartSkeleton` — aspect-ratio-matched chart placeholder
 - `BadgeSkeleton` — pill-shaped badge placeholder
 - `MetricCardSkeleton` — matches AtmosphericSummary MetricCard shape
+- `ChatSkeleton` — matches ExploreChatbot container shape (used as Suspense fallback)
+
+Additional skeleton in `src/components/weather/SectionSkeleton.tsx`:
+- `SectionSkeleton` — generic section loading placeholder (h-32 pulsing card)
 
 All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` text for screen readers.
 
@@ -502,10 +634,13 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 - Weather cache: 15-min TTL (auto-expires via TTL index)
 - AI summaries: tiered TTL — 30 min (major cities), 60 min (mid-tier), 120 min (small locations)
 - Weather history: unlimited retention (recorded on every fresh API fetch)
+- Explore route: in-memory location context (5-min TTL), activities (5-min TTL), in-request weather cache (Map per request)
 
 **Client-side:**
 - No weather data caching — every page load fetches fresh weather data from the server
 - User preferences (theme + selected activities) are persisted to localStorage via Zustand `persist` middleware under key `mukoko-weather-prefs`
+- Suitability rules: 10-min TTL cache in `src/lib/suitability-cache.ts` (fetched from `/api/suitability`)
+- Category styles: 10-min TTL cache in `src/lib/suitability-cache.ts`, seeded from static `CATEGORY_STYLES` for instant render
 
 ### i18n
 
@@ -629,6 +764,36 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 **Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
 
+### Explore Chatbot (Shamwari Explorer)
+
+**Route:** `/explore` — AI-powered conversational weather assistant with tool use, plus category and country browsing.
+
+**Components:**
+- `src/app/explore/page.tsx` — server component (ISR 1h), fetches tag counts and featured tags, renders chatbot + category browse cards + country browse link
+- `src/app/explore/ExplorePageClient.tsx` — client wrapper, loads chatbot via `React.lazy` + `Suspense` with `ChatSkeleton` fallback. Wrapped in `ChartErrorBoundary`. Note: deliberately NOT wrapped in `LazySection` as the chatbot is the above-fold spotlight feature.
+- `src/components/explore/ExploreChatbot.tsx` — full chat UI: message bubbles, typing indicator, suggested prompts, markdown rendering, location reference links
+
+**API:** `POST /api/explore` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
+- **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
+- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars)
+- **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, in-request weather cache (prevents double fetch), prompt injection documentation
+- **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL)
+- **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
+
+**Country/Tag Browse:**
+- `/explore/[tag]` — locations filtered by tag, server-rendered
+- `/explore/country` — country index page with flag emoji
+- `/explore/country/[code]` — locations in a country, grouped by province
+- `/explore/country/[code]/[province]` — locations in a specific province
+
+### Status Page
+
+**Route:** `/status` — live system health dashboard.
+- `src/app/status/page.tsx` — server wrapper (metadata)
+- `src/app/status/StatusDashboard.tsx` — client component, calls `GET /api/status`
+- Checks: MongoDB connectivity, Tomorrow.io API key, Open-Meteo availability, Anthropic API key, weather cache health
+- Each service shows operational/degraded/down status with latency
+
 ## Testing
 
 **Framework:** Vitest 4.0.18 (configured in `vitest.config.ts`)
@@ -638,38 +803,62 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - Path alias: `@/*` → `./src/*`
 
 **Test files:**
-- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels, fallback weather
+
+*Library tests:*
+- `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels, fallback weather, synthesizeOpenMeteoInsights
 - `src/lib/weather-labels.test.ts` — humidity/pressure/cloud/feels-like label helpers
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
 - `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
+- `src/lib/suitability.test.ts` — suitability rule evaluation, condition matching, metric template resolution
+- `src/lib/countries.test.ts` — country/province data, flag emoji, province slug generation
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
 - `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
 - `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
-- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys)
+- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules)
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
 - `src/lib/geocoding.test.ts` — geocoding module structure, slug generation (diacritics, country codes)
 - `src/lib/rate-limit.test.ts` — rate limit module structure, atomic operations
 - `src/lib/observability.test.ts` — structured logging, error reporting
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
+- `src/lib/accessibility.test.ts` — accessibility helpers
+
+*API route tests:*
 - `src/app/api/ai/ai-prompt.test.ts` — AI prompt formatting, system message
 - `src/app/api/ai/ai-route.test.ts` — AI API route handling
+- `src/app/api/explore/explore-route.test.ts` — explore chatbot route (validation, rate limiting, circuit breaker, tool definitions, suitability evaluation)
+- `src/app/api/search/search-route.test.ts` — search API route (text, tag, geo queries)
 - `src/app/api/weather/weather-route.test.ts` — weather API route, provider fallback
 - `src/app/api/geo/geo-route.test.ts` — geo API route, nearest location, auto-creation
+- `src/app/api/locations/locations-route.test.ts` — locations list API route
 - `src/app/api/locations/add/locations-add-route.test.ts` — location add route, search/coordinate modes, rate limiting
+- `src/app/api/activities/activities-route.test.ts` — activities API route (by ID, category, search, labels, categories)
+- `src/app/api/suitability/suitability-route.test.ts` — suitability API route
+- `src/app/api/tags/tags-route.test.ts` — tags API route
+- `src/app/api/regions/regions-route.test.ts` — regions API route
 - `src/app/api/history/history-route.test.ts` — history API route
 - `src/app/api/map-tiles/map-tiles-route.test.ts` — map tile proxy route, layer validation, zoom clamping
 - `src/app/api/db-init/db-init-route.test.ts` — DB init route
 - `src/app/api/status/status-route.test.ts` — status API route
+
+*Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
+- `src/app/explore/explore.test.ts` — explore page tests
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
+- `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
+- `src/app/history/HistoryDashboard.test.ts` — history dashboard tests
+- `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
-- `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric)
+- `src/components/ui/chart-fallbacks.test.ts` — CSS fallback table key parity (light/dark sync)
+- `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric), hexWithAlpha
 - `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
 - `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
+- `src/components/weather/ChartErrorBoundary.test.ts` — error boundary rendering
+- `src/components/weather/CurrentConditions.test.ts` — current conditions rendering
+- `src/components/weather/LazySection.test.ts` — lazy section mounting, visibility
 
 **Conventions:**
 - Tests live next to the code they test (co-located)
@@ -713,7 +902,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Canvas chart colors** — resolved at render time via `resolveColor()` from `src/components/ui/chart.tsx`
 
 ### General
-- Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `embed/`)
+- Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `explore/`, `embed/`)
 - Client components use `"use client"` directive
 - Server components are the default (no directive needed)
 - All interactive elements have 44px minimum touch targets
@@ -774,7 +963,7 @@ Community locations are stored in the same MongoDB `locations` collection as see
 
 ### Database (MongoDB Atlas)
 - Client: `src/lib/mongo.ts` (module-scoped, connection-pooled via `@vercel/functions`)
-- Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations, rate_limits)
+- Operations: `src/lib/db.ts` (CRUD for weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, activity_categories, suitability_rules, tags, regions, seasons, api_keys)
 - Collections use TTL indexes for automatic cache expiration
 - Historical weather data is recorded automatically on every fresh API fetch
 - Rate limits collection has TTL index on `expiresAt` for automatic cleanup

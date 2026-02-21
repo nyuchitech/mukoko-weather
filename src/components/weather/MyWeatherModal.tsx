@@ -18,6 +18,7 @@ import {
   ACTIVITIES,
 } from "@/lib/activities";
 import type { ActivityCategoryDoc } from "@/lib/db";
+import { CATEGORIES } from "@/lib/seed-categories";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ export function MyWeatherModal() {
   // This prevents a blank modal on slow connections or cold starts.
   const [allLocations, setAllLocations] = useState<ZimbabweLocation[]>(LOCATIONS);
   const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
-  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>([]);
+  const [activityCategories, setActivityCategories] = useState<ActivityCategoryDoc[]>(CATEGORIES);
   const [tagLabels, setTagLabels] = useState<Record<string, string>>(DEFAULT_TAG_LABELS);
   const [dataLoading, setDataLoading] = useState(true);
 

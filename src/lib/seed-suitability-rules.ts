@@ -34,14 +34,14 @@ export const SUITABILITY_RULES: SeedRule[] = [
         level: "fair", label: "Fair",
         colorClass: "text-severity-high", bgClass: "bg-severity-high/10",
         detail: "High dew point — disease risk for crops",
-        metricTemplate: "GDD: {gdd10To30}",
+        metricTemplate: "Dew: {value}\u00B0C",
       },
       {
         field: "dewPoint", operator: "lt", value: 5,
         level: "poor", label: "Poor",
         colorClass: "text-severity-cold", bgClass: "bg-severity-cold/10",
         detail: "Low dew point — frost risk",
-        metricTemplate: "GDD: {gdd10To30}",
+        metricTemplate: "Dew: {value}\u00B0C",
       },
       {
         field: "precipitationType", operator: "gte", value: 2,

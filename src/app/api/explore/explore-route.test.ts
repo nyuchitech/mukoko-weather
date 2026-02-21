@@ -172,6 +172,12 @@ describe("conversation handling", () => {
     expect(source).toContain("weatherCache.has(");
     expect(source).toContain("weatherCache.set(");
   });
+
+  it("types weatherCache with WeatherResult instead of any", () => {
+    expect(source).toContain("type WeatherResult = Awaited<ReturnType<typeof executeGetWeather>>");
+    expect(source).toContain("Map<string, WeatherResult>");
+    expect(source).not.toContain("Map<string, any>");
+  });
 });
 
 describe("tool definitions", () => {

@@ -20,6 +20,9 @@ import {
 /** Maximum allowed message length (characters). */
 const MAX_MESSAGE_LENGTH = 2000;
 
+/** Weather result type returned by executeGetWeather. */
+type WeatherResult = Awaited<ReturnType<typeof executeGetWeather>>;
+
 /** Shared model ID for Claude Haiku. */
 const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
@@ -281,13 +284,13 @@ async function executeGetWeather(locationSlug: string) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function executeGetActivityAdvice(locationSlug: string, activityIds: string[], weatherCache?: Map<string, any>) {
+async function executeGetActivityAdvice(locationSlug: string, activityIds: string[], weatherCache?: Map<string, WeatherResult>) {
   // Reuse cached weather from the same request to avoid double-fetching
   // when Claude calls get_weather then get_activity_advice for the same location.
-  let weatherResult;
-  if (weatherCache?.has(locationSlug)) {
-    weatherResult = weatherCache.get(locationSlug);
+  let weatherResult: WeatherResult;
+  const cached = weatherCache?.get(locationSlug);
+  if (cached) {
+    weatherResult = cached;
   } else {
     weatherResult = await executeGetWeather(locationSlug);
     weatherCache?.set(locationSlug, weatherResult);
@@ -456,8 +459,7 @@ export async function POST(request: NextRequest) {
     const references: { slug: string; name: string; type: string }[] = [];
     // In-request weather cache: prevents double-fetching when Claude calls
     // get_weather then get_activity_advice for the same location in one turn.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const weatherCache = new Map<string, any>();
+    const weatherCache = new Map<string, WeatherResult>();
 
     while (response.stop_reason === "tool_use" && iterations < maxIterations) {
       iterations++;
@@ -487,11 +489,13 @@ export async function POST(request: NextRequest) {
             case "get_weather": {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
-              if (weatherCache.has(slug)) {
-                result = weatherCache.get(slug);
+              const cachedWeather = weatherCache.get(slug);
+              if (cachedWeather) {
+                result = cachedWeather;
               } else {
-                result = await executeGetWeather(slug);
-                weatherCache.set(slug, result);
+                const freshWeather = await executeGetWeather(slug);
+                weatherCache.set(slug, freshWeather);
+                result = freshWeather;
               }
               const weatherResult = result as { found: boolean; locationSlug?: string; locationName?: string };
               if (weatherResult.found && weatherResult.locationSlug) {
