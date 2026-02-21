@@ -151,6 +151,65 @@ describe("evaluateRule with operators", () => {
   });
 });
 
+describe("evaluateRule with wind speed conditions", () => {
+  const WIND_RULE: SuitabilityRuleDoc = {
+    key: "activity:drone-flying",
+    conditions: [
+      {
+        field: "windGust", operator: "gt", value: 40,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Dangerous gusts", metricTemplate: "Gust: {value} km/h",
+      },
+      {
+        field: "windSpeed", operator: "gt", value: 35,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Wind too strong", metricTemplate: "Wind: {value} km/h",
+      },
+      {
+        field: "windSpeed", operator: "gt", value: 20,
+        level: "fair", label: "Caution",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Moderate wind", metricTemplate: "Wind: {value} km/h",
+      },
+    ],
+    fallback: {
+      level: "excellent", label: "Flyable",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Calm winds", metricTemplate: "Wind: {windSpeed} km/h",
+    },
+    updatedAt: new Date(),
+  };
+
+  it("grounds drone on dangerous gusts (>40 km/h)", () => {
+    const result = evaluateRule(WIND_RULE, { windGust: 45 });
+    expect(result.level).toBe("poor");
+    expect(result.label).toBe("Grounded");
+    expect(result.metric).toBe("Gust: 45 km/h");
+  });
+
+  it("grounds drone on high sustained wind (>35 km/h)", () => {
+    const result = evaluateRule(WIND_RULE, { windSpeed: 38 });
+    expect(result.level).toBe("poor");
+    expect(result.label).toBe("Grounded");
+    expect(result.metric).toBe("Wind: 38 km/h");
+  });
+
+  it("shows caution on moderate wind (>20 km/h)", () => {
+    const result = evaluateRule(WIND_RULE, { windSpeed: 25 });
+    expect(result.level).toBe("fair");
+    expect(result.label).toBe("Caution");
+  });
+
+  it("returns flyable in calm winds", () => {
+    const result = evaluateRule(WIND_RULE, { windSpeed: 10, windGust: 15 });
+    expect(result.level).toBe("excellent");
+    expect(result.label).toBe("Flyable");
+    expect(result.metric).toBe("Wind: 10 km/h");
+  });
+});
+
 describe("getRuleKey", () => {
   it("returns both activity and category keys", () => {
     const keys = getRuleKey("drone-flying", "casual");

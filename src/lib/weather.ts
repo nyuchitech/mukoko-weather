@@ -69,6 +69,10 @@ export interface WeatherInsights {
   dewPoint?: number;            // °C (current)
   precipitationType?: number;   // 0=none, 1=rain, 2=snow, 3=freezing rain, 4=sleet
 
+  // Wind — drone flying, outdoor safety
+  windSpeed?: number;                 // km/h (current)
+  windGust?: number;                  // km/h (current)
+
   // Safety — outdoor activities
   thunderstormProbability?: number;  // % (current)
   heatStressIndex?: number;          // 0–30+ (current)

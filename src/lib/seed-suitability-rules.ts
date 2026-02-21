@@ -254,6 +254,20 @@ export const SUITABILITY_RULES: SeedRule[] = [
     key: "activity:drone-flying",
     conditions: [
       {
+        field: "windGust", operator: "gt", value: 40,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Dangerous gusts — do not fly",
+        metricTemplate: "Gust: {value} km/h",
+      },
+      {
+        field: "windSpeed", operator: "gt", value: 35,
+        level: "poor", label: "Grounded",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Wind too strong for safe flight",
+        metricTemplate: "Wind: {value} km/h",
+      },
+      {
         field: "thunderstormProbability", operator: "gt", value: 20,
         level: "poor", label: "Grounded",
         colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
@@ -268,18 +282,32 @@ export const SUITABILITY_RULES: SeedRule[] = [
         metricTemplate: "Vis: {value} km",
       },
       {
-        field: "visibility", operator: "lt", value: 3,
-        level: "fair", label: "Caution",
-        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
-        detail: "Reduced visibility — fly with caution, maintain line of sight",
-        metricTemplate: "Vis: {value} km",
-      },
-      {
         field: "precipitationType", operator: "gt", value: 0,
         level: "poor", label: "Grounded",
         colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
         detail: "Precipitation — moisture risk to electronics",
         metricTemplate: "Vis: {visibility} km",
+      },
+      {
+        field: "windGust", operator: "gt", value: 25,
+        level: "fair", label: "Caution",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Gusty conditions — fly low, avoid open areas",
+        metricTemplate: "Gust: {value} km/h",
+      },
+      {
+        field: "windSpeed", operator: "gt", value: 20,
+        level: "fair", label: "Caution",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Moderate wind — reduced battery life and stability",
+        metricTemplate: "Wind: {value} km/h",
+      },
+      {
+        field: "visibility", operator: "lt", value: 3,
+        level: "fair", label: "Caution",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Reduced visibility — fly with caution, maintain line of sight",
+        metricTemplate: "Vis: {value} km",
       },
       {
         field: "uvHealthConcern", operator: "gt", value: 8,
@@ -292,8 +320,8 @@ export const SUITABILITY_RULES: SeedRule[] = [
     fallback: {
       level: "excellent", label: "Flyable",
       colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
-      detail: "Clear skies — ideal drone conditions",
-      metricTemplate: "Vis: {visibility} km",
+      detail: "Clear skies, calm winds — ideal drone conditions",
+      metricTemplate: "Wind: {windSpeed} km/h",
     },
   },
 ];

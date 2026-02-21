@@ -6,6 +6,9 @@ name: Post-Deploy DB Init
 on:
   deployment_status:
 
+permissions:
+  contents: read
+
 jobs:
   db-init:
     name: Sync database seed data

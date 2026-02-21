@@ -144,6 +144,38 @@ describe("tool definitions", () => {
   });
 });
 
+describe("tool input validation", () => {
+  it("validates search_locations query is a string", () => {
+    expect(source).toContain("typeof input.query === \"string\"");
+    expect(source).toContain("Missing query parameter");
+  });
+
+  it("validates get_weather location_slug is a string", () => {
+    expect(source).toContain("typeof input.location_slug === \"string\"");
+    expect(source).toContain("Missing location_slug parameter");
+  });
+
+  it("validates get_activity_advice activities is an array of strings", () => {
+    expect(source).toContain("Array.isArray(input.activities)");
+  });
+
+  it("validates list_locations_by_tag tag is a string", () => {
+    expect(source).toContain("typeof input.tag === \"string\"");
+    expect(source).toContain("Missing tag parameter");
+  });
+});
+
+describe("weather tool references", () => {
+  it("uses locationName for display name instead of slug", () => {
+    expect(source).toContain("name: weatherResult.locationName ?? weatherResult.locationSlug");
+  });
+
+  it("looks up location name from DB for cached weather", () => {
+    // Cache path also resolves location name via getLocationFromDb
+    expect(source).toContain("locationName: loc?.name ?? locationSlug");
+  });
+});
+
 describe("error handling and observability", () => {
   it("logs errors with source ai-api", () => {
     expect(source).toContain("source: \"ai-api\"");

@@ -160,10 +160,13 @@ async function executeGetWeather(locationSlug: string) {
   // Try cache first, then fetch fresh
   const cached = await getCachedWeather(locationSlug);
   if (cached) {
-    const season = await getSeasonForDate(new Date(), "ZW");
+    // Look up the location name for display purposes
+    const loc = await getLocationFromDb(locationSlug);
+    const season = await getSeasonForDate(new Date(), loc?.country ?? "ZW");
     return {
       found: true,
       locationSlug,
+      locationName: loc?.name ?? locationSlug,
       current: {
         temperature: cached.current.temperature_2m,
         feelsLike: cached.current.apparent_temperature,
@@ -378,7 +381,9 @@ export async function POST(request: NextRequest) {
           const input = toolUse.input as Record<string, unknown>;
           switch (toolUse.name) {
             case "search_locations": {
-              result = await executeSearchLocations(input.query as string);
+              const query = typeof input.query === "string" ? input.query : "";
+              if (!query) { result = { error: "Missing query parameter" }; break; }
+              result = await executeSearchLocations(query);
               const searchResult = result as { found: boolean; locations?: { slug: string; name: string }[] };
               if (searchResult.found && searchResult.locations) {
                 for (const loc of searchResult.locations) {
@@ -388,22 +393,26 @@ export async function POST(request: NextRequest) {
               break;
             }
             case "get_weather": {
-              result = await executeGetWeather(input.location_slug as string);
-              const weatherResult = result as { found: boolean; locationSlug?: string };
+              const slug = typeof input.location_slug === "string" ? input.location_slug : "";
+              if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
+              result = await executeGetWeather(slug);
+              const weatherResult = result as { found: boolean; locationSlug?: string; locationName?: string };
               if (weatherResult.found && weatherResult.locationSlug) {
-                references.push({ slug: weatherResult.locationSlug, name: weatherResult.locationSlug, type: "weather" });
+                references.push({ slug: weatherResult.locationSlug, name: weatherResult.locationName ?? weatherResult.locationSlug, type: "weather" });
               }
               break;
             }
             case "get_activity_advice": {
-              result = await executeGetActivityAdvice(
-                input.location_slug as string,
-                input.activities as string[]
-              );
+              const slug = typeof input.location_slug === "string" ? input.location_slug : "";
+              const activities = Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : [];
+              if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
+              result = await executeGetActivityAdvice(slug, activities);
               break;
             }
             case "list_locations_by_tag": {
-              result = await executeListLocationsByTag(input.tag as string);
+              const tag = typeof input.tag === "string" ? input.tag : "";
+              if (!tag) { result = { error: "Missing tag parameter" }; break; }
+              result = await executeListLocationsByTag(tag);
               break;
             }
             default:
