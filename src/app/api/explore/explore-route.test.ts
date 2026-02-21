@@ -252,6 +252,17 @@ describe("server-side suitability evaluation", () => {
   });
 });
 
+describe("robustness", () => {
+  it("guards against null/non-object items in history array", () => {
+    expect(source).toContain("typeof msg !== \"object\"");
+  });
+
+  it("caches suitability rules within the request via rulesCache", () => {
+    expect(source).toContain("rulesCache");
+    expect(source).toContain("rulesCache.rules === null");
+  });
+});
+
 describe("security", () => {
   it("documents x-forwarded-for trust assumption for Vercel", () => {
     expect(source).toContain("Vercel's edge layer controls x-forwarded-for");

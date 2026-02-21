@@ -86,15 +86,35 @@ export interface WeatherInsights {
 }
 
 /**
- * Synthesize basic weather insights from Open-Meteo current data.
- * Used when Tomorrow.io is unavailable so that suitability rules
- * (e.g. drone wind speed checks) still have data to evaluate against.
+ * Synthesize weather insights from Open-Meteo data for suitability evaluation.
+ * Maps available Open-Meteo fields to the WeatherInsights interface so that
+ * suitability rules produce meaningful ratings on the fallback path (when
+ * Tomorrow.io is unavailable). Without these mappings, all conditions fall
+ * through to the "Good" default — e.g. farming shows "Good" during a storm.
  */
 export function synthesizeOpenMeteoInsights(data: WeatherData): WeatherInsights {
+  const currentUv = data.current.uv_index;
+  const weatherCode = data.current.weather_code;
+
+  // WMO weather codes 95–99 indicate thunderstorm activity.
+  // Translate to a 0–100 probability: 80% for thunderstorm, 0% otherwise.
+  const thunderstormProbability = weatherCode >= 95 ? 80 : 0;
+
+  // Derive precipitationType from WMO weather codes:
+  //   0=none, 1=rain, 2=snow, 3=freezing rain, 4=ice pellets
+  let precipitationType = 0;
+  if (weatherCode >= 71 && weatherCode <= 77) precipitationType = 2;       // Snow
+  else if (weatherCode === 66 || weatherCode === 67) precipitationType = 3; // Freezing rain
+  else if (weatherCode >= 51 || (weatherCode >= 80 && weatherCode <= 82) || weatherCode >= 95) precipitationType = 1; // Rain/drizzle/thunderstorm
+
   return {
     windSpeed: data.current.wind_speed_10m,
     windGust: data.current.wind_gusts_10m,
     visibility: data.hourly?.visibility?.[0],
+    // Open-Meteo UV index is 0–11+; Tomorrow.io uvHealthConcern uses the same scale
+    uvHealthConcern: currentUv,
+    thunderstormProbability,
+    precipitationType,
   };
 }
 

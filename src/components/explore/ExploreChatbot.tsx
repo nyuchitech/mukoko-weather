@@ -92,7 +92,8 @@ export function ExploreChatbot() {
       // NOTE: `messages` here is the pre-update snapshot (before userMessage
       // is appended via setMessages above), which is correct — the new user
       // message is sent separately as `message` in the request body.
-      const history = messages.map((m) => ({
+      // Slice to last 10 to match server cap and reduce payload size.
+      const history = messages.slice(-10).map((m) => ({
         role: m.role,
         content: m.content,
       }));

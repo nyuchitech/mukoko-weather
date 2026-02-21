@@ -287,7 +287,11 @@ async function executeGetWeather(locationSlug: string) {
   }
 }
 
-async function executeGetActivityAdvice(locationSlug: string, activityIds: string[], weatherCache?: Map<string, WeatherResult>) {
+/** In-request suitability rules cache — avoids redundant MongoDB queries
+ *  when Claude calls get_activity_advice multiple times in one tool-use loop. */
+type RulesCache = { rules: Awaited<ReturnType<typeof getAllSuitabilityRules>> | null };
+
+async function executeGetActivityAdvice(locationSlug: string, activityIds: string[], weatherCache?: Map<string, WeatherResult>, rulesCache?: RulesCache) {
   // Reuse cached weather from the same request to avoid double-fetching
   // when Claude calls get_weather then get_activity_advice for the same location.
   let weatherResult: WeatherResult;
@@ -312,11 +316,14 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
   // Run suitability evaluation server-side so the LLM receives structured
   // ratings (level, label, detail) instead of raw insights. This reduces
   // hallucination surface and makes AI responses more consistent.
-  // Batch-fetch all rules in one query to avoid N+1 DB round-trips.
+  // Batch-fetch all rules once per request (cached via rulesCache ref).
   const suitability: Record<string, { level: string; label: string; detail: string; metric?: string }> = {};
   if (insights) {
     try {
-      const allRules = await getAllSuitabilityRules();
+      if (rulesCache && rulesCache.rules === null) {
+        rulesCache.rules = await getAllSuitabilityRules();
+      }
+      const allRules = rulesCache?.rules ?? await getAllSuitabilityRules();
       const ruleMap = new Map(allRules.map((r) => [r.key, r]));
       for (const activity of matchedActivities) {
         const rule = ruleMap.get(`activity:${activity.id}`) ?? ruleMap.get(`category:${activity.category}`);
@@ -429,6 +436,7 @@ export async function POST(request: NextRequest) {
     // treating injected text as a new turn (prompt injection mitigation).
     if (Array.isArray(history)) {
       for (const msg of history.slice(-10)) {
+        if (!msg || typeof msg !== "object") continue;
         if (msg.role === "user" && typeof msg.content === "string") {
           messages.push({ role: "user", content: sanitizeHistoryContent(msg.content) });
         } else if (msg.role === "assistant" && typeof msg.content === "string") {
@@ -463,9 +471,10 @@ export async function POST(request: NextRequest) {
     const maxIterations = 5;
     let iterations = 0;
     const references: { slug: string; name: string; type: string }[] = [];
-    // In-request weather cache: prevents double-fetching when Claude calls
-    // get_weather then get_activity_advice for the same location in one turn.
+    // In-request caches: prevent redundant MongoDB/API round-trips when Claude
+    // calls the same tool multiple times in one tool-use loop.
     const weatherCache = new Map<string, WeatherResult>();
+    const rulesCache: RulesCache = { rules: null };
 
     while (response.stop_reason === "tool_use" && iterations < maxIterations) {
       iterations++;
@@ -513,7 +522,7 @@ export async function POST(request: NextRequest) {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               const activities = (Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : []).slice(0, 10);
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
-              result = await executeGetActivityAdvice(slug, activities, weatherCache);
+              result = await executeGetActivityAdvice(slug, activities, weatherCache, rulesCache);
               break;
             }
             case "list_locations_by_tag": {

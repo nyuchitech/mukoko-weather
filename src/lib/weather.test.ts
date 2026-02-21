@@ -377,4 +377,42 @@ describe("synthesizeOpenMeteoInsights", () => {
 
     expect(insights.visibility).toBe(data.hourly.visibility[0]);
   });
+
+  it("derives precipitationType from WMO weather code", () => {
+    const data = createFallbackWeather(-17.83, 31.05, 1483);
+    const insights = synthesizeOpenMeteoInsights(data);
+
+    // Fallback weather uses clear/fair code → no precipitation
+    expect(insights.precipitationType).toBe(0);
+
+    // Snow code (WMO 71)
+    const snowData = createFallbackWeather(-17.83, 31.05, 1483);
+    snowData.current.weather_code = 71;
+    expect(synthesizeOpenMeteoInsights(snowData).precipitationType).toBe(2);
+
+    // Freezing rain code (WMO 66)
+    const freezingData = createFallbackWeather(-17.83, 31.05, 1483);
+    freezingData.current.weather_code = 66;
+    expect(synthesizeOpenMeteoInsights(freezingData).precipitationType).toBe(3);
+  });
+
+  it("maps uvHealthConcern from current uv_index", () => {
+    const data = createFallbackWeather(-17.83, 31.05, 1483);
+    const insights = synthesizeOpenMeteoInsights(data);
+
+    expect(insights.uvHealthConcern).toBe(data.current.uv_index);
+  });
+
+  it("derives thunderstormProbability from WMO weather code", () => {
+    const data = createFallbackWeather(-17.83, 31.05, 1483);
+    // Fallback weather uses non-thunderstorm code
+    const insights = synthesizeOpenMeteoInsights(data);
+    expect(insights.thunderstormProbability).toBe(0);
+
+    // Simulate thunderstorm weather code (WMO 95)
+    const stormData = createFallbackWeather(-17.83, 31.05, 1483);
+    stormData.current.weather_code = 95;
+    const stormInsights = synthesizeOpenMeteoInsights(stormData);
+    expect(stormInsights.thunderstormProbability).toBe(80);
+  });
 });

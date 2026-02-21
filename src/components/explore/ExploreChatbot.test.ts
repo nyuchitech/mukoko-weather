@@ -65,8 +65,8 @@ describe("sendMessage logic", () => {
     expect(source).toContain("JSON.stringify({ message: trimmed, history })");
   });
 
-  it("builds history from previous messages", () => {
-    expect(source).toContain("messages.map((m) => ({");
+  it("builds history from previous messages (sliced to last 10)", () => {
+    expect(source).toContain("messages.slice(-10).map((m) => ({");
     expect(source).toContain("role: m.role");
     expect(source).toContain("content: m.content");
   });

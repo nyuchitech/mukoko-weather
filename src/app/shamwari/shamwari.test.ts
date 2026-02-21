@@ -9,6 +9,7 @@ import { resolve } from "path";
 const pageSource = readFileSync(resolve(__dirname, "page.tsx"), "utf-8");
 const clientSource = readFileSync(resolve(__dirname, "ShamwariPageClient.tsx"), "utf-8");
 const loadingSource = readFileSync(resolve(__dirname, "loading.tsx"), "utf-8");
+const errorSource = readFileSync(resolve(__dirname, "error.tsx"), "utf-8");
 
 describe("shamwari page — structure", () => {
   it("exports metadata with Shamwari title", () => {
@@ -75,5 +76,36 @@ describe("shamwari loading skeleton", () => {
   it("accounts for mobile bottom nav spacing", () => {
     expect(loadingSource).toContain("pb-[4.5rem]");
     expect(loadingSource).toContain("sm:pb-0");
+  });
+});
+
+describe("shamwari error boundary", () => {
+  it("is a client component", () => {
+    expect(errorSource).toContain('"use client"');
+  });
+
+  it("shows Chat Unavailable heading", () => {
+    expect(errorSource).toContain("Chat Unavailable");
+  });
+
+  it("uses retry count tracking from error-retry", () => {
+    expect(errorSource).toContain("getRetryCount");
+    expect(errorSource).toContain("setRetryCount");
+    expect(errorSource).toContain("MAX_RETRIES");
+  });
+
+  it("reports errors to analytics", () => {
+    expect(errorSource).toContain("reportErrorToAnalytics");
+    expect(errorSource).toContain("shamwari:");
+  });
+
+  it("provides issue reporting link", () => {
+    expect(errorSource).toContain("buildIssueUrl");
+    expect(errorSource).toContain("Report this issue");
+  });
+
+  it("provides home navigation link", () => {
+    expect(errorSource).toContain('href="/"');
+    expect(errorSource).toContain("Go home");
   });
 });

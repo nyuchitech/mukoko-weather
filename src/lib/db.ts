@@ -598,11 +598,15 @@ export async function getAllLocationsFromDb(): Promise<LocationDoc[]> {
 
 /**
  * Get a limited number of locations for context building (e.g. AI prompts).
- * Pushes the limit into MongoDB instead of fetching the full collection
- * and slicing client-side — avoids discarding 95%+ of fetched data.
+ * Sorts seed locations first (then community, then geolocation) and by name
+ * so that major cities aren't crowded out by recently-added community locations.
  */
 export async function getLocationsForContext(limit: number): Promise<LocationDoc[]> {
-  return locationsCollection().find({}).limit(limit).toArray();
+  return locationsCollection()
+    .find({})
+    .sort({ source: 1, name: 1 })
+    .limit(limit)
+    .toArray();
 }
 
 /** Insert a new community-contributed location */
