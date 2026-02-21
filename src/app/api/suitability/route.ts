@@ -16,16 +16,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const key = searchParams.get("key");
 
+    // Rules change only on deployment (via db-init), so edge-cache aggressively.
+    const cacheHeaders = { "Cache-Control": "s-maxage=300, stale-while-revalidate=60" };
+
     if (key) {
       const rule = await getSuitabilityRuleByKey(key);
       if (!rule) {
         return NextResponse.json({ error: "Rule not found" }, { status: 404 });
       }
-      return NextResponse.json({ rule });
+      return NextResponse.json({ rule }, { headers: cacheHeaders });
     }
 
     const rules = await getAllSuitabilityRules();
-    return NextResponse.json({ rules });
+    return NextResponse.json({ rules }, { headers: cacheHeaders });
   } catch (err) {
     logError({
       source: "mongodb",

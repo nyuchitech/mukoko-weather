@@ -59,6 +59,12 @@ export function ExploreChatbot() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel in-flight fetch on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -90,10 +96,16 @@ export function ExploreChatbot() {
         content: m.content,
       }));
 
+      // Cancel any previous in-flight request before starting a new one
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       const res = await fetch("/api/explore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: trimmed, history }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -111,7 +123,9 @@ export function ExploreChatbot() {
       };
 
       setMessages((prev) => [...prev, assistantMessage].slice(-MAX_RENDERED_MESSAGES));
-    } catch {
+    } catch (err) {
+      // Silently ignore aborted requests (user navigated away or sent a new message)
+      if (err instanceof DOMException && err.name === "AbortError") return;
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: "assistant",

@@ -511,7 +511,7 @@ export async function POST(request: NextRequest) {
             }
             case "get_activity_advice": {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
-              const activities = Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : [];
+              const activities = (Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : []).slice(0, 10);
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
               result = await executeGetActivityAdvice(slug, activities, weatherCache);
               break;

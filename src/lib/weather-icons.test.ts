@@ -18,10 +18,10 @@ describe("ICON_REGISTRY", () => {
     "car", "bus", "plane", "binoculars", "camera", "bird", "tent",
     "star", "fish", "running", "bicycle", "mountain", "football",
     "swimming", "golf", "cricket", "tennis", "rugby", "horse",
-    "footprints", "grill", "drone", "picnic", "sun",
+    "footprints", "grill", "drone", "picnic", "sparkles", "sun",
   ];
 
-  it("maps all 30 icon identifiers in the registry", () => {
+  it("maps all 31 icon identifiers in the registry", () => {
     for (const id of expectedIcons) {
       expect(source).toContain(`${id}:`);
     }
@@ -31,13 +31,13 @@ describe("ICON_REGISTRY", () => {
     expect(source).toContain("export const ICON_REGISTRY");
   });
 
-  it("has exactly 30 entries in the registry", () => {
+  it("has exactly 31 entries in the registry", () => {
     // Count entries between ICON_REGISTRY and the closing brace
     const registryStart = source.indexOf("export const ICON_REGISTRY");
     const registrySection = source.slice(registryStart, source.indexOf("};", registryStart) + 2);
     // Count lines that have an icon mapping (identifier: ComponentName)
     const entryMatches = registrySection.match(/^\s+\w+:\s+\w+Icon,?$/gm);
-    expect(entryMatches).toHaveLength(30);
+    expect(entryMatches).toHaveLength(31);
   });
 });
 

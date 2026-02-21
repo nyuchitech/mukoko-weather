@@ -209,6 +209,10 @@ describe("tool input validation", () => {
     expect(source).toContain("Array.isArray(input.activities)");
   });
 
+  it("caps activities array to 10 items to prevent abuse", () => {
+    expect(source).toContain(".slice(0, 10)");
+  });
+
   it("validates list_locations_by_tag tag is a string", () => {
     expect(source).toContain("typeof input.tag === \"string\"");
     expect(source).toContain("Missing tag parameter");

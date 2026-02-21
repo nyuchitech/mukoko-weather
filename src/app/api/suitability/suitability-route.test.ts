@@ -50,6 +50,14 @@ describe("bulk rules fetch", () => {
   });
 });
 
+describe("caching", () => {
+  it("sets Cache-Control with s-maxage and stale-while-revalidate", () => {
+    expect(source).toContain("Cache-Control");
+    expect(source).toContain("s-maxage=300");
+    expect(source).toContain("stale-while-revalidate=60");
+  });
+});
+
 describe("error handling and observability", () => {
   it("logs errors with source mongodb", () => {
     expect(source).toContain("source: \"mongodb\"");

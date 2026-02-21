@@ -535,6 +535,7 @@ export const ICON_REGISTRY: Record<string, (props: IconProps) => React.JSX.Eleme
   grill: GrillIcon,
   drone: DroneIcon,
   picnic: PicnicIcon,
+  sparkles: SparklesIcon,
   sun: SunIcon,
 };
 

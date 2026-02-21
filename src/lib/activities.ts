@@ -86,7 +86,7 @@ export const ACTIVITIES: Activity[] = [
   // Casual — new user-activity category (not a location tag)
   { id: "walking", label: "Walking", category: "casual", relevantTags: ["city"], description: "Leisure walks and strolling", icon: "footprints" },
   { id: "barbecue", label: "Barbecue", category: "casual", relevantTags: [], description: "Braai and outdoor cooking", icon: "grill" },
-  { id: "outdoor-events", label: "Outdoor Events", category: "casual", relevantTags: ["city", "tourism"], description: "Markets, festivals, and outdoor gatherings", icon: "tent" },
+  { id: "outdoor-events", label: "Outdoor Events", category: "casual", relevantTags: ["city", "tourism"], description: "Markets, festivals, and outdoor gatherings", icon: "sparkles" },
   { id: "drone-flying", label: "Drone Flying", category: "casual", relevantTags: ["city", "tourism", "farming"], description: "Recreational and commercial drone operations", icon: "drone" },
   { id: "picnic", label: "Picnic", category: "casual", relevantTags: ["city", "tourism"], description: "Outdoor picnics and lunch in the park", icon: "picnic" },
 ];
