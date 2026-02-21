@@ -144,13 +144,12 @@ export function MyWeatherModal() {
     setTimeout(() => setActiveTab("activities"), 250);
   }, []);
 
-  /** When a location is detected/created via geolocation, navigate immediately */
+  /** When a location is detected/created via geolocation, set as pending and
+   *  advance to Activities tab — same deferred navigation as manual selection. */
   const handleGeoLocationResolved = useCallback((slug: string) => {
-    completeOnboarding();
-    closeMyWeather();
-    setSelectedLocation(slug);
-    router.push(`/${slug}`);
-  }, [completeOnboarding, closeMyWeather, setSelectedLocation, router]);
+    setPendingSlug(slug);
+    setTimeout(() => setActiveTab("activities"), 250);
+  }, []);
 
   const locationChanged = pendingSlug !== currentSlug;
 
@@ -231,7 +230,7 @@ function LocationTab({
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  // Geolocation detection — auto-navigate on success
+  // Geolocation detection — set pending location and advance to activities
   const handleGeolocate = useCallback(async () => {
     setGeoLoading(true);
     const result = await detectUserLocation();

@@ -84,9 +84,8 @@ mukoko-weather/
 │   │   │       ├── page.tsx             # Server wrapper (SEO, no weather fetch)
 │   │   │       ├── MapDashboard.tsx     # Client: full-viewport Leaflet map + layer switcher
 │   │   │       └── loading.tsx          # Full-viewport skeleton
-│   │   ├── explore/                  # AI chatbot + location/tag/country browse
-│   │   │   ├── page.tsx              # Explore page (ISR 1h, chatbot + category browse)
-│   │   │   ├── ExplorePageClient.tsx # Client: React.lazy chatbot + ChartErrorBoundary
+│   │   ├── explore/                  # Browse-only location/tag/country exploration
+│   │   │   ├── page.tsx              # Explore page (ISR 1h, category + country browse)
 │   │   │   ├── loading.tsx           # Explore loading skeleton
 │   │   │   ├── explore.test.ts       # Explore page tests
 │   │   │   ├── [tag]/               # Browse locations by tag
@@ -106,6 +105,11 @@ mukoko-weather/
 │   │   │       │       ├── loading.tsx
 │   │   │       │       ├── error.tsx
 │   │   │       │       └── not-found.tsx
+│   │   ├── shamwari/                 # Shamwari AI chat (full-viewport, Claude app style)
+│   │   │   ├── page.tsx              # Server wrapper (metadata)
+│   │   │   ├── ShamwariPageClient.tsx # Client: full-viewport chatbot layout
+│   │   │   ├── loading.tsx           # ChatSkeleton loading state
+│   │   │   └── shamwari.test.ts      # Page structure + layout tests
 │   │   ├── status/                   # System health dashboard
 │   │   │   ├── page.tsx              # Status page (metadata, layout)
 │   │   │   └── StatusDashboard.tsx   # Client: live health checks for all services
@@ -156,11 +160,11 @@ mukoko-weather/
 │   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
 │   │   ├── analytics/
 │   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
-│   │   ├── explore/                  # Explore chatbot components
+│   │   ├── explore/                  # Shamwari chatbot component (used by /shamwari page)
 │   │   │   ├── ExploreChatbot.tsx    # AI chatbot UI (message bubbles, typing indicator, suggested prompts)
 │   │   │   └── ExploreChatbot.test.ts
 │   │   ├── layout/
-│   │   │   ├── Header.tsx            # Sticky header, pill icon group (map-pin/history/search), My Weather modal trigger
+│   │   │   ├── Header.tsx            # Sticky header + 5-item mobile bottom nav (Weather/Explore/Shamwari/History/My Weather)
 │   │   │   ├── HeaderSkeleton.tsx    # Header loading skeleton
 │   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
@@ -386,7 +390,8 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
 - `/[location]/map` — full-viewport interactive weather map with layer switcher (precipitation, cloud, temperature, wind)
-- `/explore` — AI-powered Shamwari Explorer chatbot + category/country browse (ISR 1h)
+- `/shamwari` — Shamwari AI chat (full-viewport, Claude app style, input above mobile nav)
+- `/explore` — browse locations by category and country (ISR 1h)
 - `/explore/[tag]` — browse locations filtered by tag (city, farming, mining, tourism, etc.)
 - `/explore/country` — browse locations by country index
 - `/explore/country/[code]` — browse locations in a specific country (ISO alpha-2 code)
@@ -698,19 +703,26 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 ### Header & My Weather Modal
 
-**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary/10` with three 40px circular icon buttons:
+**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary` with three 40px circular icon buttons:
 1. **Map pin** — opens the My Weather modal (location tab)
 2. **Clock** — links to `/history`
 3. **Search** — opens the My Weather modal (location tab)
 
 The header takes no props — location context comes from the URL path.
 
+**Mobile Bottom Navigation** (visible `sm:hidden`): Fixed bottom nav with 5 items:
+1. **Weather** (home icon) → `/`
+2. **Explore** (compass icon) → `/explore`
+3. **Shamwari** (sparkles icon) → `/shamwari` — center position
+4. **History** (clock icon) → `/history`
+5. **My Weather** (map-pin button) → opens modal
+
 **My Weather Modal** (`src/components/weather/MyWeatherModal.tsx`): A centralized preferences modal (shadcn Dialog + Tabs) with three tabs:
 - **Location** — search input, geolocation button, tag filter pills, scrollable location list with pending-slug highlighting. Selecting a location sets it as *pending* (does not navigate immediately).
 - **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming. Auto-scrolls into view after location selection.
 - **Settings** — theme radio group (light/dark/system) with visual indicators.
 
-**Deferred navigation:** Location and activity selection are unified — picking a location highlights it as pending and auto-scrolls to Activities so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
+**Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
 ### Lazy Loading & Mobile Performance (TikTok-Style)
 
@@ -764,14 +776,14 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 **Helper function:** `prepareAtmosphericData(hourly)` — slices 24 hours of data starting from the current hour, exported for testing.
 
-### Explore Chatbot (Shamwari Explorer)
+### Shamwari AI Chat
 
-**Route:** `/explore` — AI-powered conversational weather assistant with tool use, plus category and country browsing.
+**Route:** `/shamwari` — full-viewport AI chat (Claude app style). The chatbot fills the screen between the sticky header and mobile bottom nav. Chat input is fixed above the mobile navigation bar.
 
 **Components:**
-- `src/app/explore/page.tsx` — server component (ISR 1h), fetches tag counts and featured tags, renders chatbot + category browse cards + country browse link
-- `src/app/explore/ExplorePageClient.tsx` — client wrapper, loads chatbot via `React.lazy` + `Suspense` with `ChatSkeleton` fallback. Wrapped in `ChartErrorBoundary`. Note: deliberately NOT wrapped in `LazySection` as the chatbot is the above-fold spotlight feature.
-- `src/components/explore/ExploreChatbot.tsx` — full chat UI: message bubbles, typing indicator, suggested prompts, markdown rendering, location reference links
+- `src/app/shamwari/page.tsx` — server wrapper (metadata, Header only — no Footer for max chat space)
+- `src/app/shamwari/ShamwariPageClient.tsx` — client: full-viewport layout (`100dvh - header`), bottom padding for mobile nav (`pb-[4.5rem] sm:pb-0`)
+- `src/components/explore/ExploreChatbot.tsx` — reusable chat UI: message bubbles, typing indicator, suggested prompts, markdown rendering, location reference links
 
 **API:** `POST /api/explore` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
@@ -780,7 +792,14 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL)
 - **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
 
-**Country/Tag Browse:**
+### Explore (Browse-Only)
+
+**Route:** `/explore` — location browsing by category and country (ISR 1h). No chatbot — links to `/shamwari` for AI chat.
+
+**Components:**
+- `src/app/explore/page.tsx` — server component (ISR 1h), fetches tag counts and featured tags, renders Shamwari CTA card + category browse grid + country browse link
+
+**Sub-routes:**
 - `/explore/[tag]` — locations filtered by tag, server-rendered
 - `/explore/country` — country index page with flag emoji
 - `/explore/country/[code]` — locations in a country, grouped by province
@@ -846,7 +865,8 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
-- `src/app/explore/explore.test.ts` — explore page tests
+- `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
+- `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
 - `src/app/history/HistoryDashboard.test.ts` — history dashboard tests

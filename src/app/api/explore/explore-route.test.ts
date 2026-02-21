@@ -169,7 +169,7 @@ describe("conversation handling", () => {
 
   it("uses in-request weather cache to prevent double fetching", () => {
     expect(source).toContain("weatherCache");
-    expect(source).toContain("weatherCache.has(");
+    expect(source).toContain("weatherCache.get(");
     expect(source).toContain("weatherCache.set(");
   });
 

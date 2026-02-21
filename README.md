@@ -15,7 +15,7 @@ AI-powered weather intelligence, starting with Zimbabwe and expanding globally. 
 - **Dynamic locations** — 90+ seed locations in Zimbabwe, with community-driven expansion to ASEAN and developing regions via geolocation and search
 - **Seasonal awareness** — Zimbabwe seasons (Masika, Chirimo, Zhizha, Munakamwe) and regional context
 - **Geolocation** — automatic nearest-location detection via browser GPS, with auto-creation for new areas
-- **AI Explore chatbot** — Shamwari Explorer conversational assistant with tool use (search locations, check weather, get activity advice, compare cities)
+- **Shamwari AI chat** — dedicated `/shamwari` page with full-viewport Claude app-style chat (search locations, check weather, get activity advice, compare cities)
 - **Suitability scoring** — database-driven weather suitability evaluation for activities (excellent/good/fair/poor ratings with structured metrics)
 - **Country/region browse** — explore locations by country, province, and tag across 64 countries (54 AU + ASEAN)
 - **System status** — live health dashboard for all services (MongoDB, weather APIs, AI, cache)
@@ -93,7 +93,8 @@ The app redirects `/` to `/harare` by default.
 | `/[location]/atmosphere` | 24-hour atmospheric detail charts (humidity, wind, pressure, UV) |
 | `/[location]/forecast` | Hourly (24h) + daily (7-day) forecast charts + sunrise/sunset |
 | `/[location]/map` | Full-viewport interactive weather map with layer switcher |
-| `/explore` | AI chatbot (Shamwari Explorer) + category/country browse |
+| `/shamwari` | Shamwari AI chat (full-viewport, Claude app style) |
+| `/explore` | Browse locations by category and country |
 | `/explore/[tag]` | Browse locations filtered by tag |
 | `/explore/country` | Browse locations by country index |
 | `/explore/country/[code]` | Browse locations in a specific country |
@@ -175,11 +176,13 @@ src/
       atmosphere/           # 24h atmospheric detail charts sub-route
       forecast/             # Hourly + daily forecast detail sub-route
       map/                  # Full-viewport weather map sub-route
-    explore/                # AI chatbot + location/tag/country browse
-      page.tsx              # Explore page (ISR 1h, chatbot + category browse)
-      ExplorePageClient.tsx # Client: React.lazy chatbot + error boundary
+    explore/                # Browse-only location/tag/country exploration
+      page.tsx              # Explore page (ISR 1h, category + country browse)
       [tag]/                # Browse locations by tag
       country/              # Browse by country/province (nested [code]/[province])
+    shamwari/               # Shamwari AI chat (full-viewport, Claude app style)
+      page.tsx              # Server wrapper (metadata)
+      ShamwariPageClient.tsx # Client: full-viewport chatbot layout
     status/                 # System health dashboard
       page.tsx
       StatusDashboard.tsx   # Client: live health checks

@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { ExplorePageClient } from "./ExplorePageClient";
 import { getTagCounts, getAllLocationsFromDb, getFeaturedTagsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { TagDoc } from "@/lib/db";
@@ -14,11 +13,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Explore Weather | mukoko weather",
   description:
-    "Ask Shamwari Explorer about weather, locations, and activities. Get AI-powered weather insights, activity advice, and location comparisons across Africa.",
+    "Browse weather locations across Africa and ASEAN by category, country, and province. Discover cities, farming regions, national parks, and more.",
   openGraph: {
     title: "Explore Weather | mukoko weather",
     description:
-      "Ask Shamwari Explorer about weather, locations, and activities. Get AI-powered weather insights, activity advice, and location comparisons across Africa.",
+      "Browse weather locations across Africa and ASEAN by category, country, and province. Discover cities, farming regions, national parks, and more.",
   },
 };
 
@@ -67,11 +66,33 @@ export default async function ExplorePage() {
       </nav>
 
       <main id="main-content" className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8">
-        {/* Chatbot — the spotlight feature */}
-        <ExplorePageClient />
+        <h1 className="text-2xl font-bold text-text-primary font-heading sm:text-3xl">
+          Explore
+        </h1>
+        <p className="mt-2 text-text-secondary">
+          Browse weather locations across Africa and ASEAN by category, country, and province.
+        </p>
 
-        {/* Category browse section — below the chatbot */}
-        <section aria-labelledby="browse-heading" className="mt-10">
+        {/* Shamwari CTA card */}
+        <div className="mt-6 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary font-heading">Ask Shamwari</h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                Chat with our AI weather assistant for real-time insights and activity advice
+              </p>
+            </div>
+            <Link
+              href="/shamwari"
+              className="shrink-0 inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+            >
+              Start chatting
+            </Link>
+          </div>
+        </div>
+
+        {/* Category browse section */}
+        <section aria-labelledby="browse-heading" className="mt-8">
           <h2 id="browse-heading" className="text-xl font-bold text-text-primary font-heading">
             Browse by Category
           </h2>
