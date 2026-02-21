@@ -3,8 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logError, logWarn } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { anthropicBreaker, CircuitOpenError } from "@/lib/circuit-breaker";
+import { evaluateRule } from "@/lib/suitability";
 import {
-  getAllLocationsFromDb,
+  getLocationsForContext,
   getLocationFromDb,
   searchLocationsFromDb,
   getAllActivitiesFromDb,
@@ -12,6 +13,7 @@ import {
   getWeatherForLocation,
   getSeasonForDate,
   getLocationsByTagFromDb,
+  getSuitabilityRulesForActivity,
   type LocationDoc,
 } from "@/lib/db";
 
@@ -33,11 +35,11 @@ async function getLocationContext(): Promise<string> {
   if (cachedLocationContext && Date.now() - cachedLocationContextAt < LOCATION_CACHE_TTL) {
     return cachedLocationContext;
   }
-  const allLocations = await getAllLocationsFromDb();
-  const locationNames = allLocations.slice(0, 50).map(
+  const sampleLocations = await getLocationsForContext(50);
+  const locationNames = sampleLocations.map(
     (l: LocationDoc) => `${l.name} (/${l.slug}) — ${l.province}, ${(l.country ?? "ZW").toUpperCase()}`
   );
-  cachedLocationContext = `\n\nAvailable locations (sample of ${allLocations.length} total):\n${locationNames.join("\n")}`;
+  cachedLocationContext = `\n\nAvailable locations (sample of ${sampleLocations.length}):\n${locationNames.join("\n")}`;
   cachedLocationContextAt = Date.now();
   return cachedLocationContext;
 }
@@ -279,8 +281,17 @@ async function executeGetWeather(locationSlug: string) {
   }
 }
 
-async function executeGetActivityAdvice(locationSlug: string, activityIds: string[]) {
-  const weatherResult = await executeGetWeather(locationSlug);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeGetActivityAdvice(locationSlug: string, activityIds: string[], weatherCache?: Map<string, any>) {
+  // Reuse cached weather from the same request to avoid double-fetching
+  // when Claude calls get_weather then get_activity_advice for the same location.
+  let weatherResult;
+  if (weatherCache?.has(locationSlug)) {
+    weatherResult = weatherCache.get(locationSlug);
+  } else {
+    weatherResult = await executeGetWeather(locationSlug);
+    weatherCache?.set(locationSlug, weatherResult);
+  }
   if (!weatherResult.found) {
     return weatherResult;
   }
@@ -290,12 +301,38 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
     .map((id) => allActivities.find((a) => a.id === id))
     .filter((a) => a != null);
 
+  const insights = "insights" in weatherResult ? weatherResult.insights : null;
+
+  // Run suitability evaluation server-side so the LLM receives structured
+  // ratings (level, label, detail) instead of raw insights. This reduces
+  // hallucination surface and makes AI responses more consistent.
+  const suitability: Record<string, { level: string; label: string; detail: string; metric?: string }> = {};
+  if (insights) {
+    for (const activity of matchedActivities) {
+      try {
+        const rule = await getSuitabilityRulesForActivity(activity.id, activity.category);
+        if (rule) {
+          const rating = evaluateRule(rule, insights);
+          suitability[activity.id] = {
+            level: rating.level,
+            label: rating.label,
+            detail: rating.detail,
+            metric: rating.metric,
+          };
+        }
+      } catch {
+        // DB unavailable for this activity — skip server-side evaluation
+      }
+    }
+  }
+
   return {
     found: true,
     locationSlug,
     weather: weatherResult,
     activities: matchedActivities,
-    insights: "insights" in weatherResult ? weatherResult.insights : null,
+    insights,
+    suitability: Object.keys(suitability).length > 0 ? suitability : undefined,
   };
 }
 
@@ -320,7 +357,16 @@ async function executeListLocationsByTag(tag: string) {
 export async function POST(request: NextRequest) {
   try {
     // ── Rate limiting ────────────────────────────────────────────────────────
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    // Vercel's edge layer controls x-forwarded-for — the first entry is the
+    // real client IP and cannot be spoofed by end users. If infrastructure
+    // changes (e.g. migration away from Vercel), revisit this trust assumption.
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (!ip) {
+      return NextResponse.json(
+        { error: "Unable to identify client. Please try again." },
+        { status: 400 },
+      );
+    }
     const rateLimit = await checkRateLimit(ip, "explore", 20, 3600); // 20 requests/hour/IP
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -361,6 +407,14 @@ export async function POST(request: NextRequest) {
     // history messages are user-controlled and placed in user/assistant roles.
     // Claude's system prompt explicitly prohibits fabricating weather data,
     // which is the primary defense against prompt injection via history.
+    //
+    // SECURITY NOTE: A sophisticated injection payload in assistant history
+    // could attempt to override the system prompt. Mitigations:
+    //   1. System prompt guardrails (DATA GUARDRAILS section) are strong
+    //   2. History is length-capped (MAX_MESSAGE_LENGTH) to limit payload size
+    //   3. Only the last 10 history messages are included
+    // Future enhancement: sanitize "\n\nHuman:" / "\n\nAssistant:" patterns
+    // in history content to prevent legacy context-boundary confusion attacks.
     const messages: Anthropic.MessageParam[] = [];
 
     // Add prior conversation history if provided (capped at 10, length-checked)
@@ -369,7 +423,7 @@ export async function POST(request: NextRequest) {
         if (msg.role === "user" && typeof msg.content === "string") {
           messages.push({ role: "user", content: msg.content.slice(0, MAX_MESSAGE_LENGTH) });
         } else if (msg.role === "assistant" && typeof msg.content === "string") {
-          messages.push({ role: "assistant", content: msg.content });
+          messages.push({ role: "assistant", content: msg.content.slice(0, MAX_MESSAGE_LENGTH) });
         }
       }
     }
@@ -400,6 +454,10 @@ export async function POST(request: NextRequest) {
     const maxIterations = 5;
     let iterations = 0;
     const references: { slug: string; name: string; type: string }[] = [];
+    // In-request weather cache: prevents double-fetching when Claude calls
+    // get_weather then get_activity_advice for the same location in one turn.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const weatherCache = new Map<string, any>();
 
     while (response.stop_reason === "tool_use" && iterations < maxIterations) {
       iterations++;
@@ -429,7 +487,12 @@ export async function POST(request: NextRequest) {
             case "get_weather": {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
-              result = await executeGetWeather(slug);
+              if (weatherCache.has(slug)) {
+                result = weatherCache.get(slug);
+              } else {
+                result = await executeGetWeather(slug);
+                weatherCache.set(slug, result);
+              }
               const weatherResult = result as { found: boolean; locationSlug?: string; locationName?: string };
               if (weatherResult.found && weatherResult.locationSlug) {
                 references.push({ slug: weatherResult.locationSlug, name: weatherResult.locationName ?? weatherResult.locationSlug, type: "weather" });
@@ -440,7 +503,7 @@ export async function POST(request: NextRequest) {
               const slug = typeof input.location_slug === "string" ? input.location_slug : "";
               const activities = Array.isArray(input.activities) ? input.activities.filter((a): a is string => typeof a === "string") : [];
               if (!slug) { result = { error: "Missing location_slug parameter" }; break; }
-              result = await executeGetActivityAdvice(slug, activities);
+              result = await executeGetActivityAdvice(slug, activities, weatherCache);
               break;
             }
             case "list_locations_by_tag": {

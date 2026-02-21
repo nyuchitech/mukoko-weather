@@ -66,7 +66,19 @@ export function hexWithAlpha(color: string, alpha: number): string {
       return `rgba(0, 0, 0, ${a})`;
     }
     const hex = color.replace(/^#/, "");
-    const base = hex.length === 8 ? hex.slice(0, 6) : hex.length === 4 ? hex.slice(0, 3) : hex;
+    // Expand shorthand hex (#RGB → RRGGBB, #RGBA → RRGGBB) before appending alpha.
+    // Without expansion, appending a 2-char alpha to 3 digits produces a 5-char
+    // string that is not a valid CSS color (e.g. "#FFF80" instead of "#FFFFFF80").
+    let base: string;
+    if (hex.length === 3) {
+      base = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    } else if (hex.length === 4) {
+      base = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    } else if (hex.length === 8) {
+      base = hex.slice(0, 6);
+    } else {
+      base = hex;
+    }
     return `#${base}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
   }
 

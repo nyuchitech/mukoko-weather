@@ -85,6 +85,19 @@ export interface WeatherInsights {
   visibility?: number;       // km (current)
 }
 
+/**
+ * Synthesize basic weather insights from Open-Meteo current data.
+ * Used when Tomorrow.io is unavailable so that suitability rules
+ * (e.g. drone wind speed checks) still have data to evaluate against.
+ */
+export function synthesizeOpenMeteoInsights(data: WeatherData): WeatherInsights {
+  return {
+    windSpeed: data.current.wind_speed_10m,
+    windGust: data.current.wind_gusts_10m,
+    visibility: data.hourly?.visibility?.[0],
+  };
+}
+
 export interface FrostAlert {
   risk: "severe" | "high" | "moderate";
   lowestTemp: number;

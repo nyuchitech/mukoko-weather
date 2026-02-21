@@ -6,6 +6,7 @@ import {
   windDirection,
   uvLevel,
   createFallbackWeather,
+  synthesizeOpenMeteoInsights,
   type HourlyWeather,
 } from "./weather";
 
@@ -356,5 +357,24 @@ describe("createFallbackWeather", () => {
     const info = weatherCodeToInfo(data.current.weather_code);
     expect(info.label).toBeTruthy();
     expect(info.icon).toBeTruthy();
+  });
+});
+
+describe("synthesizeOpenMeteoInsights", () => {
+  it("extracts windSpeed, windGust, and visibility from weather data", () => {
+    const data = createFallbackWeather(-17.83, 31.05, 1483);
+    const insights = synthesizeOpenMeteoInsights(data);
+
+    expect(typeof insights.windSpeed).toBe("number");
+    expect(typeof insights.windGust).toBe("number");
+    expect(insights.windSpeed).toBe(data.current.wind_speed_10m);
+    expect(insights.windGust).toBe(data.current.wind_gusts_10m);
+  });
+
+  it("returns visibility from first hourly entry", () => {
+    const data = createFallbackWeather(-17.83, 31.05, 1483);
+    const insights = synthesizeOpenMeteoInsights(data);
+
+    expect(insights.visibility).toBe(data.hourly.visibility[0]);
   });
 });

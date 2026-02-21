@@ -15,7 +15,7 @@
  */
 
 import { getDb } from "./mongo";
-import { fetchWeather, createFallbackWeather, getZimbabweSeason, type WeatherData, type ZimbabweSeason } from "./weather";
+import { fetchWeather, createFallbackWeather, getZimbabweSeason, synthesizeOpenMeteoInsights, type WeatherData, type ZimbabweSeason } from "./weather";
 import { fetchWeatherFromTomorrow, TomorrowRateLimitError } from "./tomorrow";
 import { logWarn, logError } from "./observability";
 import type { ZimbabweLocation } from "./locations";
@@ -357,11 +357,7 @@ export async function getWeatherForLocation(
       // Synthesize basic insights from Open-Meteo current data so suitability
       // rules (e.g. drone wind speed) work even when Tomorrow.io is unavailable.
       if (data && !data.insights && data.current) {
-        data.insights = {
-          windSpeed: data.current.wind_speed_10m,
-          windGust: data.current.wind_gusts_10m,
-          visibility: data.hourly?.visibility?.[0],
-        };
+        data.insights = synthesizeOpenMeteoInsights(data);
       }
     } catch (err) {
       logError({
@@ -598,6 +594,15 @@ export async function getLocationsByTagFromDb(
 
 export async function getAllLocationsFromDb(): Promise<LocationDoc[]> {
   return locationsCollection().find({}).toArray();
+}
+
+/**
+ * Get a limited number of locations for context building (e.g. AI prompts).
+ * Pushes the limit into MongoDB instead of fetching the full collection
+ * and slicing client-side — avoids discarding 95%+ of fetched data.
+ */
+export async function getLocationsForContext(limit: number): Promise<LocationDoc[]> {
+  return locationsCollection().find({}).limit(limit).toArray();
 }
 
 /** Insert a new community-contributed location */

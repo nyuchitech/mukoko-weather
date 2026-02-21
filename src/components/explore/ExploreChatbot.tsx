@@ -163,7 +163,7 @@ export function ExploreChatbot() {
               aria-label="Ask Shamwari Explorer"
               disabled={loading}
             />
-            <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+            <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
           </div>
           <Button
             type="submit"

@@ -2,60 +2,12 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
-import { type Activity, CATEGORY_STYLES } from "@/lib/activities";
+import { type Activity } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
-import type { SuitabilityRuleDoc, ActivityCategoryDoc } from "@/lib/db";
-
-// ---------------------------------------------------------------------------
-// Module-level cache for suitability rules and category styles.
-//
-// These module-scoped variables are shared across all component instances and
-// persist across HMR reloads in dev. This is intentional: suitability rules
-// and category styles rarely change, so a short TTL cache avoids redundant
-// network requests when the component remounts. Trade-offs:
-//   - In development, stale cache may survive HMR — hard-refresh to clear.
-//   - In tests, cache bleeds between cases — call the exported resetters or
-//     use separate describe blocks with fresh module imports if needed.
-// ---------------------------------------------------------------------------
-
-let cachedRules: SuitabilityRuleDoc[] | null = null;
-let cachedRulesAt = 0;
-const RULES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-
-async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
-  if (cachedRules && Date.now() - cachedRulesAt < RULES_CACHE_TTL) {
-    return cachedRules;
-  }
-  const res = await fetch("/api/suitability");
-  if (!res.ok) return cachedRules ?? [];
-  const data = await res.json();
-  cachedRules = data?.rules ?? [];
-  cachedRulesAt = Date.now();
-  return cachedRules!;
-}
-
-// Seed with static CATEGORY_STYLES for instant mineral color rendering on mount.
-// The API fetch upgrades this with any MongoDB-only categories.
-let cachedCategoryStyles: Record<string, { bg: string; border: string; text: string; badge: string }> = { ...CATEGORY_STYLES };
-let cachedStylesAt = 0;
-
-async function fetchCategoryStyles(): Promise<Record<string, { bg: string; border: string; text: string; badge: string }>> {
-  if (cachedStylesAt > 0 && Date.now() - cachedStylesAt < RULES_CACHE_TTL) {
-    return cachedCategoryStyles;
-  }
-  const res = await fetch("/api/activities?mode=categories");
-  if (!res.ok) return cachedCategoryStyles;
-  const data = await res.json();
-  const styles: Record<string, { bg: string; border: string; text: string; badge: string }> = {};
-  for (const cat of (data?.categories ?? []) as ActivityCategoryDoc[]) {
-    if (cat.style) styles[cat.id] = cat.style;
-  }
-  cachedCategoryStyles = styles;
-  cachedStylesAt = Date.now();
-  return cachedCategoryStyles;
-}
+import { fetchSuitabilityRules, fetchCategoryStyles, type CategoryStyle } from "@/lib/suitability-cache";
+import type { SuitabilityRuleDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
 // Label helpers (exported for tests)
@@ -152,7 +104,7 @@ function ActivityCard({
   activity: Activity;
   insights: WeatherInsights;
   dbRules: Map<string, SuitabilityRuleDoc>;
-  categoryStyles: Record<string, typeof DEFAULT_STYLE>;
+  categoryStyles: Record<string, CategoryStyle>;
 }) {
   const style = categoryStyles[activity.category] ?? DEFAULT_STYLE;
   const rating = evaluateSuitability(activity, insights, dbRules);
@@ -200,7 +152,7 @@ export function ActivityInsights({
   // Fetch suitability rules from database (module-level cache, 10min TTL)
   const [dbRules, setDbRules] = useState<Map<string, SuitabilityRuleDoc>>(new Map());
   // Fetch category styles from database (module-level cache, 10min TTL)
-  const [categoryStyles, setCategoryStyles] = useState<Record<string, typeof DEFAULT_STYLE>>({});
+  const [categoryStyles, setCategoryStyles] = useState<Record<string, CategoryStyle>>({});
   const fetchedRef = useRef(false);
 
   useEffect(() => {

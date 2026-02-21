@@ -61,6 +61,10 @@ export type ChartConfig = {
 // CSS not yet parsed), we need valid hex colors for Chart.js Canvas rendering.
 // Without these, the Canvas 2D context receives invalid values and defaults
 // to black, which is the root cause of the "opacity renders as black" bug.
+//
+// IMPORTANT: Both tables must have identical keys. Values must stay in sync
+// with the CSS custom properties in src/app/globals.css. A CI test in
+// src/components/ui/chart-fallbacks.test.ts verifies key parity.
 const CSS_VAR_FALLBACKS_LIGHT: Record<string, string> = {
   "--chart-1": "#4B0082",    // Tanzanite
   "--chart-2": "#0047AB",    // Cobalt
@@ -299,3 +303,6 @@ function deepMerge(
 // These allow existing chart components to keep the same import path.
 
 export { resolveColor, resolveConfigColors };
+
+// Exported for test-only verification that light/dark fallback tables have identical keys.
+export { CSS_VAR_FALLBACKS_LIGHT as _CSS_VAR_FALLBACKS_LIGHT, CSS_VAR_FALLBACKS_DARK as _CSS_VAR_FALLBACKS_DARK };

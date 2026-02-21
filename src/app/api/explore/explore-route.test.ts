@@ -35,8 +35,14 @@ describe("input validation", () => {
     expect(source).toContain("const MAX_MESSAGE_LENGTH = 2000");
   });
 
-  it("truncates history messages to max length", () => {
+  it("truncates user history messages to max length", () => {
     expect(source).toContain("msg.content.slice(0, MAX_MESSAGE_LENGTH)");
+  });
+
+  it("truncates assistant history messages to max length", () => {
+    // Both user and assistant history messages should be length-capped
+    const sliceOccurrences = source.match(/msg\.content\.slice\(0, MAX_MESSAGE_LENGTH\)/g);
+    expect(sliceOccurrences?.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -64,6 +70,11 @@ describe("rate limiting", () => {
 
   it("extracts IP from x-forwarded-for header", () => {
     expect(source).toContain("x-forwarded-for");
+  });
+
+  it("rejects requests with no identifiable IP instead of using shared bucket", () => {
+    expect(source).toContain("Unable to identify client");
+    expect(source).not.toContain("?? \"unknown\"");
   });
 });
 
@@ -110,6 +121,11 @@ describe("location lookup", () => {
   it("imports getLocationFromDb", () => {
     expect(source).toContain("getLocationFromDb");
   });
+
+  it("uses bounded getLocationsForContext instead of getAllLocationsFromDb for context building", () => {
+    expect(source).toContain("getLocationsForContext(50)");
+    expect(source).not.toContain("getAllLocationsFromDb()");
+  });
 });
 
 describe("server-side caching", () => {
@@ -149,6 +165,12 @@ describe("conversation handling", () => {
 
   it("deduplicates location references", () => {
     expect(source).toContain("new Map(references.map");
+  });
+
+  it("uses in-request weather cache to prevent double fetching", () => {
+    expect(source).toContain("weatherCache");
+    expect(source).toContain("weatherCache.has(");
+    expect(source).toContain("weatherCache.set(");
   });
 });
 
@@ -199,6 +221,38 @@ describe("weather tool references", () => {
   it("looks up location name from DB for cached weather", () => {
     // Cache path also resolves location name via getLocationFromDb
     expect(source).toContain("locationName: loc?.name ?? locationSlug");
+  });
+});
+
+describe("server-side suitability evaluation", () => {
+  it("imports evaluateRule from suitability", () => {
+    expect(source).toContain("import { evaluateRule }");
+  });
+
+  it("imports getSuitabilityRulesForActivity from db", () => {
+    expect(source).toContain("getSuitabilityRulesForActivity");
+  });
+
+  it("runs evaluateRule server-side in executeGetActivityAdvice", () => {
+    expect(source).toContain("evaluateRule(rule, insights)");
+  });
+
+  it("returns structured suitability ratings per activity", () => {
+    expect(source).toContain("suitability[activity.id]");
+    expect(source).toContain("level: rating.level");
+    expect(source).toContain("label: rating.label");
+    expect(source).toContain("detail: rating.detail");
+  });
+});
+
+describe("security", () => {
+  it("documents x-forwarded-for trust assumption for Vercel", () => {
+    expect(source).toContain("Vercel's edge layer controls x-forwarded-for");
+  });
+
+  it("documents prompt injection mitigation strategy", () => {
+    expect(source).toContain("SECURITY NOTE");
+    expect(source).toContain("context-boundary confusion");
   });
 });
 

@@ -14,8 +14,14 @@ describe("hexWithAlpha", () => {
     expect(hexWithAlpha("#000000", 0)).toBe("#00000000");
   });
 
-  it("applies alpha to 3-digit hex", () => {
-    expect(hexWithAlpha("#FFF", 0.5)).toBe("#FFF80");
+  it("applies alpha to 3-digit hex (expands to 6-digit first)", () => {
+    expect(hexWithAlpha("#FFF", 0.5)).toBe("#FFFFFF80");
+    expect(hexWithAlpha("#000", 1)).toBe("#000000ff");
+    expect(hexWithAlpha("#ABC", 0)).toBe("#AABBCC00");
+  });
+
+  it("applies alpha to 4-digit hex (RGBA shorthand, expands RGB)", () => {
+    expect(hexWithAlpha("#FFF8", 0.5)).toBe("#FFFFFF80");
   });
 
   it("strips existing alpha from 8-digit hex", () => {
