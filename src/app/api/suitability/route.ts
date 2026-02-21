@@ -20,6 +20,10 @@ export async function GET(request: Request) {
     const cacheHeaders = { "Cache-Control": "s-maxage=300, stale-while-revalidate=60" };
 
     if (key) {
+      // Validate key format: "activity:<id>" or "category:<name>" with alphanumeric + hyphens
+      if (!/^(activity|category):[a-z0-9-]+$/.test(key)) {
+        return NextResponse.json({ error: "Invalid key format" }, { status: 400 });
+      }
       const rule = await getSuitabilityRuleByKey(key);
       if (!rule) {
         return NextResponse.json({ error: "Rule not found" }, { status: 404 });

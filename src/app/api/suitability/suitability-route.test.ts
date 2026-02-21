@@ -23,6 +23,12 @@ describe("key-based lookup", () => {
     expect(source).toContain("searchParams.get(\"key\")");
   });
 
+  it("validates key format with regex", () => {
+    expect(source).toContain("Invalid key format");
+    expect(source).toContain("status: 400");
+    expect(source).toContain("^(activity|category):[a-z0-9-]+$");
+  });
+
   it("returns 404 when key rule is not found", () => {
     expect(source).toContain("Rule not found");
     expect(source).toContain("status: 404");

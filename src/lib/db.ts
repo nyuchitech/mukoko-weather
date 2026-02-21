@@ -604,7 +604,7 @@ export async function getAllLocationsFromDb(): Promise<LocationDoc[]> {
 export async function getLocationsForContext(limit: number): Promise<LocationDoc[]> {
   return locationsCollection()
     .find({})
-    .sort({ source: 1, name: 1 })
+    .sort({ source: -1, name: 1 })
     .limit(limit)
     .toArray();
 }
@@ -643,11 +643,32 @@ export interface SearchResult {
 }
 
 /**
- * Track whether Atlas Search indexes are available. Set to false on first
- * failure so we don't retry the aggregation pipeline on every request.
+ * Track whether Atlas Search indexes are available. Set to false only when
+ * the error indicates the index doesn't exist (not on transient failures).
  * Resets when the module is reloaded (cold start).
  */
 let atlasSearchAvailable = true;
+
+/**
+ * Check whether a MongoDB error indicates a missing Atlas Search index
+ * (permanent) vs. a transient failure. Only permanent errors should disable
+ * Atlas Search for the instance lifecycle.
+ *
+ * Atlas returns code 40324 or "PlanExecutor error" / "index not found" when
+ * the search index doesn't exist. Transient errors (timeouts, network
+ * partitions) should not permanently disable Atlas Search.
+ */
+function isAtlasSearchIndexMissing(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const mongoErr = err as { code?: number; codeName?: string; message?: string };
+    // code 40324: Unrecognized pipeline stage or missing search index
+    if (mongoErr.code === 40324) return true;
+    // Common error messages when Atlas Search index is not provisioned
+    const msg = mongoErr.message ?? "";
+    if (msg.includes("index not found") || msg.includes("$search") || msg.includes("PlanExecutor")) return true;
+  }
+  return false;
+}
 
 /**
  * Search locations using Atlas Search (fuzzy, autocomplete, typo-tolerant).
@@ -672,10 +693,12 @@ export async function searchLocationsFromDb(
   if (q && atlasSearchAvailable) {
     try {
       return await atlasSearchLocations(q, { tag, limit, skip });
-    } catch {
-      // Atlas Search index not configured — fall back to $text for this
-      // and all subsequent requests until the next cold start.
-      atlasSearchAvailable = false;
+    } catch (err) {
+      // Only permanently disable Atlas Search if the index doesn't exist.
+      // Transient errors (network, timeout) should retry on next request.
+      if (isAtlasSearchIndexMissing(err)) {
+        atlasSearchAvailable = false;
+      }
     }
   }
 
@@ -909,8 +932,10 @@ export async function searchActivitiesFromDb(
         { $limit: 20 },
       ];
       return await col.aggregate<ActivityDoc>(pipeline).toArray();
-    } catch {
-      atlasActivitySearchAvailable = false;
+    } catch (err) {
+      if (isAtlasSearchIndexMissing(err)) {
+        atlasActivitySearchAvailable = false;
+      }
     }
   }
 
@@ -1359,8 +1384,10 @@ export async function vectorSearchLocations(
     ];
 
     return await col.aggregate<LocationDoc>(pipeline).toArray();
-  } catch {
-    vectorSearchAvailable = false;
+  } catch (err) {
+    if (isAtlasSearchIndexMissing(err)) {
+      vectorSearchAvailable = false;
+    }
     return [];
   }
 }

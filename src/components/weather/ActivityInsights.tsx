@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { type Activity } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
 import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import { fetchSuitabilityRules, fetchCategoryStyles, type CategoryStyle } from "@/lib/suitability-cache";
+import { reportErrorToAnalytics } from "@/lib/observability";
 import type { SuitabilityRuleDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
@@ -154,12 +155,8 @@ export function ActivityInsights({
   const [dbRules, setDbRules] = useState<Map<string, SuitabilityRuleDoc>>(new Map());
   // Fetch category styles from database (module-level cache, 10min TTL)
   const [categoryStyles, setCategoryStyles] = useState<Record<string, CategoryStyle>>({});
-  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
     Promise.all([
       fetchSuitabilityRules()
         .then((rules) => {
@@ -169,12 +166,16 @@ export function ActivityInsights({
             setDbRules(rulesMap);
           }
         })
-        .catch(() => {}),
+        .catch((err) => {
+          reportErrorToAnalytics(`Suitability rules fetch failed: ${err instanceof Error ? err.message : "unknown"}`, false);
+        }),
       fetchCategoryStyles()
         .then((styles) => {
           if (Object.keys(styles).length) setCategoryStyles(styles);
         })
-        .catch(() => {}),
+        .catch((err) => {
+          reportErrorToAnalytics(`Category styles fetch failed: ${err instanceof Error ? err.message : "unknown"}`, false);
+        }),
     ]);
   }, []);
 
