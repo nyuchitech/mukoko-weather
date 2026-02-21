@@ -47,6 +47,70 @@ describe("hexWithAlpha", () => {
     expect(hexWithAlpha("#0047AB", -0.5)).toBe("#0047AB00");
     expect(hexWithAlpha("#0047AB", 2)).toBe("#0047ABff");
   });
+
+  // ── HSL/HSLA ──────────────────────────────────────────────────────────────
+
+  it("applies alpha to hsl() comma syntax", () => {
+    expect(hexWithAlpha("hsl(210, 100%, 34%)", 0.5)).toBe("hsla(210, 100%, 34%, 0.5)");
+  });
+
+  it("overrides hsla() alpha", () => {
+    expect(hexWithAlpha("hsla(210, 100%, 34%, 1)", 0.3)).toBe("hsla(210, 100%, 34%, 0.3)");
+  });
+
+  it("applies alpha to hsl() modern space syntax", () => {
+    expect(hexWithAlpha("hsl(210 100% 34%)", 0.7)).toBe("hsla(210, 100%, 34%, 0.7)");
+  });
+
+  it("handles hsl with slash alpha syntax", () => {
+    expect(hexWithAlpha("hsl(210 100% 34% / 0.8)", 0.4)).toBe("hsla(210, 100%, 34%, 0.4)");
+  });
+
+  // ── OKLCH ─────────────────────────────────────────────────────────────────
+
+  it("applies alpha to oklch()", () => {
+    expect(hexWithAlpha("oklch(0.51 0.159 264)", 0.5)).toBe("oklch(0.51 0.159 264 / 0.5)");
+  });
+
+  it("overrides oklch() existing alpha", () => {
+    expect(hexWithAlpha("oklch(0.51 0.159 264 / 0.8)", 0.2)).toBe("oklch(0.51 0.159 264 / 0.2)");
+  });
+
+  // ── HWB ───────────────────────────────────────────────────────────────────
+
+  it("applies alpha to hwb()", () => {
+    expect(hexWithAlpha("hwb(210 10% 20%)", 0.6)).toBe("hwb(210 10% 20% / 0.6)");
+  });
+
+  it("overrides hwb() existing alpha", () => {
+    expect(hexWithAlpha("hwb(210 10% 20% / 1)", 0.3)).toBe("hwb(210 10% 20% / 0.3)");
+  });
+
+  // ── RGB modern space syntax ───────────────────────────────────────────────
+
+  it("applies alpha to rgb() modern space syntax", () => {
+    expect(hexWithAlpha("rgb(0 71 171)", 0.4)).toBe("rgba(0, 71, 171, 0.4)");
+  });
+
+  it("handles rgb with slash alpha syntax", () => {
+    expect(hexWithAlpha("rgb(0 71 171 / 0.8)", 0.5)).toBe("rgba(0, 71, 171, 0.5)");
+  });
+
+  // ── Named CSS colors ─────────────────────────────────────────────────────
+
+  it("applies alpha to named CSS color", () => {
+    expect(hexWithAlpha("coral", 0.5)).toBe("rgba(255, 127, 80, 0.5)");
+    expect(hexWithAlpha("indigo", 0.3)).toBe("rgba(75, 0, 130, 0.3)");
+  });
+
+  it("handles named colors case-insensitively", () => {
+    expect(hexWithAlpha("Red", 0.5)).toBe("rgba(255, 0, 0, 0.5)");
+    expect(hexWithAlpha("BLUE", 0.7)).toBe("rgba(0, 0, 255, 0.7)");
+  });
+
+  it("returns transparent fallback for unknown named color", () => {
+    expect(hexWithAlpha("notacolor", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
+  });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
