@@ -2,7 +2,52 @@ import { describe, it, expect } from "vitest";
 import { prepareHourlyData } from "./HourlyChart";
 import { prepareDailyData } from "./DailyChart";
 import { prepareAtmosphericData } from "./AtmosphericDetails";
+import { hexWithAlpha } from "./charts/TimeSeriesChart";
 import type { HourlyWeather, DailyWeather } from "@/lib/weather";
+
+// ── hexWithAlpha color + opacity tests ────────────────────────────────────────
+
+describe("hexWithAlpha", () => {
+  it("applies alpha to 6-digit hex", () => {
+    expect(hexWithAlpha("#0047AB", 0.5)).toBe("#0047AB80");
+    expect(hexWithAlpha("#FFFFFF", 1)).toBe("#FFFFFFff");
+    expect(hexWithAlpha("#000000", 0)).toBe("#00000000");
+  });
+
+  it("applies alpha to 3-digit hex", () => {
+    expect(hexWithAlpha("#FFF", 0.5)).toBe("#FFF80");
+  });
+
+  it("strips existing alpha from 8-digit hex", () => {
+    expect(hexWithAlpha("#0047ABFF", 0.2)).toBe("#0047AB33");
+  });
+
+  it("converts rgb() to rgba()", () => {
+    expect(hexWithAlpha("rgb(0, 71, 171)", 0.3)).toBe("rgba(0, 71, 171, 0.3)");
+  });
+
+  it("overrides rgba() alpha", () => {
+    expect(hexWithAlpha("rgba(0, 71, 171, 1)", 0.5)).toBe("rgba(0, 71, 171, 0.5)");
+  });
+
+  it("returns transparent fallback for empty string", () => {
+    expect(hexWithAlpha("", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
+  });
+
+  it("returns transparent fallback for unresolved var()", () => {
+    expect(hexWithAlpha("var(--chart-1)", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
+  });
+
+  it("returns transparent fallback for invalid color strings", () => {
+    expect(hexWithAlpha("not-a-color", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
+    expect(hexWithAlpha("#ZZZZZZ", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
+  });
+
+  it("clamps alpha to 0-1 range", () => {
+    expect(hexWithAlpha("#0047AB", -0.5)).toBe("#0047AB00");
+    expect(hexWithAlpha("#0047AB", 2)).toBe("#0047ABff");
+  });
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

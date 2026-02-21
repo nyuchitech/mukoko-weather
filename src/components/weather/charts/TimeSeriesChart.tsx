@@ -7,16 +7,24 @@ import type { ChartData, ChartOptions } from "chart.js";
 /**
  * Safely apply alpha to a resolved color string.
  * Handles hex (#RGB, #RRGGBB, #RRGGBBAA) and rgb/rgba formats.
- * Falls back to appending hex alpha for unknown formats.
+ * Returns transparent black for invalid/unresolved inputs rather than
+ * producing malformed color strings that Canvas renders as opaque black.
  */
-function hexWithAlpha(color: string, alpha: number): string {
+export function hexWithAlpha(color: string, alpha: number): string {
   const a = Math.max(0, Math.min(1, alpha));
+  // Guard: reject empty, undefined, or unresolved CSS variable strings
+  if (!color || color.startsWith("var(")) {
+    return `rgba(0, 0, 0, ${a})`;
+  }
   // rgb(r, g, b) or rgba(r, g, b, a)
   const rgbMatch = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
   if (rgbMatch) {
     return `rgba(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}, ${a})`;
   }
-  // Hex: strip existing alpha, add new one
+  // Hex: validate format before parsing
+  if (!color.startsWith("#") || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
+    return `rgba(0, 0, 0, ${a})`;
+  }
   const hex = color.replace(/^#/, "");
   const base = hex.length === 8 ? hex.slice(0, 6) : hex.length === 4 ? hex.slice(0, 3) : hex;
   return `#${base}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
