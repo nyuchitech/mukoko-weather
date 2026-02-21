@@ -20,6 +20,12 @@ import {
   syncSeasons,
   getSeasonFromDb,
   getSeasonForDate,
+  vectorSearchLocations,
+  storeLocationEmbedding,
+  storeLocationEmbeddings,
+  getTagCountsAndStats,
+  getAtlasSearchIndexDefinitions,
+  _resetSearchFlags,
 } from "./db";
 import { REGIONS } from "./seed-regions";
 import { TAGS } from "./seed-tags";
@@ -336,5 +342,71 @@ describe("_clearRegionCache", () => {
     // Simply verify calling it doesn't throw
     expect(() => _clearRegionCache()).not.toThrow();
     expect(() => _clearRegionCache()).not.toThrow(); // idempotent
+  });
+});
+
+describe("Atlas Search and Vector Search functions", () => {
+  it("vectorSearchLocations is a function", () => {
+    expect(typeof vectorSearchLocations).toBe("function");
+  });
+
+  it("storeLocationEmbedding is a function", () => {
+    expect(typeof storeLocationEmbedding).toBe("function");
+  });
+
+  it("storeLocationEmbeddings is a function", () => {
+    expect(typeof storeLocationEmbeddings).toBe("function");
+  });
+
+  it("getTagCountsAndStats is a function", () => {
+    expect(typeof getTagCountsAndStats).toBe("function");
+  });
+
+  it("_resetSearchFlags is a function for test teardown", () => {
+    expect(typeof _resetSearchFlags).toBe("function");
+    expect(() => _resetSearchFlags()).not.toThrow();
+  });
+});
+
+describe("getAtlasSearchIndexDefinitions", () => {
+  const defs = getAtlasSearchIndexDefinitions();
+
+  it("returns locationSearch, activitySearch, and locationVector", () => {
+    expect(defs).toHaveProperty("locationSearch");
+    expect(defs).toHaveProperty("activitySearch");
+    expect(defs).toHaveProperty("locationVector");
+  });
+
+  it("locationSearch targets the locations collection", () => {
+    expect(defs.locationSearch).toHaveProperty("collectionName", "locations");
+    expect(defs.locationSearch).toHaveProperty("name", "location_search");
+    expect(defs.locationSearch).toHaveProperty("type", "search");
+  });
+
+  it("activitySearch targets the activities collection", () => {
+    expect(defs.activitySearch).toHaveProperty("collectionName", "activities");
+    expect(defs.activitySearch).toHaveProperty("name", "activity_search");
+    expect(defs.activitySearch).toHaveProperty("type", "search");
+  });
+
+  it("locationVector is a vectorSearch type", () => {
+    expect(defs.locationVector).toHaveProperty("collectionName", "locations");
+    expect(defs.locationVector).toHaveProperty("name", "location_vector");
+    expect(defs.locationVector).toHaveProperty("type", "vectorSearch");
+  });
+
+  it("locationVector uses cosine similarity with 1024 dimensions", () => {
+    const def = defs.locationVector as { definition: { fields: { numDimensions?: number; similarity?: string }[] } };
+    const vectorField = def.definition.fields.find((f) => f.numDimensions !== undefined);
+    expect(vectorField).toBeDefined();
+    expect(vectorField!.numDimensions).toBe(1024);
+    expect(vectorField!.similarity).toBe("cosine");
+  });
+
+  it("locationSearch has autocomplete mapping on name field", () => {
+    const def = defs.locationSearch as { definition: { mappings: { fields: { name: { type: string }[] } } } };
+    const nameFields = def.definition.mappings.fields.name;
+    expect(Array.isArray(nameFields)).toBe(true);
+    expect(nameFields.some((f) => f.type === "autocomplete")).toBe(true);
   });
 });

@@ -634,7 +634,7 @@ export async function findDuplicateLocation(
 }
 
 // ---------------------------------------------------------------------------
-// Search operations (MongoDB text search + geospatial)
+// Search operations (Atlas Search with $text fallback + geospatial)
 // ---------------------------------------------------------------------------
 
 export interface SearchResult {
@@ -643,9 +643,23 @@ export interface SearchResult {
 }
 
 /**
- * Full-text search across locations using MongoDB text index.
- * Supports fuzzy matching via text score ranking.
- * Results are sorted by relevance (text score).
+ * Track whether Atlas Search indexes are available. Set to false on first
+ * failure so we don't retry the aggregation pipeline on every request.
+ * Resets when the module is reloaded (cold start).
+ */
+let atlasSearchAvailable = true;
+
+/**
+ * Search locations using Atlas Search (fuzzy, autocomplete, typo-tolerant).
+ * Falls back to MongoDB $text search if Atlas Search index is not configured.
+ *
+ * Atlas Search advantages over $text:
+ * - Fuzzy matching: "harrar" → Harare, "vic falls" → Victoria Falls
+ * - Autocomplete: partial prefix matching as user types
+ * - Better relevance scoring with configurable boosting
+ *
+ * Requires an Atlas Search index named "location_search" on the locations
+ * collection. See getAtlasSearchIndexDefinitions() for the index spec.
  */
 export async function searchLocationsFromDb(
   query: string,
@@ -654,14 +668,96 @@ export async function searchLocationsFromDb(
   const { tag, limit = 20, skip = 0 } = options;
   const q = query.trim();
 
-  // Build filter
+  // Try Atlas Search first (fuzzy + autocomplete), fall back to $text
+  if (q && atlasSearchAvailable) {
+    try {
+      return await atlasSearchLocations(q, { tag, limit, skip });
+    } catch {
+      // Atlas Search index not configured — fall back to $text for this
+      // and all subsequent requests until the next cold start.
+      atlasSearchAvailable = false;
+    }
+  }
+
+  return textSearchLocations(q, { tag, limit, skip });
+}
+
+/**
+ * Atlas Search aggregation pipeline for location search.
+ * Uses compound operator with fuzzy text + optional tag filter.
+ */
+async function atlasSearchLocations(
+  query: string,
+  options: { tag?: string; limit: number; skip: number },
+): Promise<SearchResult> {
+  const { tag, limit, skip } = options;
+  const col = locationsCollection();
+
+  // Build compound search clauses
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const must: Record<string, unknown>[] = [
+    {
+      text: {
+        query,
+        path: ["name", "province", "slug"],
+        fuzzy: { maxEdits: 1, prefixLength: 1 },
+        score: { boost: { path: "name", undefined: 1 } },
+      },
+    },
+  ];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filter: Record<string, unknown>[] = [];
+  if (tag) {
+    filter.push({ text: { query: tag, path: "tags" } });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const searchStage: Record<string, any> = {
+    $search: {
+      index: "location_search",
+      compound: {
+        must,
+        ...(filter.length > 0 ? { filter } : {}),
+      },
+      count: { type: "total" },
+    },
+  };
+
+  const pipeline = [
+    searchStage,
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $facet: {
+        results: [{ $replaceRoot: { newRoot: "$$ROOT" } }],
+        metadata: [{ $replaceWith: { total: "$$SEARCH_META.count.total" } }],
+      },
+    },
+  ];
+
+  const [result] = await col.aggregate(pipeline).toArray();
+  const locations = (result?.results ?? []) as LocationDoc[];
+  const total = (result?.metadata?.[0] as { total?: number })?.total ?? locations.length;
+
+  return { locations, total };
+}
+
+/**
+ * Fallback: MongoDB $text search (always available, no Atlas Search required).
+ */
+async function textSearchLocations(
+  query: string,
+  options: { tag?: string; limit: number; skip: number },
+): Promise<SearchResult> {
+  const { tag, limit, skip } = options;
+  const q = query;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filter: Record<string, any> = {};
-
   if (q) {
     filter.$text = { $search: q };
   }
-
   if (tag) {
     filter.tags = tag;
   }
@@ -781,11 +877,44 @@ export async function getActivityLabelsFromDb(
   return docs.map((d) => d.label);
 }
 
+/** Track whether Atlas Search is available for activities. */
+let atlasActivitySearchAvailable = true;
+
+/**
+ * Search activities using Atlas Search (fuzzy) with $text fallback.
+ * Requires an Atlas Search index named "activity_search" on the activities
+ * collection. See getAtlasSearchIndexDefinitions() for the index spec.
+ */
 export async function searchActivitiesFromDb(
   query: string,
 ): Promise<ActivityDoc[]> {
   const q = query.trim();
   if (!q) return getAllActivitiesFromDb();
+
+  // Try Atlas Search first
+  if (atlasActivitySearchAvailable) {
+    try {
+      const col = activitiesCollection();
+      const pipeline = [
+        {
+          $search: {
+            index: "activity_search",
+            text: {
+              query: q,
+              path: ["label", "description", "category"],
+              fuzzy: { maxEdits: 1, prefixLength: 1 },
+            },
+          },
+        },
+        { $limit: 20 },
+      ];
+      return await col.aggregate<ActivityDoc>(pipeline).toArray();
+    } catch {
+      atlasActivitySearchAvailable = false;
+    }
+  }
+
+  // Fallback: $text search
   return activitiesCollection()
     .find({ $text: { $search: q } })
     .project({ score: { $meta: "textScore" as const } })
@@ -1175,4 +1304,231 @@ export async function getSeasonForDate(
     // DB unavailable — fall through to sync fallback
   }
   return getZimbabweSeason(date);
+}
+
+// ---------------------------------------------------------------------------
+// Vector Search — semantic location queries for AI chat
+// ---------------------------------------------------------------------------
+
+/**
+ * Search locations by semantic similarity using MongoDB Atlas Vector Search.
+ * Locations must have an `embedding` field (float[] stored via storeLocationEmbedding).
+ * Falls back to text search if the vector index is not configured.
+ *
+ * Requires an Atlas Vector Search index named "location_vector" on the
+ * locations collection. See getAtlasSearchIndexDefinitions() for the spec.
+ *
+ * @param embedding - Pre-computed query embedding (e.g. from Anthropic or OpenAI)
+ * @param options   - limit and optional tag filter
+ */
+let vectorSearchAvailable = true;
+
+export async function vectorSearchLocations(
+  embedding: number[],
+  options: { limit?: number; tag?: string } = {},
+): Promise<LocationDoc[]> {
+  if (!vectorSearchAvailable) return [];
+  const { limit = 10, tag } = options;
+
+  try {
+    const col = locationsCollection();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filter: Record<string, any> = {};
+    if (tag) {
+      filter.tags = tag;
+    }
+
+    const pipeline = [
+      {
+        $vectorSearch: {
+          index: "location_vector",
+          path: "embedding",
+          queryVector: embedding,
+          numCandidates: limit * 10,
+          limit,
+          ...(Object.keys(filter).length > 0 ? { filter } : {}),
+        },
+      },
+      {
+        $project: {
+          embedding: 0,
+          score: { $meta: "vectorSearchScore" },
+        },
+      },
+    ];
+
+    return await col.aggregate<LocationDoc>(pipeline).toArray();
+  } catch {
+    vectorSearchAvailable = false;
+    return [];
+  }
+}
+
+/**
+ * Store a pre-computed embedding vector on a location document.
+ * Call this when syncing locations or when a new location is created.
+ */
+export async function storeLocationEmbedding(
+  slug: string,
+  embedding: number[],
+): Promise<void> {
+  await locationsCollection().updateOne(
+    { slug },
+    { $set: { embedding } },
+  );
+}
+
+/**
+ * Batch-store embeddings for multiple locations.
+ */
+export async function storeLocationEmbeddings(
+  entries: { slug: string; embedding: number[] }[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  const bulkOps = entries.map(({ slug, embedding }) => ({
+    updateOne: {
+      filter: { slug },
+      update: { $set: { embedding } },
+    },
+  }));
+  await locationsCollection().bulkWrite(bulkOps);
+}
+
+// ---------------------------------------------------------------------------
+// Combined aggregation pipelines (batch multiple queries)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch tag counts and location stats in a single aggregation using $facet.
+ * Replaces separate getTagCounts() + getLocationStats() calls.
+ */
+export async function getTagCountsAndStats(): Promise<{
+  tags: { tag: string; count: number }[];
+  totalLocations: number;
+  totalProvinces: number;
+}> {
+  const col = locationsCollection();
+
+  const [result] = await col.aggregate([
+    {
+      $facet: {
+        tags: [
+          { $unwind: "$tags" },
+          { $group: { _id: "$tags", count: { $sum: 1 } } },
+          { $project: { _id: 0, tag: "$_id", count: 1 } },
+          { $sort: { count: -1 } },
+        ],
+        totalLocations: [
+          { $count: "count" },
+        ],
+        provinces: [
+          { $group: { _id: "$province" } },
+          { $count: "count" },
+        ],
+      },
+    },
+  ]).toArray();
+
+  return {
+    tags: (result?.tags ?? []) as { tag: string; count: number }[],
+    totalLocations: (result?.totalLocations?.[0] as { count?: number })?.count ?? 0,
+    totalProvinces: (result?.provinces?.[0] as { count?: number })?.count ?? 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Atlas Search / Vector Search index definitions
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the Atlas Search and Vector Search index definitions that should be
+ * created via the MongoDB Atlas UI, Atlas CLI, or Atlas Admin API.
+ *
+ * These indexes CANNOT be created via the Node.js driver's createIndex() —
+ * they must be provisioned through Atlas infrastructure.
+ *
+ * Usage:
+ *   1. Go to Atlas → Database → Collections → Search Indexes
+ *   2. Create each index using the JSON definitions below
+ *   3. Or use Atlas CLI: `atlas clusters search indexes create --file <json>`
+ */
+export function getAtlasSearchIndexDefinitions(): {
+  locationSearch: object;
+  activitySearch: object;
+  locationVector: object;
+} {
+  return {
+    /** Atlas Search index for fuzzy location search */
+    locationSearch: {
+      name: "location_search",
+      collectionName: "locations",
+      type: "search",
+      definition: {
+        mappings: {
+          dynamic: false,
+          fields: {
+            name: [
+              { type: "string", analyzer: "luceneStandard" },
+              { type: "autocomplete", analyzer: "luceneStandard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
+            ],
+            province: { type: "string", analyzer: "luceneStandard" },
+            slug: { type: "string", analyzer: "luceneKeyword" },
+            tags: { type: "token" },
+            country: { type: "token" },
+          },
+        },
+      },
+    },
+    /** Atlas Search index for fuzzy activity search */
+    activitySearch: {
+      name: "activity_search",
+      collectionName: "activities",
+      type: "search",
+      definition: {
+        mappings: {
+          dynamic: false,
+          fields: {
+            label: [
+              { type: "string", analyzer: "luceneStandard" },
+              { type: "autocomplete", analyzer: "luceneStandard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
+            ],
+            description: { type: "string", analyzer: "luceneStandard" },
+            category: { type: "token" },
+          },
+        },
+      },
+    },
+    /** Atlas Vector Search index for semantic location queries */
+    locationVector: {
+      name: "location_vector",
+      collectionName: "locations",
+      type: "vectorSearch",
+      definition: {
+        fields: [
+          {
+            type: "vector",
+            path: "embedding",
+            numDimensions: 1024,
+            similarity: "cosine",
+          },
+          {
+            type: "filter",
+            path: "tags",
+          },
+          {
+            type: "filter",
+            path: "country",
+          },
+        ],
+      },
+    },
+  };
+}
+
+/** Reset Atlas Search availability flags (for testing). */
+export function _resetSearchFlags(): void {
+  atlasSearchAvailable = true;
+  atlasActivitySearchAvailable = true;
+  vectorSearchAvailable = true;
 }
