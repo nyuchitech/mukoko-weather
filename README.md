@@ -39,7 +39,7 @@ AI-powered weather intelligence, starting with Zimbabwe and expanding globally. 
 | State | [Zustand 5](https://zustand.docs.pmnd.rs) with `persist` middleware |
 | AI | [Anthropic Claude SDK](https://docs.anthropic.com/en/docs) (server-side only) |
 | Weather API | [Tomorrow.io](https://tomorrow.io) (primary) + [Open-Meteo](https://open-meteo.com) (fallback) |
-| Database | [MongoDB Atlas](https://mongodb.com/atlas) (cache, AI summaries, history, locations) |
+| Database | [MongoDB Atlas](https://mongodb.com/atlas) (cache, AI summaries, history, locations; Atlas Search for fuzzy queries) |
 | Analytics | [Google Analytics 4](https://analytics.google.com) |
 | Testing | [Vitest](https://vitest.dev) |
 | CI/CD | [GitHub Actions](https://github.com/features/actions) (tests + lint + typecheck on push/PR) |
@@ -121,7 +121,7 @@ The main location page is a compact overview. Detail-heavy sections (charts, atm
 | `/api/locations` | GET | List/filter locations (by slug, tag, all, or stats mode) |
 | `/api/locations/add` | POST | Add locations via search (`{ query }`) or coordinates (`{ lat, lon }`). Rate-limited |
 | `/api/activities` | GET | Activities (by id, category, search, labels, or categories mode) |
-| `/api/suitability` | GET | Suitability rules (all or by key) |
+| `/api/suitability` | GET | Suitability rules (all or by key; key format validated) |
 | `/api/tags` | GET | Tag metadata (all or featured) |
 | `/api/regions` | GET | Active supported regions (bounding boxes) |
 | `/api/status` | GET | System health checks (MongoDB, APIs, cache) |
@@ -243,7 +243,7 @@ src/
     tomorrow.ts             # Tomorrow.io API client + WMO normalization
     weather.ts              # Open-Meteo client, frost detection, seasons, weather utils
     weather-labels.ts       # Contextual label helpers (humidity, pressure, cloud, feels-like)
-    db.ts                   # MongoDB CRUD (12 collections)
+    db.ts                   # MongoDB CRUD + Atlas Search/Vector Search (12 collections)
     geocoding.ts            # Nominatim + Open-Meteo geocoding, slug generation
     rate-limit.ts           # MongoDB-backed IP rate limiter
     mongo.ts                # MongoDB client (connection-pooled via @vercel/functions)

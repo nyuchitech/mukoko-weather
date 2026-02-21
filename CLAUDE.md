@@ -27,7 +27,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme + activities saved to localStorage)
 - **AI:** Anthropic Claude SDK 0.73.0 (server-side only, Haiku 3.5 model `claude-haiku-4-5-20251001`)
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
-- **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations)
+- **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations; Atlas Search for fuzzy queries, Vector Search infrastructure for semantic search)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **Testing:** Vitest 4.0.18
@@ -234,7 +234,8 @@ mukoko-weather/
 │   │   ├── activities.test.ts
 │   │   ├── suitability.ts         # Database-driven suitability evaluation engine (evaluateRule)
 │   │   ├── suitability.test.ts
-│   │   ├── suitability-cache.ts   # Client-side cache for suitability rules + category styles (TTL-based)
+│   │   ├── suitability-cache.ts   # Client-side cache for suitability rules + category styles (10-min TTL)
+│   │   ├── suitability-cache.test.ts # Suitability cache tests
 │   │   ├── tomorrow.ts            # Tomorrow.io API client + WMO normalization
 │   │   ├── tomorrow.test.ts
 │   │   ├── weather.ts             # Open-Meteo client, frost detection, weather utils, synthesizeOpenMeteoInsights
@@ -242,7 +243,7 @@ mukoko-weather/
 │   │   ├── weather-labels.ts      # Contextual label helpers (humidityLabel, pressureLabel, cloudLabel, feelsLikeContext)
 │   │   ├── weather-labels.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
-│   │   ├── db.ts                  # Database CRUD (weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, suitability_rules, tags, regions, seasons)
+│   │   ├── db.ts                  # Database CRUD + Atlas Search/Vector Search (weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, suitability_rules, tags, regions, seasons)
 │   │   ├── db.test.ts
 │   │   ├── geocoding.ts           # Nominatim reverse geocoding, Open-Meteo forward geocoding, slug generation
 │   │   ├── geocoding.test.ts
@@ -411,13 +412,13 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/api/locations` — GET, list/filter locations from MongoDB (by slug, tag, or all; includes stats mode)
 - `/api/locations/add` — POST, add locations via search (`{ query }`) or coordinates (`{ lat, lon }`). Rate-limited to 5 creations/hour/IP
 - `/api/activities` — GET, activities (by id, category, search query, labels, or categories mode)
-- `/api/suitability` — GET, suitability rules from MongoDB (all rules or by key)
+- `/api/suitability` — GET, suitability rules from MongoDB (all rules or by key; key validated against `^(activity|category):[a-z0-9-]+$`)
 - `/api/tags` — GET, tag metadata (all or featured only)
 - `/api/regions` — GET, active supported regions (bounding boxes)
 - `/api/status` — GET, system health checks (MongoDB ping, API key verification, provider checks)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
-- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Requires `x-init-secret` header in production
+- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Returns Atlas Search index definitions in response. Requires `x-init-secret` header in production
 
 ### Error Handling
 
@@ -458,6 +459,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 **Usage across API routes:**
 - `/api/weather` — logs `critical` on unexpected errors, `warn` on all-providers-failed fallback
 - `/api/ai` — logs `medium` on AI service unavailability
+- `/api/explore` — logs `medium` on chatbot errors (`source: "ai-api"`), `logWarn` on individual tool failures (weather fetch, tool timeout)
 - `/api/history` — logs `high` on history fetch failures
 
 ### Location Data
@@ -478,7 +480,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 
 **Countries & Provinces:** `src/lib/countries.ts` — `Country` type (code, name, region, supported), `Province` type (slug, name, countryCode), 64 seed countries (54 AU + ASEAN), 80+ province definitions, `getFlagEmoji(code)`, `generateProvinceSlug(name, code)`.
 
-Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context).
+Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)` (Atlas Search with fuzzy matching + $text fallback), `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context, seed locations prioritized), `vectorSearchLocations(embedding, options)` (foundation for semantic search — requires embedding pipeline), `getTagCountsAndStats()` ($facet aggregation for tag counts + location stats in one query).
 
 ### Activities
 
@@ -508,7 +510,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocations(query)`, `getLocation
 
 **Operators:** `gt`, `gte`, `lt`, `lte`, `eq`
 
-**Metric templates:** Conditions can include a `metricTemplate` string with `{value}` and `{fieldName}` placeholders, resolved at evaluation time.
+**Metric templates:** Individual conditions can include a `metricTemplate` string with `{value}` placeholders, resolved at evaluation time with the matched condition value. Fallback rules (last condition in the chain) should NOT include metricTemplates — their `{fieldName}` placeholders may reference insight fields that don't exist, producing undefined values.
 
 **Client-side caching:** `src/lib/suitability-cache.ts` — caches suitability rules and category styles on the client with 10-minute TTL. Exports `fetchSuitabilityRules()`, `fetchCategoryStyles()`, `resetCaches()`. Category styles are seeded from static `CATEGORY_STYLES` for instant mineral color rendering on mount.
 
@@ -639,7 +641,7 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 - Weather cache: 15-min TTL (auto-expires via TTL index)
 - AI summaries: tiered TTL — 30 min (major cities), 60 min (mid-tier), 120 min (small locations)
 - Weather history: unlimited retention (recorded on every fresh API fetch)
-- Explore route: in-memory location context (5-min TTL), activities (5-min TTL), in-request weather cache (Map per request)
+- Explore route: in-memory location context (5-min TTL), activities (5-min TTL), in-request weather cache (`Map<string, WeatherResult>` per request), in-request suitability rules cache (`rulesCache` ref per request)
 
 **Client-side:**
 - No weather data caching — every page load fetches fresh weather data from the server
@@ -787,8 +789,9 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 **API:** `POST /api/explore` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
-- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars)
-- **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, in-request weather cache (prevents double fetch), prompt injection documentation
+- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars), activities array capped at 10 items
+- **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
+- **Resilience:** module-level singleton Anthropic client (`getAnthropicClient`), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`)
 - **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL)
 - **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
 
@@ -836,7 +839,8 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
-- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules)
+- `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
+- `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
 - `src/lib/geocoding.test.ts` — geocoding module structure, slug generation (diacritics, country codes)
 - `src/lib/rate-limit.test.ts` — rate limit module structure, atomic operations
@@ -987,6 +991,21 @@ Community locations are stored in the same MongoDB `locations` collection as see
 - Collections use TTL indexes for automatic cache expiration
 - Historical weather data is recorded automatically on every fresh API fetch
 - Rate limits collection has TTL index on `expiresAt` for automatic cleanup
+
+**Atlas Search (fuzzy text search):**
+- `searchLocationsFromDb(query, options)` — tries Atlas Search first (fuzzy + autocomplete via `$search`), falls back to `$text` index if Atlas Search index is unavailable
+- `searchActivitiesFromDb(query)` — same pattern for activities (Atlas Search → `$text` fallback)
+- Requires Atlas Search indexes named `location_search` and `activity_search` (definitions available via `getAtlasSearchIndexDefinitions()` in the db-init response)
+- **Time-based recovery:** When a missing-index error is detected (MongoDB code 40324), search is disabled for `ATLAS_RETRY_AFTER_MS` (5 minutes), then automatically retries. Transient errors (network, timeout) do not disable the search — only permanent index-missing errors do.
+
+**Vector Search (semantic search — infrastructure):**
+- `vectorSearchLocations(embedding, options)` — $vectorSearch pipeline with cosine similarity on 1024-dimension embeddings
+- `storeLocationEmbedding(slug, embedding)` / `storeLocationEmbeddings(entries)` — store pre-computed embeddings on location documents
+- **Foundation for future work:** No code currently generates or stores embeddings. The `vectorSearchLocations` function is guarded — it checks for at least one location with a stored embedding before running `$vectorSearch`, preventing unnecessary Atlas errors.
+- Requires a Vector Search index named `location_vector` on the locations collection
+
+**$facet aggregation:**
+- `getTagCountsAndStats()` — runs tag counts and location stats in a single aggregation pipeline
 
 ### Modifying SEO
 - Root metadata: `src/app/layout.tsx`
