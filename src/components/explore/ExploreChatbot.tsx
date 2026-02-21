@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { SparklesIcon, SearchIcon, MapPinIcon } from "@/lib/weather-icons";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 // ---------------------------------------------------------------------------
@@ -45,10 +44,10 @@ const SUGGESTED_PROMPTS = [
 // Component
 // ---------------------------------------------------------------------------
 
-function SendIcon({ size = 20 }: { size?: number }) {
+function ArrowUpIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
+      <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
     </svg>
   );
 }
@@ -58,7 +57,7 @@ export function ExploreChatbot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Cancel in-flight fetch on unmount to prevent state updates on unmounted component
@@ -84,6 +83,8 @@ export function ExploreChatbot() {
 
     setMessages((prev) => [...prev, userMessage].slice(-MAX_RENDERED_MESSAGES));
     setInput("");
+    // Reset textarea height back to single row after sending
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setLoading(true);
 
     try {
@@ -168,28 +169,40 @@ export function ExploreChatbot() {
 
       {/* Input area */}
       <div className="shrink-0 border-t border-border bg-surface-base/50 backdrop-blur-sm px-4 py-3">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex items-end gap-2">
           <div className="relative flex-1">
-            <Input
+            <textarea
               ref={inputRef}
-              type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-grow: reset height then expand to scrollHeight (capped by max-h)
+                e.target.style.height = "auto";
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              onKeyDown={(e) => {
+                // Submit on Enter (without Shift); Shift+Enter inserts a newline
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
               placeholder="Ask about weather, locations, activities..."
-              className="pl-9 pr-4"
+              rows={1}
+              className="flex w-full resize-none rounded-[var(--radius-input)] bg-surface-base pl-9 pr-4 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 max-h-32 overflow-y-auto"
               aria-label="Ask Shamwari Explorer"
               disabled={loading}
             />
-            <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
+            <SearchIcon size={14} className="absolute left-3 top-3 text-text-tertiary" aria-hidden="true" />
           </div>
           <Button
             type="submit"
             size="sm"
             disabled={loading || !input.trim()}
-            className="min-h-[44px] min-w-[44px] px-3"
+            className="min-h-[44px] min-w-[44px] px-3 shrink-0"
             aria-label="Send message"
           >
-            <SendIcon size={18} />
+            <ArrowUpIcon size={18} />
           </Button>
         </form>
       </div>
