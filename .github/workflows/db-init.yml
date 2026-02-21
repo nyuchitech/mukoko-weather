@@ -1,0 +1,52 @@
+name: Post-Deploy DB Init
+
+# Triggered by Vercel's deployment status webhook — fires when a deployment
+# to the production environment succeeds. This ensures seed data (locations,
+# activities, suitability rules, etc.) is synced to MongoDB after every deploy.
+on:
+  deployment_status:
+
+jobs:
+  db-init:
+    name: Sync database seed data
+    # Only run when the production deployment succeeds
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 10
+
+      - name: Call db-init endpoint
+        env:
+          DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+          DB_INIT_SECRET: ${{ secrets.DB_INIT_SECRET }}
+        run: |
+          # Use the Vercel deployment URL (from the deployment_status event)
+          # Fall back to the production URL if target_url is empty
+          BASE_URL="${DEPLOY_URL:-https://weather.mukoko.com}"
+
+          echo "Triggering db-init on ${BASE_URL}/api/db-init"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-init-secret: ${DB_INIT_SECRET}" \
+            "${BASE_URL}/api/db-init" \
+            --max-time 60)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "Response (${HTTP_CODE}):"
+          echo "$BODY" | head -20
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "db-init succeeded"
+          else
+            echo "::error::db-init failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
