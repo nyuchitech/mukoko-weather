@@ -23,10 +23,12 @@ import {
 // ---------------------------------------------------------------------------
 
 let _anthropicClient: Anthropic | null = null;
+let _anthropicClientKey: string | null = null;
 
 function getAnthropicClient(apiKey: string): Anthropic {
-  if (!_anthropicClient) {
+  if (!_anthropicClient || _anthropicClientKey !== apiKey) {
     _anthropicClient = new Anthropic({ apiKey });
+    _anthropicClientKey = apiKey;
   }
   return _anthropicClient;
 }
@@ -133,8 +135,7 @@ When responding:
 - If the user asks about a location you have data for, always include current conditions
 - If you can't find the exact location, suggest similar ones from the available data
 
-Available activity categories: farming, mining, travel, tourism, sports, casual
-Key activities: crop farming, livestock, gardening, irrigation, mining, construction, driving, commuting, flying, safari, photography, birdwatching, camping, stargazing, fishing, running, cycling, hiking, football, swimming, golf, cricket, tennis, rugby, horse riding, walking, barbecue, outdoor events, drone flying, picnic`;
+Available activity categories: farming, mining, travel, tourism, sports, casual`;
 
 // ---------------------------------------------------------------------------
 // Tool definitions for Claude function calling
@@ -391,12 +392,17 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
   };
 }
 
+const TAG_RESULTS_CAP = 20;
+
 async function executeListLocationsByTag(tag: string) {
   const locations = await getLocationsByTagFromDb(tag);
+  const capped = locations.slice(0, TAG_RESULTS_CAP);
   return {
     tag,
     count: locations.length,
-    locations: locations.slice(0, 15).map((loc: LocationDoc) => ({
+    showing: capped.length,
+    note: locations.length > TAG_RESULTS_CAP ? `Showing first ${TAG_RESULTS_CAP} of ${locations.length} locations` : undefined,
+    locations: capped.map((loc: LocationDoc) => ({
       name: loc.name,
       slug: loc.slug,
       province: loc.province,
@@ -485,7 +491,7 @@ export async function POST(request: NextRequest) {
     // Add the current message (sanitize consistently with history messages)
     messages.push({ role: "user", content: sanitizeHistoryContent(message) });
 
-    // Fetch location context (module-level 5min cache) for Claude awareness
+    // Fetch location context and activity list (module-level 5min caches) for Claude awareness
     let locationContext = "";
     try {
       locationContext = await getLocationContext();
@@ -493,12 +499,21 @@ export async function POST(request: NextRequest) {
       // Continue without location context
     }
 
+    let activityContext = "";
+    try {
+      const activities = await getCachedActivities();
+      activityContext = `\n\nKey activities: ${activities.map((a) => a.label.toLowerCase()).join(", ")}`;
+    } catch {
+      // Continue without activity context
+    }
+
     // ── Claude call with circuit breaker ──────────────────────────────────────
+    const systemPrompt = EXPLORE_SYSTEM_PROMPT + activityContext + locationContext;
     let response = await anthropicBreaker.execute(() =>
       anthropic.messages.create({
         model: CLAUDE_MODEL,
         max_tokens: 1024,
-        system: EXPLORE_SYSTEM_PROMPT + locationContext,
+        system: systemPrompt,
         tools: TOOLS,
         messages,
       }),
@@ -596,7 +611,7 @@ export async function POST(request: NextRequest) {
         anthropic.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 1024,
-          system: EXPLORE_SYSTEM_PROMPT + locationContext,
+          system: systemPrompt,
           tools: TOOLS,
           messages,
         }),

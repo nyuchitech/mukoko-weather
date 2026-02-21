@@ -41,6 +41,9 @@ export async function GET(request: Request) {
       location: "suitability",
       error: err,
     });
-    return NextResponse.json({ rules: [] });
+    // Short cache on errors to prevent thundering herd during MongoDB outage
+    return NextResponse.json({ rules: [] }, {
+      headers: { "Cache-Control": "s-maxage=10, stale-while-revalidate=5" },
+    });
   }
 }

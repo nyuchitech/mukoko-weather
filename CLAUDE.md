@@ -791,8 +791,8 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
 - **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated to 2000 chars), activities array capped at 10 items
 - **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
-- **Resilience:** module-level singleton Anthropic client (`getAnthropicClient`), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`)
-- **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL)
+- **Resilience:** module-level singleton Anthropic client with key-rotation invalidation (`getAnthropicClient` — recreates client when API key changes), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`), `list_locations_by_tag` capped to 20 results with note to Claude
+- **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL, used for dynamic system prompt activity list)
 - **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
 
 ### Explore (Browse-Only)
@@ -874,7 +874,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
 - `src/app/history/HistoryDashboard.test.ts` — history dashboard tests
-- `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests
+- `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
 - `src/components/ui/chart-fallbacks.test.ts` — CSS fallback table key parity (light/dark sync)
 - `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric), hexWithAlpha

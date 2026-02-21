@@ -34,10 +34,15 @@ function compareValue(actual: number, operator: SuitabilityCondition["operator"]
     case "gte": return actual >= threshold;
     case "lt": return actual < threshold;
     case "lte": return actual <= threshold;
+    // eq uses strict equality — safe for integer-valued alert levels (e.g., uvHealthConcern).
+    // Not suitable for continuous float measurements due to JSON round-trip precision.
     case "eq": return actual === threshold;
     default: return false;
   }
 }
+
+/** Fields that display one decimal place instead of rounding to integer. */
+const DECIMAL_FIELDS = new Set(["visibility", "evapotranspiration"]);
 
 /**
  * Resolve a metric template by replacing {field} placeholders with actual values.
@@ -54,7 +59,7 @@ function resolveMetric(
 
   // Replace {value} with the matched condition's value
   if (matchedValue != null) {
-    resolved = resolved.replace("{value}", matchedValue.toFixed(matchedField === "visibility" ? 1 : 0));
+    resolved = resolved.replace("{value}", matchedValue.toFixed(DECIMAL_FIELDS.has(matchedField ?? "") ? 1 : 0));
   }
 
   // Replace any {fieldName} placeholders with actual insight values
@@ -63,9 +68,7 @@ function resolveMetric(
     const val = insightRecord[field];
     if (val == null) return match;
     if (typeof val === "number") {
-      return field === "visibility" || field === "evapotranspiration"
-        ? val.toFixed(1)
-        : Math.round(val).toString();
+      return DECIMAL_FIELDS.has(field) ? val.toFixed(1) : Math.round(val).toString();
     }
     return String(val);
   });

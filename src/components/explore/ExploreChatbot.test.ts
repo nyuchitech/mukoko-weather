@@ -21,6 +21,17 @@ describe("ExploreChatbot component structure", () => {
     expect(source).toContain("import ReactMarkdown");
     expect(source).toContain("<ReactMarkdown>");
   });
+
+  it("wraps ReactMarkdown in error boundary for crash isolation", () => {
+    expect(source).toContain("MarkdownErrorBoundary");
+    expect(source).toContain("<MarkdownErrorBoundary");
+    expect(source).toContain("getDerivedStateFromError");
+  });
+
+  it("falls back to raw text content when markdown rendering fails", () => {
+    // The error boundary receives message.content as fallback prop
+    expect(source).toContain("fallback={message.content}");
+  });
 });
 
 describe("state management", () => {

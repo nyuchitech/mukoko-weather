@@ -141,6 +141,18 @@ describe("server-side caching", () => {
     expect(source).toContain("getCachedActivities()");
   });
 
+  it("builds activity list dynamically from DB cache instead of hardcoding in prompt", () => {
+    // The system prompt should NOT contain a hardcoded "Key activities:" list
+    const promptSection = source.slice(
+      source.indexOf("EXPLORE_SYSTEM_PROMPT"),
+      source.indexOf("// Tool definitions"),
+    );
+    expect(promptSection).not.toContain("crop farming, livestock, gardening");
+    // Instead, activity context is built dynamically at request time
+    expect(source).toContain("activityContext");
+    expect(source).toContain("activities.map((a) => a.label.toLowerCase()).join");
+  });
+
   it("uses shared model ID constant", () => {
     expect(source).toContain("const CLAUDE_MODEL =");
     expect(source).toContain("model: CLAUDE_MODEL");
@@ -261,6 +273,17 @@ describe("robustness", () => {
     expect(source).toContain("rulesCache");
     expect(source).toContain("rulesCache.rules === null");
   });
+
+  it("caps list_locations_by_tag results to prevent unbounded context", () => {
+    expect(source).toContain("TAG_RESULTS_CAP");
+    expect(source).toContain("locations.slice(0, TAG_RESULTS_CAP)");
+  });
+
+  it("includes count and note in list_locations_by_tag response for Claude awareness", () => {
+    expect(source).toContain("count: locations.length");
+    expect(source).toContain("showing: capped.length");
+    expect(source).toContain("Showing first");
+  });
 });
 
 describe("security", () => {
@@ -319,9 +342,12 @@ describe("error handling and observability", () => {
 });
 
 describe("performance and resilience", () => {
-  it("uses a module-level singleton Anthropic client", () => {
+  it("uses a module-level singleton Anthropic client with key-rotation invalidation", () => {
     expect(source).toContain("getAnthropicClient(apiKey)");
     expect(source).toContain("let _anthropicClient");
+    // Key rotation: client is recreated when the API key changes
+    expect(source).toContain("_anthropicClientKey !== apiKey");
+    expect(source).toContain("_anthropicClientKey = apiKey");
   });
 
   it("wraps tool executions with withToolTimeout", () => {

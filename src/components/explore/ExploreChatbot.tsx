@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Component, type ReactNode } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { SparklesIcon, SearchIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
+
+// ---------------------------------------------------------------------------
+// Inline error boundary for ReactMarkdown — prevents malformed markdown from
+// crashing the entire chat UI. Aligns with per-section error isolation pattern.
+// ---------------------------------------------------------------------------
+
+interface MarkdownErrorBoundaryState { hasError: boolean }
+
+class MarkdownErrorBoundary extends Component<{ children: ReactNode; fallback: string }, MarkdownErrorBoundaryState> {
+  state: MarkdownErrorBoundaryState = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return <p className="text-sm text-text-secondary">{this.props.fallback}</p>;
+    }
+    return this.props.children;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -177,7 +195,9 @@ export function ExploreChatbot() {
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
-                // Auto-grow: reset height then expand to scrollHeight (capped by max-h)
+                // Auto-grow: reset height then expand to scrollHeight (capped by max-h).
+                // Uses inline style.height because the value is dynamically calculated
+                // from scrollHeight — not expressible as a static Tailwind class.
                 e.target.style.height = "auto";
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
@@ -269,9 +289,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {isUser ? (
           <p className="text-sm">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-          </div>
+          <MarkdownErrorBoundary fallback={message.content}>
+            <div className="prose prose-sm max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
+          </MarkdownErrorBoundary>
         )}
 
         {/* Location references as quick links */}

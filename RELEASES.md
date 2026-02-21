@@ -27,7 +27,9 @@
 ### Improvements
 
 **Explore route resilience** (`src/app/api/explore/route.ts`)
-- Module-level singleton Anthropic client (connection pool reuse across warm invocations)
+- Module-level singleton Anthropic client with key-rotation invalidation (recreates client when API key changes in MongoDB)
+- Dynamic activity list in system prompt (built from DB cache at request time, not hardcoded)
+- Capped `list_locations_by_tag` results to 20 with count/note for Claude context awareness
 - 15-second per-tool timeout (`withToolTimeout`) prevents serverless function hangs
 - Typed weather cache (`Map<string, WeatherResult>` instead of `Map<string, any>`)
 - In-request suitability rules cache (`rulesCache`) prevents redundant DB queries across tool iterations
@@ -41,6 +43,7 @@
 **Input validation** (`src/app/api/suitability/route.ts`)
 - Key parameter validated against `^(activity|category):[a-z0-9-]+$` regex
 - Returns 400 for invalid key format, 404 for key not found
+- Error responses now include `s-maxage=10` cache headers to prevent thundering herd during outages
 
 **Error reporting** (`src/components/weather/ActivityInsights.tsx`)
 - Suitability rules and category styles fetch failures now reported to GA4 via `reportErrorToAnalytics` (were silently swallowed)
@@ -57,15 +60,28 @@
 - `sanitizeHistoryContent()` now focuses on what matters: enforcing `MAX_MESSAGE_LENGTH` via `.slice()`
 - Current user message is sanitized consistently with history via `sanitizeHistoryContent(message)`
 
+**Suitability engine** (`src/lib/suitability.ts`)
+- `DECIMAL_FIELDS` Set replaces inline field-name checks for decimal precision (visibility, evapotranspiration)
+- `eq` operator documented as safe for integer alert levels only (not continuous float measurements)
+
+**Chatbot UI** (`src/components/explore/ExploreChatbot.tsx`)
+- `MarkdownErrorBoundary` wraps ReactMarkdown rendering — malformed markdown degrades to plain text instead of crashing the chat UI
+- Dynamic textarea height comment documents inline `style.height` as pragmatic exception
+
+**Client caching** (`src/lib/suitability-cache.ts`)
+- Shared TTL comment clarifies that rules and category styles deliberately use the same 10-minute TTL
+
 ### Tests
 
-Test count increased from 1080 to 1087 with this PR's changes:
+Test count increased from 1080 to 1097 with this PR's changes:
 
 - Atlas Search time-based recovery (timestamp-based disabling, auto-retry after 5 min, permanent vs transient errors)
 - Vector Search embedding guard (checks for stored embeddings, documented as future infrastructure)
 - Explore route security (structured messages API defense documentation, sanitizeHistoryContent max-length enforcement)
-- Suitability route key validation (regex format check, 400/404 responses)
-- Explore route resilience (singleton client, tool timeouts on all 4 tools, reference deduplication)
+- Explore route resilience (singleton key-rotation invalidation, dynamic activity list, tag result cap, tool timeouts)
+- Suitability route key validation (regex format check, 400/404 responses, error response caching)
+- Suitability engine code quality (DECIMAL_FIELDS set, eq operator documentation, decimal precision)
+- ExploreChatbot error boundary (MarkdownErrorBoundary, fallback to raw text)
 - Suitability fallback metric changes (metricTemplate removed from fallbacks)
 
 ### Files Changed
@@ -73,13 +89,17 @@ Test count increased from 1080 to 1087 with this PR's changes:
 | File | Changes |
 |------|---------|
 | `src/lib/db.ts` | Atlas Search, Vector Search, $facet, time-based recovery, sort fix, index-missing helper |
-| `src/app/api/explore/route.ts` | Singleton client, tool timeouts, typed caches, dedup refs, sanitize cleanup |
+| `src/app/api/explore/route.ts` | Singleton client with key-rotation, dynamic activity list, tag result cap, tool timeouts, typed caches, dedup refs, sanitize cleanup |
+| `src/lib/suitability.ts` | DECIMAL_FIELDS set, eq operator documentation |
 | `src/lib/seed-suitability-rules.ts` | Removed fallback metricTemplates |
-| `src/app/api/suitability/route.ts` | Key validation regex |
+| `src/app/api/suitability/route.ts` | Key validation regex, error response caching |
+| `src/components/explore/ExploreChatbot.tsx` | MarkdownErrorBoundary, textarea comment |
+| `src/lib/suitability-cache.ts` | Shared TTL comment |
 | `src/components/weather/ActivityInsights.tsx` | Error reporting, removed fetchedRef guard |
 | `src/app/api/db-init/route.ts` | Atlas Search index definitions in response |
 | `src/lib/db.test.ts` | Atlas Search recovery, Vector Search guard, $facet tests |
-| `src/app/api/explore/explore-route.test.ts` | Security, resilience, sanitization tests |
-| `src/app/api/suitability/suitability-route.test.ts` | Key validation test |
+| `src/app/api/explore/explore-route.test.ts` | Key-rotation, dynamic activities, tag cap, security, resilience tests |
+| `src/app/api/suitability/suitability-route.test.ts` | Key validation, error caching tests |
+| `src/lib/suitability.test.ts` | DECIMAL_FIELDS, eq documentation, decimal precision tests |
+| `src/components/explore/ExploreChatbot.test.ts` | MarkdownErrorBoundary tests |
 | `src/app/api/db-init/db-init-route.test.ts` | Atlas Search index definitions test |
-| `src/lib/suitability.test.ts` | Updated fallback expectations |

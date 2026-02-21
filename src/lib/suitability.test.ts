@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { evaluateRule } from "./suitability";
 import type { SuitabilityRuleDoc } from "./db";
+
+const source = readFileSync(resolve(__dirname, "suitability.ts"), "utf-8");
 
 const MOCK_RULE: SuitabilityRuleDoc = {
   key: "activity:drone-flying",
@@ -207,5 +211,49 @@ describe("evaluateRule with wind speed conditions", () => {
     expect(result.level).toBe("excellent");
     expect(result.label).toBe("Flyable");
     expect(result.metric).toBeUndefined();
+  });
+});
+
+describe("code quality", () => {
+  it("documents eq operator limitation for float values", () => {
+    expect(source).toContain("safe for integer-valued alert levels");
+    expect(source).toContain("Not suitable for continuous float measurements");
+  });
+
+  it("uses DECIMAL_FIELDS set instead of inline field-name checks", () => {
+    expect(source).toContain('const DECIMAL_FIELDS = new Set(["visibility", "evapotranspiration"])');
+    expect(source).toContain("DECIMAL_FIELDS.has(");
+  });
+
+  it("resolves visibility with one decimal place via DECIMAL_FIELDS", () => {
+    const visRule: SuitabilityRuleDoc = {
+      key: "test-vis",
+      conditions: [{
+        field: "visibility", operator: "lt", value: 5,
+        level: "fair", label: "Low Vis",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Low visibility", metricTemplate: "Vis: {value} km",
+      }],
+      fallback: { level: "good", label: "OK", colorClass: "c", bgClass: "b", detail: "Good" },
+      updatedAt: new Date(),
+    };
+    const result = evaluateRule(visRule, { visibility: 2.7 });
+    expect(result.metric).toBe("Vis: 2.7 km");
+  });
+
+  it("resolves evapotranspiration with one decimal place via DECIMAL_FIELDS", () => {
+    const etRule: SuitabilityRuleDoc = {
+      key: "test-et",
+      conditions: [{
+        field: "evapotranspiration", operator: "gt", value: 3,
+        level: "fair", label: "High ET",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "High ET", metricTemplate: "ET: {evapotranspiration} mm",
+      }],
+      fallback: { level: "good", label: "OK", colorClass: "c", bgClass: "b", detail: "Normal" },
+      updatedAt: new Date(),
+    };
+    const result = evaluateRule(etRule, { evapotranspiration: 4.56 });
+    expect(result.metric).toBe("ET: 4.6 mm");
   });
 });

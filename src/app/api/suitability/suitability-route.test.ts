@@ -80,4 +80,10 @@ describe("error handling and observability", () => {
   it("includes descriptive error message", () => {
     expect(source).toContain("Failed to load suitability rules");
   });
+
+  it("sets short cache headers on error response to prevent thundering herd", () => {
+    // Error path should have cache headers to avoid hammering origin during outage
+    expect(source).toContain("s-maxage=10");
+    expect(source).toContain("stale-while-revalidate=5");
+  });
 });

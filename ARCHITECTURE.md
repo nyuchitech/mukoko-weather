@@ -152,10 +152,13 @@ The Shamwari chatbot (`/api/explore`) has multiple resilience layers:
 | Circuit breaker | `anthropicBreaker` on all Claude calls | Per-provider |
 | Tool timeout | 15s per tool execution | Per-tool |
 | Tool loop bound | Max 5 iterations | Per-request |
+| Tool result cap | `list_locations_by_tag` capped to 20 results | Per-tool |
 | Weather cache | `Map<string, WeatherResult>` | Per-request |
 | Rules cache | `rulesCache` ref | Per-request |
 | Location context | Module-level, 5-min TTL | Per-instance |
-| Singleton client | Module-level `_anthropicClient` | Per-instance |
+| Activity context | Module-level, 5-min TTL (dynamic prompt list) | Per-instance |
+| Singleton client | Module-level `_anthropicClient` with key-rotation | Per-instance |
+| Markdown boundary | `MarkdownErrorBoundary` in chatbot UI | Per-message |
 
 ## Lazy Loading (TikTok-Style Sequential)
 

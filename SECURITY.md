@@ -62,7 +62,9 @@ The Shamwari chatbot endpoint has layered security controls:
 - **Circuit breaker** — all Anthropic API calls are wrapped in `anthropicBreaker` (3 failures / 5min cooldown); `CircuitOpenError` returns a user-friendly "temporarily unavailable" message
 - **Tool execution timeouts** — each tool call has a 15-second timeout (`withToolTimeout`); tool loop bounded at 5 iterations
 - **Server-controlled tool output** — Claude never sees raw weather API responses; tool implementations validate inputs (type-checked, string-validated) and return structured data
-- **Singleton Anthropic client** — module-level client reused across warm Vercel function invocations, avoiding per-request connection overhead
+- **Singleton Anthropic client with key-rotation** — module-level client reused across warm Vercel function invocations; automatically recreated when the API key changes in MongoDB (via db-init key rotation)
+- **Tool result caps** — `list_locations_by_tag` capped to 20 results to prevent unbounded context injection; search results capped to 10
+- **Client-side error isolation** — `MarkdownErrorBoundary` wraps ReactMarkdown rendering in the chatbot UI; malformed markdown from Claude degrades to plain text instead of crashing the chat
 
 ### Content Security
 

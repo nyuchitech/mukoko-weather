@@ -16,6 +16,8 @@ import type { SuitabilityRuleDoc, ActivityCategoryDoc } from "./db";
 
 let cachedRules: SuitabilityRuleDoc[] | null = null;
 let cachedRulesAt = 0;
+// Shared TTL for both rules and category styles — both change only on deployment
+// (via db-init), so a single 10-minute TTL is appropriate for both.
 const RULES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 export async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
