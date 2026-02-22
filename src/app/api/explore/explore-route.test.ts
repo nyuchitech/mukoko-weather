@@ -135,6 +135,10 @@ describe("system prompt location discovery", () => {
     expect(source).toContain("locations across these active regions");
   });
 
+  it("falls back gracefully when DB is unavailable for location context", () => {
+    expect(source).toContain("A growing database of locations across Africa and ASEAN");
+  });
+
   it("does not hard-code geographic scope in the static prompt", () => {
     // The static EXPLORE_SYSTEM_PROMPT should not list specific countries/regions.
     // Geographic scope comes dynamically from the active regions in the DB.
@@ -376,6 +380,13 @@ describe("user activity preferences", () => {
   it("caps user activities to 10 items", () => {
     // The userActivities array is sliced to 10 before injection into the prompt
     expect(source).toContain(".slice(0, 10)");
+  });
+
+  it("lists activity labels without redundant per-activity category", () => {
+    // Categories are listed once, then activity labels listed separately — no (category) suffix
+    expect(source).toContain("categories.join");
+    expect(source).toContain("a.label).join");
+    expect(source).not.toContain("a.label} (${a.category}");
   });
 });
 

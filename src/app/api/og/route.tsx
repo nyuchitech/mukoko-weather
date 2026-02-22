@@ -4,6 +4,8 @@ import type { NextRequest } from "next/server";
 export const runtime = "edge";
 
 // ─── Brand Tokens ────────────────────────────────────────────────────────────
+// NOTE: next/og (Satori) does not support CSS custom properties — inline hex
+// values are required here. Keep in sync with globals.css brand tokens.
 const brand = {
   tanzanite: "#4B0082",
   cobalt: "#0047AB",
@@ -407,13 +409,14 @@ function OGImage({
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
-  const title = searchParams.get("title") ?? "AI Weather Intelligence";
-  const subtitle = searchParams.get("subtitle") ?? "";
-  const location = searchParams.get("location") ?? "";
-  const province = searchParams.get("province") ?? "";
-  const temperature = searchParams.get("temp") ?? "";
-  const condition = searchParams.get("condition") ?? "";
-  const season = searchParams.get("season") ?? "";
+  // Truncate inputs to prevent visual overflow on the fixed-size canvas
+  const title = (searchParams.get("title") ?? "AI Weather Intelligence").slice(0, 80);
+  const subtitle = (searchParams.get("subtitle") ?? "").slice(0, 120);
+  const location = (searchParams.get("location") ?? "").slice(0, 60);
+  const province = (searchParams.get("province") ?? "").slice(0, 60);
+  const temperature = (searchParams.get("temp") ?? "").slice(0, 6);
+  const condition = (searchParams.get("condition") ?? "").slice(0, 40);
+  const season = (searchParams.get("season") ?? "").slice(0, 40);
   const templateParam = searchParams.get("template") ?? "home";
 
   const template: TemplateKey = templateParam in TEMPLATES
@@ -434,6 +437,9 @@ export async function GET(req: NextRequest) {
     {
       width: 1200,
       height: 630,
+      headers: {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
+      },
     },
   );
 }

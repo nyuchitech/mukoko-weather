@@ -25,6 +25,19 @@ describe("OG route structure", () => {
     expect(source).toContain("width: 1200");
     expect(source).toContain("height: 630");
   });
+
+  it("sets Cache-Control headers for CDN/crawler caching", () => {
+    expect(source).toContain("Cache-Control");
+    expect(source).toContain("max-age=86400");
+    expect(source).toContain("stale-while-revalidate");
+  });
+
+  it("truncates input parameters to prevent visual overflow", () => {
+    expect(source).toContain(".slice(0, 80)");  // title
+    expect(source).toContain(".slice(0, 120)"); // subtitle
+    expect(source).toContain(".slice(0, 60)");  // location, province
+    expect(source).toContain(".slice(0, 40)");  // condition, season
+  });
 });
 
 describe("brand tokens", () => {
@@ -56,6 +69,11 @@ describe("brand tokens", () => {
 
   it("shows weather.mukoko.com URL", () => {
     expect(source).toContain("weather.mukoko.com");
+  });
+
+  it("documents why inline hex values are used (Satori limitation)", () => {
+    expect(source).toContain("Satori");
+    expect(source).toContain("CSS custom properties");
   });
 });
 
@@ -218,11 +236,12 @@ describe("OG image wiring in metadata", () => {
     expect(locationPageSource).toContain("province: loc.province");
   });
 
-  it("[location]/page.tsx uses local season from DB (not hardcoded)", () => {
+  it("[location]/page.tsx uses local season from DB with error handling", () => {
     // Season comes from getSeasonForDate (DB-driven), not getZimbabweSeason (legacy)
     expect(locationPageSource).toContain("getSeasonForDate");
-    // The season name is passed to OG params
-    expect(locationPageSource).toContain("season: season.name");
+    // Wrapped in try/catch so DB failure doesn't break all metadata
+    expect(locationPageSource).toContain("seasonName");
+    expect(locationPageSource).toContain("season.name");
   });
 
   it("[location]/page.tsx passes OG image to openGraph.images", () => {

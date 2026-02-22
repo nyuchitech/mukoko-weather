@@ -82,9 +82,14 @@ async function getLocationContext(): Promise<string> {
   if (cachedLocationContext && Date.now() - cachedLocationContextAt < MODULE_CACHE_TTL) {
     return cachedLocationContext;
   }
-  const [count, regions] = await Promise.all([getLocationCount(), getActiveRegions()]);
-  const regionNames = regions.map((r) => r.name).join(", ");
-  cachedLocationContext = `\n\nPlatform scope: The database currently has ${count} locations across these active regions: ${regionNames}. New locations are added continuously by the community via geolocation and search. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.`;
+  try {
+    const [count, regions] = await Promise.all([getLocationCount(), getActiveRegions()]);
+    const regionNames = regions.map((r) => r.name).join(", ");
+    cachedLocationContext = `\n\nPlatform scope: The database currently has ${count} locations across these active regions: ${regionNames}. New locations are added continuously by the community via geolocation and search. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.`;
+  } catch {
+    // DB unavailable (cold start, Atlas timeout) — use a conservative fallback
+    cachedLocationContext = "\n\nPlatform scope: A growing database of locations across Africa and ASEAN. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.";
+  }
   cachedLocationContextAt = Date.now();
   return cachedLocationContext;
 }
@@ -530,7 +535,7 @@ export async function POST(request: NextRequest) {
     try {
       const activities = await getCachedActivities();
       const categories = [...new Set(activities.map((a) => a.category))];
-      activityContext = `\n\nActivity categories: ${categories.join(", ")}. Activities available: ${activities.map((a) => `${a.label} (${a.category})`).join(", ")}`;
+      activityContext = `\n\nActivity categories: ${categories.join(", ")}. Activities available: ${activities.map((a) => a.label).join(", ")}`;
     } catch {
       // Continue without activity context
     }

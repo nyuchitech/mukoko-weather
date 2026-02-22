@@ -30,14 +30,22 @@ export async function generateMetadata({
   const title = `${loc.name} Weather Today — Forecast & Conditions`;
   const description = `Current weather conditions, 7-day forecast, and hourly predictions for ${loc.name}, ${loc.province}, ${countryName}. AI-powered weather intelligence with frost alerts, farming insights, and accurate temperature data from mukoko weather.`;
 
-  // Build dynamic OG image URL with location-specific season from database
-  const season = await getSeasonForDate(new Date(), loc.country ?? "ZW");
+  // Build dynamic OG image URL with location-specific season from database.
+  // Wrapped in try/catch — if DB is unavailable, season is simply omitted
+  // from OG params rather than breaking all metadata for the page.
+  let seasonName = "";
+  try {
+    const season = await getSeasonForDate(new Date(), loc.country ?? "ZW");
+    seasonName = season.name;
+  } catch {
+    // Season unavailable — omit from OG params
+  }
   const ogParams = new URLSearchParams({
     title: `${loc.name} Weather`,
     subtitle: `Live forecast for ${loc.province}, ${countryName}`,
     location: loc.name,
     province: loc.province,
-    season: season.name,
+    ...(seasonName && { season: seasonName }),
     template: "location",
   });
   const ogImageUrl = `${BASE_URL}/api/og?${ogParams.toString()}`;
