@@ -112,6 +112,17 @@ Before every commit, complete **all** of these steps:
 5. Update docs (README.md, CLAUDE.md, CONTRIBUTING.md) if your change affects APIs, structure, dependencies, styling, or workflow
 6. Verify no hardcoded styles (hex colors, rgba, inline style objects) in components
 
+## Migration Notes
+
+### Atlas Search Indexes (post-deploy)
+
+If your deployment already has Atlas Search indexes (`location_search`, `activity_search`) created before the analyzer name fix (`luceneStandard` → `lucene.standard`), you must drop and recreate them:
+
+1. Delete the existing `location_search` and `activity_search` indexes in Atlas
+2. Run `POST /api/db-init` to recreate them with the correct analyzer names
+
+The old analyzer names may have silently fallen through to Atlas defaults — the corrected names ensure explicit, deterministic tokenization.
+
 ## Pull Request Process
 
 1. Complete the Pre-Commit Checklist above

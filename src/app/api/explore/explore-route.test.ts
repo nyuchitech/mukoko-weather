@@ -136,7 +136,7 @@ describe("system prompt location discovery", () => {
   });
 
   it("falls back gracefully when DB is unavailable for location context", () => {
-    expect(source).toContain("A growing database of locations across Africa and ASEAN");
+    expect(source).toContain("A growing global database of locations");
   });
 
   it("does not hard-code geographic scope in the static prompt", () => {

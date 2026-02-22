@@ -88,7 +88,7 @@ async function getLocationContext(): Promise<string> {
     cachedLocationContext = `\n\nPlatform scope: The database currently has ${count} locations across these active regions: ${regionNames}. New locations are added continuously by the community via geolocation and search. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.`;
   } catch (err) {
     logWarn({ source: "ai-api", message: "getLocationContext DB unavailable — using fallback", error: err });
-    cachedLocationContext = "\n\nPlatform scope: A growing database of locations across Africa and ASEAN. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.";
+    cachedLocationContext = "\n\nPlatform scope: A growing global database of locations. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.";
   }
   cachedLocationContextAt = Date.now();
   return cachedLocationContext;

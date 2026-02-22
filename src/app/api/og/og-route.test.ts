@@ -57,10 +57,12 @@ describe("brand tokens", () => {
     expect(source).toContain("#F9A825");
   });
 
-  it("includes Zimbabwe flag colors for accent stripe", () => {
-    expect(source).toContain("#00A651"); // green
-    expect(source).toContain("#FDD116"); // yellow
-    expect(source).toContain("#D4634A"); // red
+  it("includes mineral colors for accent stripe", () => {
+    expect(source).toContain("#4B0082"); // tanzanite
+    expect(source).toContain("#0047AB"); // cobalt
+    expect(source).toContain("#004D40"); // malachite
+    expect(source).toContain("#F9A825"); // gold
+    expect(source).toContain("#D4634A"); // terracotta
   });
 
   it("shows mukoko weather brand name", () => {
@@ -179,8 +181,14 @@ describe("rate limiting", () => {
     expect(source).toContain("no-store");
   });
 
-  it("extracts IP from x-forwarded-for header", () => {
+  it("extracts IP from x-forwarded-for header with x-real-ip fallback", () => {
     expect(source).toContain("x-forwarded-for");
+    expect(source).toContain("x-real-ip");
+  });
+
+  it("skips rate limiting when IP is unidentifiable", () => {
+    // Prevents a shared "unknown" bucket that a single bad actor could exhaust
+    expect(source).toContain("ip && isRateLimited(ip)");
   });
 
   it("caps ipHits map size to prevent unbounded growth", () => {
@@ -308,17 +316,11 @@ describe("OG image wiring in metadata", () => {
     expect(locationPageSource).toContain("season.name");
   });
 
-  it("[location]/page.tsx caches season with module-level Map and TTL", () => {
-    expect(locationPageSource).toContain("SEASON_CACHE_TTL");
+  it("[location]/page.tsx deduplicates season calls with React cache()", () => {
     expect(locationPageSource).toContain("getCachedSeason");
-    // Uses a Map keyed by country code, not a single-slot cache
-    expect(locationPageSource).toContain("seasonCache");
-    expect(locationPageSource).toContain("new Map");
-  });
-
-  it("[location]/page.tsx documents concurrent miss behavior at cold start", () => {
-    expect(locationPageSource).toContain("concurrent misses");
-    expect(locationPageSource).toContain("getSeasonForDate is cheap");
+    // Uses React cache() for per-request deduplication (generateMetadata + page component)
+    expect(locationPageSource).toContain("cache(");
+    expect(locationPageSource).toContain("getSeasonForDate");
   });
 
   it("[location]/page.tsx passes OG image to openGraph.images", () => {

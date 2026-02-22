@@ -10,26 +10,14 @@ import { WeatherDashboard } from "./WeatherDashboard";
 const loadLocation = cache((slug: string) => getLocationFromDb(slug).catch(() => null));
 const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => null));
 
-// Module-level season cache keyed by country code — seasons change over weeks,
-// so a 5-min TTL avoids redundant DB calls on every SSR render while staying
-// fresh enough. Uses a Map so concurrent requests for different countries
-// (e.g. /harare ZW and /singapore SG) don't evict each other.
-// No dedup of concurrent misses — multiple SSR renders may fire simultaneous
-// DB calls at cold start. Acceptable: getSeasonForDate is cheap and this
-// resolves within the first request window.
-const SEASON_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const seasonCache = new Map<string, { result: Awaited<ReturnType<typeof getSeasonForDate>>; at: number }>();
-
-async function getCachedSeason(countryCode: string) {
-  const now = Date.now();
-  const cached = seasonCache.get(countryCode);
-  if (cached && now - cached.at < SEASON_CACHE_TTL) {
-    return cached.result;
-  }
-  const result = await getSeasonForDate(new Date(), countryCode);
-  seasonCache.set(countryCode, { result, at: now });
-  return result;
-}
+// Deduplicate getCachedSeason calls within a single request — generateMetadata
+// and the page component both call this for the same country code. React's
+// cache() ensures only one DB round-trip per request, which is the primary
+// win over a module-level Map (Vercel serverless instances are short-lived,
+// so a 5-min TTL rarely survives across requests anyway).
+const getCachedSeason = cache((countryCode: string) =>
+  getSeasonForDate(new Date(), countryCode),
+);
 
 export const dynamic = "force-dynamic";
 

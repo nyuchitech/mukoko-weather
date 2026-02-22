@@ -127,6 +127,7 @@ The main location page is a compact overview. Detail-heavy sections (charts, atm
 | `/api/status` | GET | System health checks (MongoDB, APIs, cache) |
 | `/api/history?location=&days=` | GET | Historical weather data for a location |
 | `/api/map-tiles?z=&x=&y=&layer=` | GET | Tile proxy for Tomorrow.io map layers (keeps API key server-side) |
+| `/api/og?title=&subtitle=&template=` | GET | Dynamic OG image generation (Edge runtime, Satori). 6 templates, in-memory rate-limited, 1-day CDN cache |
 | `/api/db-init` | POST | One-time DB setup + seed data. Protected by `DB_INIT_SECRET` in production |
 
 ### Resilience

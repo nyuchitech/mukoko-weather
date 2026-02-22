@@ -143,6 +143,9 @@ mukoko-weather/
 │   │       ├── status/route.ts       # GET — system health checks (MongoDB, APIs, cache)
 │   │       ├── history/route.ts      # GET — historical weather data
 │   │       ├── map-tiles/route.ts    # GET — tile proxy for Tomorrow.io map layers
+│   │       ├── og/                   # Dynamic OG image generation (Edge runtime, Satori)
+│   │       │   ├── route.tsx         # GET — generates 1200×630 OG images with brand templates
+│   │       │   └── og-route.test.ts  # OG route tests (templates, rate limiting, metadata wiring)
 │   │       └── db-init/route.ts      # POST — one-time DB setup (indexes + seed data)
 │   ├── components/
 │   │   ├── ui/                       # shadcn/ui primitives (Radix UI + CVA)
@@ -434,6 +437,7 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/api/status` — GET, system health checks (MongoDB ping, API key verification, provider checks)
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
+- `/api/og` — GET, dynamic OG image generation (Edge runtime, Satori). Query: `title`, `subtitle`, optional `location`, `province`, `season`, `temp`, `condition`, `template` (home/location/explore/history/season/shamwari). In-memory rate-limited (30 req/min/IP), 1-day CDN cache
 - `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Requires `x-init-secret` header in production
 
 ### Error Handling
@@ -635,7 +639,7 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
-- **Exception: `src/app/api/og/route.tsx`** — The OG image route uses `next/og` (Satori) which renders via a canvas, not the browser DOM. CSS custom properties and Tailwind are not supported. All styles in this file MUST use inline `style={{}}` with hex values from the `brand` token object at the top of the file. Keep these values in sync with `globals.css` brand tokens
+- **Exception: `src/app/api/og/route.tsx`** — The OG image route uses `next/og` (Satori) which renders via a canvas, not the browser DOM. CSS custom properties and Tailwind are not supported. All styles in this file MUST use inline `style={{}}` with hex values from the `brand` token object at the top of the file. Keep these values in sync with `globals.css` brand tokens. The OG image renders a mineral accent stripe (tanzanite → cobalt → malachite → gold → terracotta) matching the app's `MineralsStripe` component. Avoid `width: "fit-content"` and other CSS properties not supported by Satori
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
 - Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
@@ -677,9 +681,10 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 ### SEO
 
 - Dynamic `robots.ts` and `sitemap.ts`
-- Per-page metadata via `generateMetadata()` in `[location]/page.tsx`
+- Per-page metadata via `generateMetadata()` in `[location]/page.tsx` — season data deduplicated across metadata + page component via React `cache()`
 - JSON-LD schemas: WebApplication, Organization, WebSite, FAQPage, BreadcrumbList, WebPage+Place
 - Twitter cards (`@mukokoafrica`) and Open Graph tags on all pages
+- Dynamic OG images via `/api/og` (Edge runtime, Satori) — 6 templates (home, location, explore, history, season, shamwari), mineral accent stripe, in-memory rate limiting, 1-day CDN cache. Location pages intentionally omit weather data from OG params to avoid extra DB round-trips per SSR render
 
 ### PWA
 
@@ -881,6 +886,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/app/api/regions/regions-route.test.ts` — regions API route
 - `src/app/api/history/history-route.test.ts` — history API route
 - `src/app/api/map-tiles/map-tiles-route.test.ts` — map tile proxy route, layer validation, zoom clamping
+- `src/app/api/og/og-route.test.ts` — OG image route (templates, brand tokens, rate limiting, metadata wiring in layout + location pages)
 - `src/app/api/db-init/db-init-route.test.ts` — DB init route
 - `src/app/api/status/status-route.test.ts` — status API route
 

@@ -45,9 +45,7 @@ const brand = {
   cobalt: "#0047AB",
   malachite: "#004D40",
   gold: "#F9A825",
-  flagGreen: "#00A651",
-  flagYellow: "#FDD116",
-  flagRed: "#D4634A",
+  terracotta: "#D4634A",
 };
 
 // ─── Templates ────────────────────────────────────────────────────────────────
@@ -146,7 +144,7 @@ function OGImage({
           border: "1px solid rgba(255,255,255,0.06)",
         }}
       />
-      {/* Zimbabwe flag accent stripe */}
+      {/* Mineral accent stripe — matches the app's MineralsStripe component */}
       <div
         style={{
           position: "absolute",
@@ -154,7 +152,7 @@ function OGImage({
           left: 0,
           right: 0,
           height: 5,
-          background: `linear-gradient(90deg, ${brand.flagGreen} 0%, ${brand.flagGreen} 33%, ${brand.flagYellow} 33%, ${brand.flagYellow} 66%, ${brand.flagRed} 66%, ${brand.flagRed} 100%)`,
+          background: `linear-gradient(90deg, ${brand.tanzanite} 0%, ${brand.tanzanite} 20%, ${brand.cobalt} 20%, ${brand.cobalt} 40%, ${brand.malachite} 40%, ${brand.malachite} 60%, ${brand.gold} 60%, ${brand.gold} 80%, ${brand.terracotta} 80%, ${brand.terracotta} 100%)`,
           opacity: 0.65,
         }}
       />
@@ -274,16 +272,15 @@ function OGImage({
               style={{
                 display: "inline-flex",
                 marginBottom: 20,
-                background: "rgba(0,165,81,0.15)",
-                border: "1px solid rgba(0,165,81,0.35)",
+                background: "rgba(0,77,64,0.15)",
+                border: "1px solid rgba(0,77,64,0.35)",
                 borderRadius: 9999,
                 padding: "5px 16px",
-                width: "fit-content",
               }}
             >
               <span
                 style={{
-                  color: brand.flagGreen,
+                  color: brand.malachite,
                   fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: "0.06em",
@@ -441,9 +438,12 @@ function OGImage({
 
 // ─── Route Handler ────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  // In-memory rate limit — prevents unique-URL cache-bypass abuse
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(ip)) {
+  // In-memory rate limit — prevents unique-URL cache-bypass abuse.
+  // Skip limiting when IP is unidentifiable to avoid a shared "unknown" bucket
+  // that a single bad actor could exhaust for all unidentified requests.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? req.headers.get("x-real-ip")?.trim();
+  if (ip && isRateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests" },
       { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
