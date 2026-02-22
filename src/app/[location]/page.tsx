@@ -52,6 +52,9 @@ export async function generateMetadata({
   const description = `Current weather conditions, 7-day forecast, and hourly predictions for ${loc.name}, ${loc.province}, ${countryName}. AI-powered weather intelligence with frost alerts, farming insights, and accurate temperature data from mukoko weather.`;
 
   // Build dynamic OG image URL with location-specific season from database.
+  // Note: the OG route accepts `temp` and `condition` params, but we
+  // intentionally omit them here — fetching weather data purely for OG
+  // metadata would add a DB round-trip to every SSR render.
   // Wrapped in try/catch — if DB is unavailable, season is simply omitted
   // from OG params rather than breaking all metadata for the page.
   let seasonName = "";

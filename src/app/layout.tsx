@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     siteName: "mukoko weather",
     images: [
       {
-        url: `${BASE_URL}/api/og?title=mukoko+weather&subtitle=Zimbabwe+Weather+Intelligence&template=home`,
+        url: `${BASE_URL}/api/og?${new URLSearchParams({ title: "mukoko weather", subtitle: "Zimbabwe Weather Intelligence", template: "home" })}`,
         width: 1200,
         height: 630,
         alt: "mukoko weather — Zimbabwe Weather Intelligence",
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     creator: "@mukokoafrica",
     site: "@mukokoafrica",
     images: [
-      `${BASE_URL}/api/og?title=mukoko+weather&subtitle=Zimbabwe+Weather+Intelligence&template=home`,
+      `${BASE_URL}/api/og?${new URLSearchParams({ title: "mukoko weather", subtitle: "Zimbabwe Weather Intelligence", template: "home" })}`,
     ],
   },
   robots: {

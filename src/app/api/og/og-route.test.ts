@@ -272,7 +272,7 @@ describe("OG image wiring in metadata", () => {
 
   it("layout.tsx includes OG image URL for home template", () => {
     expect(layoutSource).toContain("/api/og?");
-    expect(layoutSource).toContain("template=home");
+    expect(layoutSource).toContain('template: "home"');
   });
 
   it("layout.tsx sets OG image dimensions", () => {
