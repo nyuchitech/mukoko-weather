@@ -253,7 +253,7 @@ export function ExploreChatbot() {
               }}
               placeholder="Ask about weather, locations, activities..."
               rows={1}
-              className="flex w-full resize-none rounded-[var(--radius-input)] bg-surface-base pl-9 pr-4 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 max-h-32 overflow-y-auto break-words"
+              className="flex w-full resize-none rounded-[var(--radius-input)] bg-surface-base pl-9 pr-4 py-2 text-base text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 max-h-32 overflow-y-auto break-words"
               aria-label="Ask Shamwari Explorer"
               disabled={loading}
             />
