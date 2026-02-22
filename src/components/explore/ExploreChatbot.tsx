@@ -130,16 +130,21 @@ export function ExploreChatbot() {
   // Auto-scroll to bottom when new messages arrive — but only if the user is
   // already near the bottom. If they scrolled up to re-read context, don't
   // yank them back down; the scroll-to-bottom button handles that instead.
+  // Uses rAF to defer measurement until after the browser has reflowed with
+  // the new message content, so scrollHeight includes the new message.
   useEffect(() => {
-    const viewport = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    ) as HTMLElement | null;
-    const distanceFromBottom = viewport
-      ? viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-      : 0;
-    if (distanceFromBottom < 100) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    const id = requestAnimationFrame(() => {
+      const viewport = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      ) as HTMLElement | null;
+      const distanceFromBottom = viewport
+        ? viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
+        : 0;
+      if (distanceFromBottom < 100) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, [messages]);
 
   // Track scroll position to show/hide scroll-to-bottom button.
@@ -255,7 +260,7 @@ export function ExploreChatbot() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
       <div className="relative flex-1 min-h-0">
-        <ScrollArea ref={scrollAreaRef} className="h-full">
+        <ScrollArea ref={scrollAreaRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <EmptyState onSuggestionClick={handleSuggestion} />

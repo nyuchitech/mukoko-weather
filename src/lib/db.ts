@@ -609,9 +609,9 @@ export async function getLocationsForContext(limit: number): Promise<LocationDoc
     .toArray();
 }
 
-/** Get total count of locations in the database */
+/** Get approximate count of locations — uses collection metadata (no scan). */
 export async function getLocationCount(): Promise<number> {
-  return locationsCollection().countDocuments();
+  return locationsCollection().estimatedDocumentCount();
 }
 
 /** Insert a new community-contributed location */

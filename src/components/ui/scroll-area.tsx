@@ -8,21 +8,23 @@ import { cn } from "@/lib/utils"
 function ScrollArea({
   className,
   children,
+  forceBlock = false,
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+  /** Override Radix's internal display:table on the viewport wrapper div.
+   *  Radix wraps children in a div with display:table which breaks flex/block
+   *  layouts (e.g. the Shamwari chatbot). Pass forceBlock to opt in to the fix
+   *  only where needed, avoiding global side effects on other ScrollArea usages.
+   *  See: https://github.com/radix-ui/primitives/issues/926 */
+  forceBlock?: boolean;
+}) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
       className={cn("relative overflow-hidden", className)}
       {...props}
     >
-      {/* Radix ScrollArea Viewport wraps children in a div with display:table,
-          which breaks flex/block layouts inside (e.g. the Shamwari chatbot).
-          The !block override forces that internal wrapper back to display:block.
-          This applies globally to all ScrollArea instances — if a future Radix
-          update changes the internal markup, this override may need revisiting.
-          See: https://github.com/radix-ui/primitives/issues/926 */}
-      <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:!block">
+      <ScrollAreaPrimitive.Viewport className={cn("h-full w-full rounded-[inherit]", forceBlock && "[&>div]:!block")}>
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />

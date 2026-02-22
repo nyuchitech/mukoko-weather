@@ -227,6 +227,15 @@ describe("ScrollArea", () => {
     expect(mod.ScrollArea).toBeDefined();
     expect(mod.ScrollBar).toBeDefined();
   });
+
+  it("supports forceBlock prop to scope display:block override", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+    const src = readFileSync(resolve(__dirname, "scroll-area.tsx"), "utf-8");
+    expect(src).toContain("forceBlock");
+    // Override should only apply when forceBlock is true, not globally
+    expect(src).toContain('forceBlock && "[&>div]:!block"');
+  });
 });
 
 // ---------------------------------------------------------------------------

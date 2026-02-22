@@ -406,9 +406,19 @@ describe("scroll-to-bottom button", () => {
     expect(source).toContain("distanceFromBottom < 100");
   });
 
+  it("auto-scroll defers measurement with rAF for accurate scrollHeight", () => {
+    expect(source).toContain("requestAnimationFrame");
+    expect(source).toContain("cancelAnimationFrame");
+  });
+
   it("documents the Radix internal attribute dependency", () => {
     expect(source).toContain("data-radix-scroll-area-viewport");
     // Should have a comment explaining this is an internal Radix attribute
     expect(source).toContain("internal");
+  });
+
+  it("uses forceBlock prop to scope ScrollArea override", () => {
+    // The [&>div]:!block fix should be opt-in via forceBlock, not global
+    expect(source).toContain("forceBlock");
   });
 });
