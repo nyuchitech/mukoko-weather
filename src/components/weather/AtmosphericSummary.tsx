@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CurrentWeather } from "@/lib/weather";
+import { SectionHeader } from "@/components/ui/section-header";
 import { windDirection, uvLevel } from "@/lib/weather";
 import { humidityLabel, pressureLabel, cloudLabel, feelsLikeContext } from "@/lib/weather-labels";
 import {
@@ -188,20 +188,12 @@ export function AtmosphericSummary({ current }: Props) {
 
   return (
     <section aria-labelledby="atmospheric-heading">
-      <div className="mb-3 flex items-center justify-between">
-        <h2
-          id="atmospheric-heading"
-          className="text-lg font-semibold text-text-primary font-heading"
-        >
-          Conditions
-        </h2>
-        <Link
-          href={`/${locationSlug}/atmosphere`}
-          className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-        >
-          24h trends →
-        </Link>
-      </div>
+      <SectionHeader
+        headingId="atmospheric-heading"
+        title="Conditions"
+        action={{ label: "24h trends →", href: `/${locationSlug}/atmosphere` }}
+        className="mb-3"
+      />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <MetricCard
           icon={<DropletIcon size={16} />}

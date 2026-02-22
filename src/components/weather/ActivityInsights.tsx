@@ -8,6 +8,7 @@ import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import { fetchSuitabilityRules, fetchCategoryStyles, type CategoryStyle } from "@/lib/suitability-cache";
 import { reportErrorToAnalytics } from "@/lib/observability";
+import { SectionHeader } from "@/components/ui/section-header";
 import type { SuitabilityRuleDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
@@ -192,20 +193,12 @@ export function ActivityInsights({
   if (insights) {
     return (
       <section aria-labelledby="activity-insights-heading">
-        <div className="mb-3 flex items-center justify-between">
-          <h2
-            id="activity-insights-heading"
-            className="text-lg font-semibold text-text-primary font-heading"
-          >
-            My Activities
-          </h2>
-          <button
-            onClick={openMyWeather}
-            className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            Edit
-          </button>
-        </div>
+        <SectionHeader
+          headingId="activity-insights-heading"
+          title="My Activities"
+          action={{ label: "Edit", onClick: openMyWeather }}
+          className="mb-3"
+        />
         <div className="space-y-2">
           {selectedItems.map((activity) => (
             <ActivityCard key={activity.id} activity={activity} insights={insights} dbRules={dbRules} categoryStyles={categoryStyles} />
@@ -219,15 +212,13 @@ export function ActivityInsights({
   return (
     <section aria-label="Selected activities">
       <div className="rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm sm:p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-text-primary font-heading">Your Activities</h3>
-          <button
-            onClick={openMyWeather}
-            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            Edit
-          </button>
-        </div>
+        <SectionHeader
+          headingId="activity-fallback-heading"
+          title="Your Activities"
+          as="h3"
+          action={{ label: "Edit", onClick: openMyWeather }}
+          className="mb-3"
+        />
         <div className="flex flex-wrap gap-2">
           {selectedItems.map((activity) => {
             const style = categoryStyles[activity.category] ?? DEFAULT_STYLE;

@@ -114,7 +114,9 @@ mukoko-weather/
 │   │   │   ├── page.tsx              # Status page (metadata, layout)
 │   │   │   └── StatusDashboard.tsx   # Client: live health checks for all services
 │   │   ├── about/page.tsx            # About page
-│   │   ├── help/page.tsx             # Help/FAQ page
+│   │   ├── help/
+│   │   │   ├── page.tsx              # Help/FAQ page (server, metadata, JSON-LD)
+│   │   │   └── FAQ.tsx               # Client: Accordion-based FAQ section
 │   │   ├── history/                  # Historical weather data dashboard
 │   │   │   ├── page.tsx              # History page (metadata, layout)
 │   │   │   ├── HistoryDashboard.tsx  # Client-side dashboard (search, charts, table)
@@ -151,6 +153,10 @@ mukoko-weather/
 │   │   │   ├── dialog.tsx            # Dialog (Radix, portal, overlay, animations)
 │   │   │   ├── input.tsx             # Input (styled with CSS custom properties)
 │   │   │   ├── skeleton.tsx         # Skeleton, CardSkeleton, ChartSkeleton, BadgeSkeleton, MetricCardSkeleton, ChatSkeleton
+│   │   │   ├── alert.tsx             # Alert, AlertTitle, AlertDescription (6 severity variants)
+│   │   │   ├── accordion.tsx        # Accordion (Radix, animated open/close)
+│   │   │   ├── section-header.tsx   # SectionHeader (title + optional action link/button)
+│   │   │   ├── info-row.tsx         # InfoRow (label + value pair for data lists)
 │   │   │   ├── chart-fallbacks.test.ts # CSS fallback table key parity tests
 │   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
