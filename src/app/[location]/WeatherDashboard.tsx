@@ -28,6 +28,7 @@ const ActivityInsights = lazy(() => import("@/components/weather/ActivityInsight
 const AtmosphericSummary = lazy(() => import("@/components/weather/AtmosphericSummary").then((m) => ({ default: m.AtmosphericSummary })));
 const SunTimes = lazy(() => import("@/components/weather/SunTimes").then((m) => ({ default: m.SunTimes })));
 const MapPreview = lazy(() => import("@/components/weather/map/MapPreview").then((m) => ({ default: m.MapPreview })));
+const AISummaryChat = lazy(() => import("@/components/weather/AISummaryChat").then((m) => ({ default: m.AISummaryChat })));
 
 const BASE_URL = "https://weather.mukoko.com";
 
@@ -52,6 +53,7 @@ export function WeatherDashboard({
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
   const openMyWeather = useAppStore((s) => s.openMyWeather);
   const selectedActivities = useAppStore((s) => s.selectedActivities);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // Seed with static ACTIVITIES for instant rendering, then upgrade from MongoDB.
   // This prevents a blank ActivityInsights section on slow connections or cold starts.
@@ -148,10 +150,24 @@ export function WeatherDashboard({
             <LazySection label="ai-summary">
               <ChartErrorBoundary name="AI summary">
                 <Suspense fallback={<SectionSkeleton />}>
-                  {!usingFallback && <AISummary weather={weather} location={location} />}
+                  {!usingFallback && <AISummary weather={weather} location={location} onSummaryLoaded={setAiSummary} />}
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
+            {aiSummary && !usingFallback && (
+              <LazySection label="ai-followup-chat">
+                <ChartErrorBoundary name="AI follow-up chat">
+                  <Suspense fallback={<SectionSkeleton />}>
+                    <AISummaryChat
+                      weather={weather}
+                      location={location}
+                      initialSummary={aiSummary}
+                      season={`${season.shona} (${season.name})`}
+                    />
+                  </Suspense>
+                </ChartErrorBoundary>
+              </LazySection>
+            )}
             <LazySection label="activity-insights">
               <ChartErrorBoundary name="activity insights">
                 <Suspense fallback={<SectionSkeleton />}>
