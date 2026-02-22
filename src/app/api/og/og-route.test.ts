@@ -82,6 +82,14 @@ describe("brand tokens", () => {
     expect(source).toContain("Georgia is not bundled");
     expect(source).toContain("sans-serif");
   });
+
+  it("cross-references globals.css for brand token sync", () => {
+    // Prevents silent drift — both files should reference each other
+    expect(source).toContain("globals.css");
+    expect(source).toContain("--color-tanzanite");
+    expect(source).toContain("--color-primary");
+    expect(source).toContain("--color-secondary");
+  });
 });
 
 describe("templates", () => {
@@ -236,8 +244,22 @@ describe("Satori compatibility", () => {
     expect(source).not.toMatch(/&[a-z]+;/);
   });
 
-  it("documents grid overlay degradation", () => {
-    expect(source).toContain("degrades gracefully");
+  it("does not use CSS transform (partial Satori support)", () => {
+    // transform: translateY(-50%) has inconsistent Satori support.
+    // Use fixed pixel values for positioning instead.
+    expect(source).not.toMatch(/transform\s*:/);
+  });
+
+  it("does not use multi-image backgroundImage (unreliable in Satori)", () => {
+    // Multi-gradient backgroundImage (comma-separated) has limited support.
+    // The decorative grid overlay was removed in favour of a solid fallback.
+    expect(source).not.toContain("backgroundImage");
+  });
+
+  it("includes a solid backgroundColor fallback behind the gradient", () => {
+    // If Satori fails to render the linear-gradient, the solid color ensures
+    // the OG image still has a visible dark background instead of nothing.
+    expect(source).toContain("backgroundColor:");
   });
 });
 

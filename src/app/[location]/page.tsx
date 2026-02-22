@@ -10,11 +10,10 @@ import { WeatherDashboard } from "./WeatherDashboard";
 const loadLocation = cache((slug: string) => getLocationFromDb(slug).catch(() => null));
 const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => null));
 
-// Deduplicate getCachedSeason calls within a single request — generateMetadata
-// and the page component both call this for the same country code. React's
-// cache() ensures only one DB round-trip per request, which is the primary
-// win over a module-level Map (Vercel serverless instances are short-lived,
-// so a 5-min TTL rarely survives across requests anyway).
+// Per-request deduplication only — React cache() does NOT persist across requests.
+// generateMetadata and the page component both call this for the same country code;
+// cache() ensures a single DB round-trip within one SSR pass. Unlike a module-level
+// Map with TTL, this is scoped to the current request and discarded afterward.
 const getCachedSeason = cache((countryCode: string) =>
   getSeasonForDate(new Date(), countryCode),
 );

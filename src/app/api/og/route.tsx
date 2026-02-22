@@ -39,7 +39,13 @@ function isRateLimited(ip: string): boolean {
 
 // ─── Brand Tokens ────────────────────────────────────────────────────────────
 // NOTE: next/og (Satori) does not support CSS custom properties — inline hex
-// values are required here. Keep in sync with globals.css brand tokens.
+// values are required here. Keep in sync with globals.css brand tokens:
+//   tanzanite  → --color-tanzanite (#4B0082)
+//   cobalt     → --color-primary   (#0047AB)
+//   malachite  → --color-secondary (#004D40)
+//   gold       → --color-warmth    (base: #5D4037, gold accent: #F9A825)
+//   terracotta → --color-earth     (base: #8B4513, OG accent: #D4634A)
+// If globals.css brand tokens change, update these values too.
 const brand = {
   tanzanite: "#4B0082",
   cobalt: "#0047AB",
@@ -111,6 +117,9 @@ function OGImage({
       style={{
         width: 1200,
         height: 630,
+        // Solid fallback ensures a visible dark background if Satori fails to
+        // render the linear-gradient. The gradient is layered on top via `background`.
+        backgroundColor: "#1A0033",
         background: tmpl.gradient,
         display: "flex",
         flexDirection: "column",
@@ -160,23 +169,6 @@ function OGImage({
           opacity: 0.65,
         }}
       />
-      {/* Subtle grid — uses explicit position props (top/right/bottom/left)
-          instead of the CSS shorthand which Satori may not support. Multi-image backgroundImage
-          has limited Satori support; the grid is decorative and degrades gracefully
-          to a transparent overlay if not rendered. */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
-          backgroundSize: "200px 210px",
-        }}
-      />
-
       {/* Content */}
       <div
         style={{
@@ -436,13 +428,16 @@ function OGImage({
         </div>
       </div>
 
-      {/* Large decorative emoji */}
+      {/* Large decorative emoji — uses a fixed top offset (240px) instead of
+          CSS percentage centering with partial Satori support.
+          The image is 630px tall; content padding is 52px top, so vertical
+          centre of the content area is ~315px. At fontSize 150, the emoji
+          renders ~150px tall, so top = 315 - 75 = 240px centres it. */}
       <div
         style={{
           position: "absolute",
           right: 72,
-          top: "50%",
-          transform: "translateY(-50%)",
+          top: 240,
           fontSize: 150,
           opacity: 0.12,
         }}
