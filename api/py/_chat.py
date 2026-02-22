@@ -32,6 +32,7 @@ from ._db import (
     suitability_rules_collection,
     ai_prompts_collection,
 )
+from ._circuit_breaker import anthropic_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -586,7 +587,7 @@ async def chat(body: ChatRequest, request: Request):
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
     if len(message) > MAX_MESSAGE_LEN:
-        message = message[:MAX_MESSAGE_LEN]
+        raise HTTPException(status_code=400, detail=f"Message too long (max {MAX_MESSAGE_LEN} characters)")
 
     # Rate limiting
     ip = request.client.host if request.client else None
@@ -630,6 +631,12 @@ async def chat(body: ChatRequest, request: Request):
     seen_slugs: set[str] = set()
 
     for _ in range(MAX_TOOL_ITERATIONS):
+        if not anthropic_breaker.is_allowed:
+            return ChatResponse(
+                response="I'm temporarily unable to process requests while my AI service recovers. Please try again in a few minutes.",
+                error=True,
+            )
+
         try:
             response = client.messages.create(
                 model=chat_model,
@@ -638,9 +645,12 @@ async def chat(body: ChatRequest, request: Request):
                 messages=messages,
                 tools=TOOLS,
             )
+            anthropic_breaker.record_success()
         except anthropic.RateLimitError:
+            anthropic_breaker.record_failure()
             raise HTTPException(status_code=429, detail="AI service rate limited")
-        except anthropic.APIError as e:
+        except anthropic.APIError:
+            anthropic_breaker.record_failure()
             return ChatResponse(
                 response="I'm having trouble connecting to my AI service right now. Please try again in a moment.",
                 error=True,

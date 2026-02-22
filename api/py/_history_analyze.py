@@ -29,6 +29,7 @@ from ._db import (
     history_analysis_collection,
     locations_collection,
 )
+from ._circuit_breaker import anthropic_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -406,6 +407,15 @@ Statistical summary:
 
     client = _get_client()
 
+    if not anthropic_breaker.is_allowed:
+        return {
+            "analysis": "AI analysis is temporarily unavailable while the service recovers. The statistical summary is available above.",
+            "stats": stats_summary,
+            "cached": False,
+            "error": True,
+            "dataPoints": len(history),
+        }
+
     try:
         response = client.messages.create(
             model=model,
@@ -413,13 +423,16 @@ Statistical summary:
             system=system_prompt,
             messages=[{"role": "user", "content": user_content}],
         )
+        anthropic_breaker.record_success()
 
         text_block = next((b for b in response.content if b.type == "text"), None)
         analysis = text_block.text if text_block else "Unable to generate analysis."
 
     except anthropic.RateLimitError:
+        anthropic_breaker.record_failure()
         raise HTTPException(status_code=429, detail="AI service rate limited. Try again later.")
     except anthropic.APIError:
+        anthropic_breaker.record_failure()
         return {
             "analysis": "AI analysis is temporarily unavailable. The statistical summary is available above.",
             "stats": stats_summary,

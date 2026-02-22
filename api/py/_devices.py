@@ -141,6 +141,10 @@ async def get_device(device_id: str):
 
 @router.patch("/api/py/devices/{device_id}")
 async def update_preferences(device_id: str, body: UpdatePreferencesRequest):
+    # NOTE: Last-write-wins merge strategy. If a user has multiple devices,
+    # whichever syncs last determines the server value for fields like
+    # selectedActivities (the entire array is replaced, not merged).
+    # A CRDT or per-field timestamp merge is a future enhancement.
     updates: dict = {}
     if body.theme is not None:
         _validate_theme(body.theme)

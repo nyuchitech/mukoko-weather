@@ -27,6 +27,7 @@ from ._db import (
     weather_cache_collection,
     ai_prompts_collection,
 )
+from ._circuit_breaker import anthropic_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -350,6 +351,10 @@ async def explore_search(body: ExploreSearchRequest, request: Request):
     if not rate["allowed"]:
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
+    # Circuit breaker check — fall back to text search if Anthropic is down
+    if not anthropic_breaker.is_allowed:
+        return _text_search_fallback(query)
+
     # Try AI-powered search
     try:
         client = _get_client()
@@ -380,6 +385,7 @@ async def explore_search(body: ExploreSearchRequest, request: Request):
                 tools=TOOLS,
                 messages=messages,
             )
+            anthropic_breaker.record_success()
 
             # Process response blocks
             tool_uses = []
@@ -446,8 +452,11 @@ async def explore_search(body: ExploreSearchRequest, request: Request):
         }
 
     except anthropic.RateLimitError:
+        anthropic_breaker.record_failure()
         return _text_search_fallback(query)
     except anthropic.APIError:
+        anthropic_breaker.record_failure()
         return _text_search_fallback(query)
     except Exception:
+        anthropic_breaker.record_failure()
         return _text_search_fallback(query)

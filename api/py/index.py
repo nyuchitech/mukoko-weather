@@ -44,9 +44,14 @@ app = FastAPI(
     redoc_url=None,
 )
 
+_ALLOWED_ORIGINS = [
+    "https://weather.mukoko.com",
+    "http://localhost:3000",  # local dev
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type"],
 )

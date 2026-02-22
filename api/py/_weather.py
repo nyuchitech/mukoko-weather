@@ -21,6 +21,7 @@ from ._db import (
     locations_collection,
     weather_cache_collection,
 )
+from ._circuit_breaker import tomorrow_breaker, open_meteo_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -454,26 +455,34 @@ async def get_weather(lat: float = -17.83, lon: float = 31.05):
     except Exception:
         pass
 
-    # 2. Try Tomorrow.io
+    # 2. Try Tomorrow.io (circuit breaker protected)
     data = None
     source = "open-meteo"
 
-    try:
-        tomorrow_key = get_api_key("tomorrow")
-        if tomorrow_key:
-            data = _fetch_tomorrow(lat, lon, tomorrow_key)
-            if data:
-                source = "tomorrow"
-    except Exception:
-        pass
+    if tomorrow_breaker.is_allowed:
+        try:
+            tomorrow_key = get_api_key("tomorrow")
+            if tomorrow_key:
+                data = _fetch_tomorrow(lat, lon, tomorrow_key)
+                if data:
+                    source = "tomorrow"
+                    tomorrow_breaker.record_success()
+                else:
+                    tomorrow_breaker.record_failure()
+        except Exception:
+            tomorrow_breaker.record_failure()
 
-    # 3. Try Open-Meteo
-    if not data:
+    # 3. Try Open-Meteo (circuit breaker protected)
+    if not data and open_meteo_breaker.is_allowed:
         try:
             data = _fetch_open_meteo(lat, lon)
-            source = "open-meteo"
+            if data:
+                source = "open-meteo"
+                open_meteo_breaker.record_success()
+            else:
+                open_meteo_breaker.record_failure()
         except Exception:
-            pass
+            open_meteo_breaker.record_failure()
 
     # 4. Seasonal fallback
     if not data:

@@ -30,6 +30,7 @@ from ._db import (
     locations_collection,
     ai_prompts_collection,
 )
+from ._circuit_breaker import anthropic_breaker
 
 router = APIRouter()
 
@@ -357,8 +358,8 @@ async def clarify_report(body: ClarifyRequest, request: Request):
     location_name = loc["name"] if loc else body.locationSlug
 
     client = _get_client()
-    if not client:
-        # Fallback questions
+    if not client or not anthropic_breaker.is_allowed:
+        # Fallback questions (AI unavailable or circuit open)
         return {
             "questions": _fallback_questions(body.reportType),
         }
@@ -387,6 +388,7 @@ async def clarify_report(body: ClarifyRequest, request: Request):
             system=system_prompt,
             messages=[{"role": "user", "content": f"I'm reporting: {body.reportType}"}],
         )
+        anthropic_breaker.record_success()
 
         text_block = next((b for b in response.content if b.type == "text"), None)
         questions_text = text_block.text if text_block else ""
@@ -401,6 +403,7 @@ async def clarify_report(body: ClarifyRequest, request: Request):
         return {"questions": questions[:2] if questions else _fallback_questions(body.reportType)}
 
     except Exception:
+        anthropic_breaker.record_failure()
         return {"questions": _fallback_questions(body.reportType)}
 
 

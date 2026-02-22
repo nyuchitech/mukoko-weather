@@ -139,6 +139,9 @@ export const useAppStore = create<AppState>()(
 // Device sync initialization — runs once on client-side app load
 // ---------------------------------------------------------------------------
 
+/** Guard against duplicate beforeunload listeners (e.g. React Strict Mode). */
+let _beforeUnloadRegistered = false;
+
 /** Initialize device sync after Zustand rehydrates. */
 export function initializeDeviceSync(): void {
   if (typeof window === "undefined") return;
@@ -173,6 +176,9 @@ export function initializeDeviceSync(): void {
 
   initDeviceSync(getCurrentPrefs, applyPrefs);
 
-  // Flush pending syncs before the page unloads
-  window.addEventListener("beforeunload", flushSync);
+  // Flush pending syncs before the page unloads (guard against duplicate registration)
+  if (!_beforeUnloadRegistered) {
+    _beforeUnloadRegistered = true;
+    window.addEventListener("beforeunload", flushSync);
+  }
 }

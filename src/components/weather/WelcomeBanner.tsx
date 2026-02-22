@@ -47,7 +47,7 @@ export function WelcomeBanner({
             <button
               type="button"
               onClick={onChangeLocation}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 min-h-[36px]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 min-h-[44px]"
             >
               <MapPinIcon size={14} />
               Personalise
@@ -55,7 +55,7 @@ export function WelcomeBanner({
             <button
               type="button"
               onClick={completeOnboarding}
-              className="inline-flex items-center rounded-full border border-text-tertiary/20 px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-card min-h-[36px]"
+              className="inline-flex items-center rounded-full border border-text-tertiary/20 px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-card min-h-[44px]"
             >
               Continue with {locationName}
             </button>

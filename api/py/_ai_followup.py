@@ -23,6 +23,7 @@ from ._db import (
     get_api_key,
     ai_prompts_collection,
 )
+from ._circuit_breaker import anthropic_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -169,7 +170,7 @@ async def followup_chat(body: FollowupRequest, request: Request):
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
     if len(message) > MAX_MESSAGE_LEN:
-        message = message[:MAX_MESSAGE_LEN]
+        raise HTTPException(status_code=400, detail=f"Message too long (max {MAX_MESSAGE_LEN} characters)")
 
     # Rate limiting
     ip = request.client.host if request.client else None
@@ -210,6 +211,12 @@ async def followup_chat(body: FollowupRequest, request: Request):
 
     client = _get_client()
 
+    if not anthropic_breaker.is_allowed:
+        return {
+            "response": "AI follow-up is temporarily unavailable while the service recovers. The weather data above is still available.",
+            "error": True,
+        }
+
     try:
         response = client.messages.create(
             model=model,
@@ -217,6 +224,7 @@ async def followup_chat(body: FollowupRequest, request: Request):
             system=system_prompt,
             messages=messages,
         )
+        anthropic_breaker.record_success()
 
         text_block = next((b for b in response.content if b.type == "text"), None)
         reply = text_block.text if text_block else "I wasn't able to generate a response."
@@ -224,8 +232,10 @@ async def followup_chat(body: FollowupRequest, request: Request):
         return {"response": reply}
 
     except anthropic.RateLimitError:
+        anthropic_breaker.record_failure()
         raise HTTPException(status_code=429, detail="AI service rate limited")
     except anthropic.APIError:
+        anthropic_breaker.record_failure()
         return {
             "response": "I'm having trouble connecting right now. The weather data above is still available.",
             "error": True,

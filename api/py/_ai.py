@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ._db import get_db, get_api_key
+from ._circuit_breaker import anthropic_breaker, CircuitOpenError
 
 router = APIRouter()
 
@@ -367,18 +368,8 @@ Provide:
     model = (prompt_doc or {}).get("model", "claude-haiku-4-5-20251001")
     max_tokens = (prompt_doc or {}).get("maxTokens", 400)
 
-    try:
-        message = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
-        )
-
-        text_block = next((b for b in message.content if b.type == "text"), None)
-        insight = text_block.text if text_block else "No insight available."
-    except Exception:
-        # Fallback on any AI error
+    if not anthropic_breaker.is_allowed:
+        # Circuit is open — skip AI and use fallback
         temp = weather_data.get("current", {}).get("temperature_2m")
         humidity = weather_data.get("current", {}).get("relative_humidity_2m")
         insight = (
@@ -388,6 +379,30 @@ Provide:
             f"We are in the {season['shona']} season ({season['name']}). "
             f"{season['description']}. Stay informed and plan your day accordingly."
         )
+    else:
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            anthropic_breaker.record_success()
+
+            text_block = next((b for b in message.content if b.type == "text"), None)
+            insight = text_block.text if text_block else "No insight available."
+        except Exception:
+            anthropic_breaker.record_failure()
+            # Fallback on any AI error
+            temp = weather_data.get("current", {}).get("temperature_2m")
+            humidity = weather_data.get("current", {}).get("relative_humidity_2m")
+            insight = (
+                f"Current conditions in {location.name}: "
+                f"{round(temp) if temp is not None else 'N/A'}\u00B0C with "
+                f"{humidity if humidity is not None else 'N/A'}% humidity. "
+                f"We are in the {season['shona']} season ({season['name']}). "
+                f"{season['description']}. Stay informed and plan your day accordingly."
+            )
 
     # Cache the summary
     _set_cached_summary(
