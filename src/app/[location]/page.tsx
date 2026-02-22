@@ -14,6 +14,9 @@ const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => n
 // so a 5-min TTL avoids redundant DB calls on every SSR render while staying
 // fresh enough. Uses a Map so concurrent requests for different countries
 // (e.g. /harare ZW and /singapore SG) don't evict each other.
+// No dedup of concurrent misses — multiple SSR renders may fire simultaneous
+// DB calls at cold start. Acceptable: getSeasonForDate is cheap and this
+// resolves within the first request window.
 const SEASON_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const seasonCache = new Map<string, { result: Awaited<ReturnType<typeof getSeasonForDate>>; at: number }>();
 

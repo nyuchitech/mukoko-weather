@@ -187,6 +187,22 @@ describe("rate limiting", () => {
     expect(source).toContain("OG_MAX_TRACKED_IPS");
     expect(source).toContain("ipHits.clear()");
   });
+
+  it("prunes expired entries before falling back to full clear", () => {
+    // Prune-first approach preserves active windows for legitimate users
+    // when a scraper floods with unique IPs
+    expect(source).toContain("ipHits.delete(k)");
+    expect(source).toContain("OG_RATE_WINDOW_MS");
+    // Prune loop runs before the clear fallback
+    const pruneIdx = source.indexOf("ipHits.delete(k)");
+    const clearIdx = source.indexOf("ipHits.clear()");
+    expect(pruneIdx).toBeLessThan(clearIdx);
+  });
+
+  it("documents per-isolate limitation of edge rate limiting", () => {
+    expect(source).toContain("per-isolate");
+    expect(source).toContain("abuse deterrence");
+  });
 });
 
 describe("error handling", () => {
@@ -298,6 +314,11 @@ describe("OG image wiring in metadata", () => {
     // Uses a Map keyed by country code, not a single-slot cache
     expect(locationPageSource).toContain("seasonCache");
     expect(locationPageSource).toContain("new Map");
+  });
+
+  it("[location]/page.tsx documents concurrent miss behavior at cold start", () => {
+    expect(locationPageSource).toContain("concurrent misses");
+    expect(locationPageSource).toContain("getSeasonForDate is cheap");
   });
 
   it("[location]/page.tsx passes OG image to openGraph.images", () => {

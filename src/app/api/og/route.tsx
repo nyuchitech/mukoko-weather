@@ -5,16 +5,25 @@ import type { NextRequest } from "next/server";
 export const runtime = "edge";
 
 // ─── In-Memory Rate Limiter ──────────────────────────────────────────────────
-// Edge runtime cannot use MongoDB — lightweight sliding window per IP.
-// Map is cleared on cold start which is acceptable for abuse prevention.
+// NOTE: In-memory — per-isolate. Multiple concurrent edge instances may each
+// track the same IP independently. Sufficient for abuse deterrence, not for
+// exact quota enforcement.
 const OG_RATE_LIMIT = 30;          // max requests per window
 const OG_RATE_WINDOW_MS = 60_000;  // 1-minute window
 const OG_MAX_TRACKED_IPS = 10_000; // cap to prevent unbounded growth under scraping
 const ipHits = new Map<string, number[]>();
 
 function isRateLimited(ip: string): boolean {
-  // Prevent unbounded map growth from unique-IP scraping attacks
-  if (ipHits.size > OG_MAX_TRACKED_IPS) ipHits.clear();
+  // Prevent unbounded map growth from unique-IP scraping attacks.
+  // Prune expired entries first to preserve active windows for legitimate users,
+  // then fall back to full clear only if pruning wasn't sufficient.
+  if (ipHits.size > OG_MAX_TRACKED_IPS) {
+    const cutoff = Date.now() - OG_RATE_WINDOW_MS;
+    for (const [k, v] of ipHits) {
+      if (v.every((t) => t <= cutoff)) ipHits.delete(k);
+    }
+    if (ipHits.size > OG_MAX_TRACKED_IPS) ipHits.clear();
+  }
 
   const now = Date.now();
   const windowStart = now - OG_RATE_WINDOW_MS;
