@@ -9,9 +9,13 @@ export const runtime = "edge";
 // Map is cleared on cold start which is acceptable for abuse prevention.
 const OG_RATE_LIMIT = 30;          // max requests per window
 const OG_RATE_WINDOW_MS = 60_000;  // 1-minute window
+const OG_MAX_TRACKED_IPS = 10_000; // cap to prevent unbounded growth under scraping
 const ipHits = new Map<string, number[]>();
 
 function isRateLimited(ip: string): boolean {
+  // Prevent unbounded map growth from unique-IP scraping attacks
+  if (ipHits.size > OG_MAX_TRACKED_IPS) ipHits.clear();
+
   const now = Date.now();
   const windowStart = now - OG_RATE_WINDOW_MS;
   const hits = (ipHits.get(ip) ?? []).filter((t) => t > windowStart);
@@ -433,7 +437,7 @@ export async function GET(req: NextRequest) {
   if (isRateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } },
+      { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
     );
   }
 
@@ -454,7 +458,7 @@ export async function GET(req: NextRequest) {
     ? (templateParam as TemplateKey)
     : "home";
 
-  return new ImageResponse(
+  const element = (
     <OGImage
       title={title}
       subtitle={subtitle}
@@ -464,13 +468,21 @@ export async function GET(req: NextRequest) {
       condition={condition}
       season={season}
       template={template}
-    />,
-    {
+    />
+  );
+
+  try {
+    return new ImageResponse(element, {
       width: 1200,
       height: 630,
       headers: {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
       },
-    },
-  );
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "OG image generation failed" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 }

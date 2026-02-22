@@ -635,6 +635,7 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
+- **Exception: `src/app/api/og/route.tsx`** — The OG image route uses `next/og` (Satori) which renders via a canvas, not the browser DOM. CSS custom properties and Tailwind are not supported. All styles in this file MUST use inline `style={{}}` with hex values from the `brand` token object at the top of the file. Keep these values in sync with `globals.css` brand tokens
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
 - Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there

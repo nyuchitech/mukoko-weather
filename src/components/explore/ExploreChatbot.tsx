@@ -116,7 +116,6 @@ export function ExploreChatbot() {
   const [loading, setLoading] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -255,7 +254,7 @@ export function ExploreChatbot() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
       <div className="relative flex-1 min-h-0">
-        <ScrollArea ref={scrollAreaRef} viewportRef={viewportRef} className="h-full" forceBlock>
+        <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <EmptyState onSuggestionClick={handleSuggestion} />

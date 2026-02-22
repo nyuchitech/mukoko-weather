@@ -173,13 +173,31 @@ describe("rate limiting", () => {
     expect(source).toContain("OG_RATE_WINDOW_MS");
   });
 
-  it("returns 429 when rate limited", () => {
+  it("returns 429 with no-store cache header when rate limited", () => {
     expect(source).toContain("status: 429");
     expect(source).toContain("Retry-After");
+    expect(source).toContain("no-store");
   });
 
   it("extracts IP from x-forwarded-for header", () => {
     expect(source).toContain("x-forwarded-for");
+  });
+
+  it("caps ipHits map size to prevent unbounded growth", () => {
+    expect(source).toContain("OG_MAX_TRACKED_IPS");
+    expect(source).toContain("ipHits.clear()");
+  });
+});
+
+describe("error handling", () => {
+  it("wraps ImageResponse in try/catch", () => {
+    expect(source).toContain("try {");
+    expect(source).toContain("new ImageResponse");
+    expect(source).toContain("OG image generation failed");
+  });
+
+  it("returns 500 with no-store on render failure", () => {
+    expect(source).toContain("status: 500");
   });
 });
 
@@ -274,9 +292,12 @@ describe("OG image wiring in metadata", () => {
     expect(locationPageSource).toContain("season.name");
   });
 
-  it("[location]/page.tsx caches season with module-level TTL", () => {
+  it("[location]/page.tsx caches season with module-level Map and TTL", () => {
     expect(locationPageSource).toContain("SEASON_CACHE_TTL");
     expect(locationPageSource).toContain("getCachedSeason");
+    // Uses a Map keyed by country code, not a single-slot cache
+    expect(locationPageSource).toContain("seasonCache");
+    expect(locationPageSource).toContain("new Map");
   });
 
   it("[location]/page.tsx passes OG image to openGraph.images", () => {

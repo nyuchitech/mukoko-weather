@@ -159,6 +159,17 @@ describe("system prompt location discovery", () => {
   });
 });
 
+describe("data guardrails", () => {
+  it("prevents Claude from hallucinating weather provider names", () => {
+    expect(source).toContain("Tomorrow.io (primary) and Open-Meteo (fallback)");
+    expect(source).toContain("Do not reference or claim data from any other weather provider");
+  });
+
+  it("prevents inventing weather data", () => {
+    expect(source).toContain("NEVER invent, estimate, or hallucinate weather numbers");
+  });
+});
+
 describe("server-side caching", () => {
   it("caches location context with shared TTL", () => {
     expect(source).toContain("MODULE_CACHE_TTL");
