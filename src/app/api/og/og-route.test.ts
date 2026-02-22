@@ -235,6 +235,19 @@ describe("OG image component", () => {
     expect(source).toContain("{season && (");
   });
 
+  it("season pill uses light text for readability on dark backgrounds", () => {
+    // brand.malachite (#004D40) is a dark surface color — unreadable as text
+    // on dark OG gradients. Season pill text must use white/light color.
+    const seasonPillSection = source.match(
+      /Season pill[\s\S]*?{season}/,
+    );
+    expect(seasonPillSection).not.toBeNull();
+    // Must NOT use brand.malachite as text color
+    expect(seasonPillSection![0]).not.toContain("color: brand.malachite");
+    // Must use a light (white-based) text color
+    expect(seasonPillSection![0]).toContain("rgba(255,255,255");
+  });
+
   it("conditionally renders temperature badge", () => {
     expect(source).toContain("{temperature && (");
   });

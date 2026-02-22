@@ -78,7 +78,7 @@ const TEMPLATES = {
   shamwari: {
     emoji: "🤝",
     badge: "Shamwari Weather",
-    gradient: `linear-gradient(135deg, ${brand.tanzanite} 0%, #38006B 60%, #1A0033 100%)`,
+    gradient: `linear-gradient(135deg, ${brand.cobalt} 0%, #2D1B69 60%, #1A0033 100%)`,
   },
 } as const;
 
@@ -266,21 +266,23 @@ function OGImage({
             paddingRight: 220,
           }}
         >
-          {/* Season pill */}
+          {/* Season pill — text must be light (white) for readability on all
+              dark template backgrounds. brand.malachite (#004D40) is a surface
+              color; using it as text on a dark gradient is nearly invisible. */}
           {season && (
             <div
               style={{
                 display: "inline-flex",
                 marginBottom: 20,
-                background: "rgba(0,77,64,0.15)",
-                border: "1px solid rgba(0,77,64,0.35)",
+                background: "rgba(0,77,64,0.25)",
+                border: "1px solid rgba(0,150,115,0.45)",
                 borderRadius: 9999,
                 padding: "5px 16px",
               }}
             >
               <span
                 style={{
-                  color: brand.malachite,
+                  color: "rgba(255,255,255,0.90)",
                   fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: "0.06em",
