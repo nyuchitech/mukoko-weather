@@ -236,6 +236,15 @@ describe("ScrollArea", () => {
     // Override should only apply when forceBlock is true, not globally
     expect(src).toContain('forceBlock && "[&>div]:!block"');
   });
+
+  it("supports viewportRef prop for direct viewport access", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+    const src = readFileSync(resolve(__dirname, "scroll-area.tsx"), "utf-8");
+    expect(src).toContain("viewportRef");
+    // Ref is forwarded to the Radix Viewport element
+    expect(src).toContain("ref={viewportRef}");
+  });
 });
 
 // ---------------------------------------------------------------------------

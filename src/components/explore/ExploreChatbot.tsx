@@ -117,6 +117,7 @@ export function ExploreChatbot() {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Send user's selected activities so Claude can personalise advice
@@ -134,11 +135,9 @@ export function ExploreChatbot() {
   // the new message content, so scrollHeight includes the new message.
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      const viewport = scrollAreaRef.current?.querySelector(
-        "[data-radix-scroll-area-viewport]"
-      ) as HTMLElement | null;
-      const distanceFromBottom = viewport
-        ? viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
+      const vp = viewportRef.current;
+      const distanceFromBottom = vp
+        ? vp.scrollHeight - vp.scrollTop - vp.clientHeight
         : 0;
       if (distanceFromBottom < 100) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -148,23 +147,16 @@ export function ExploreChatbot() {
   }, [messages]);
 
   // Track scroll position to show/hide scroll-to-bottom button.
-  // NOTE: We query for [data-radix-scroll-area-viewport] which is an internal
-  // Radix attribute — not part of the public API. This is necessary because
-  // Radix ScrollArea doesn't expose an onScroll prop on the viewport. If Radix
-  // renames or removes this attribute, the scroll tracking will gracefully
-  // degrade (button stays hidden, no crash).
-  // TODO: Remove data-radix-scroll-area-viewport queries when radix-ui/primitives
-  // ships a public onScroll prop (tracked in radix-ui/primitives#926). Audit on
-  // any major @radix-ui/react-scroll-area upgrade.
+  // Uses viewportRef forwarded through ScrollArea to the Radix Viewport element.
   useEffect(() => {
-    const viewport = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-    if (!viewport) return;
+    const vp = viewportRef.current;
+    if (!vp) return;
     const handleScroll = () => {
-      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      const distanceFromBottom = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
       setShowScrollBtn(distanceFromBottom > 100);
     };
-    viewport.addEventListener("scroll", handleScroll, { passive: true });
-    return () => viewport.removeEventListener("scroll", handleScroll);
+    vp.addEventListener("scroll", handleScroll, { passive: true });
+    return () => vp.removeEventListener("scroll", handleScroll);
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -263,7 +255,7 @@ export function ExploreChatbot() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
       <div className="relative flex-1 min-h-0">
-        <ScrollArea ref={scrollAreaRef} className="h-full" forceBlock>
+        <ScrollArea ref={scrollAreaRef} viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <EmptyState onSuggestionClick={handleSuggestion} />

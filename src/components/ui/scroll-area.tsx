@@ -9,6 +9,7 @@ function ScrollArea({
   className,
   children,
   forceBlock = false,
+  viewportRef,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
   /** Override Radix's internal display:table on the viewport wrapper div.
@@ -17,6 +18,10 @@ function ScrollArea({
    *  only where needed, avoiding global side effects on other ScrollArea usages.
    *  See: https://github.com/radix-ui/primitives/issues/926 */
   forceBlock?: boolean;
+  /** Ref forwarded to the Radix Viewport element — use this for scroll
+   *  position tracking or programmatic scrolling instead of querying
+   *  internal Radix attributes. */
+  viewportRef?: React.Ref<HTMLDivElement>;
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -24,7 +29,7 @@ function ScrollArea({
       className={cn("relative overflow-hidden", className)}
       {...props}
     >
-      <ScrollAreaPrimitive.Viewport className={cn("h-full w-full rounded-[inherit]", forceBlock && "[&>div]:!block")}>
+      <ScrollAreaPrimitive.Viewport ref={viewportRef} className={cn("h-full w-full rounded-[inherit]", forceBlock && "[&>div]:!block")}>
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />

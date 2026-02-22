@@ -372,10 +372,17 @@ describe("scroll-to-bottom button", () => {
     expect(source).toContain("setShowScrollBtn");
   });
 
-  it("monitors scroll position on the ScrollArea viewport", () => {
-    expect(source).toContain("data-radix-scroll-area-viewport");
+  it("monitors scroll position on the ScrollArea viewport via viewportRef", () => {
+    expect(source).toContain("viewportRef");
     expect(source).toContain("scrollHeight");
     expect(source).toContain("distanceFromBottom");
+  });
+
+  it("uses viewportRef instead of querying Radix internal attributes", () => {
+    // viewportRef is forwarded through ScrollArea to the Radix Viewport element
+    expect(source).toContain("viewportRef={viewportRef}");
+    // No internal Radix attribute queries
+    expect(source).not.toContain("data-radix-scroll-area-viewport");
   });
 
   it("shows button when scrolled more than 100px from bottom", () => {
@@ -409,17 +416,6 @@ describe("scroll-to-bottom button", () => {
   it("auto-scroll defers measurement with rAF for accurate scrollHeight", () => {
     expect(source).toContain("requestAnimationFrame");
     expect(source).toContain("cancelAnimationFrame");
-  });
-
-  it("documents the Radix internal attribute dependency", () => {
-    expect(source).toContain("data-radix-scroll-area-viewport");
-    // Should have a comment explaining this is an internal Radix attribute
-    expect(source).toContain("internal");
-  });
-
-  it("includes TODO to remove Radix internal queries when public API available", () => {
-    expect(source).toContain("TODO");
-    expect(source).toContain("radix-ui/primitives#926");
   });
 
   it("uses forceBlock prop to scope ScrollArea override", () => {
