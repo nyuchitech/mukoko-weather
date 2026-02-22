@@ -524,7 +524,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `src/lib/seed-categories.ts` — activity categories with mineral color styles
 - `src/lib/seed-tags.ts` — tag metadata (slug, label, description, icon, featured flag)
 - `src/lib/seed-regions.ts` — supported geographic regions (bounding boxes + center points)
-- `src/lib/seed-seasons.ts` — country-specific season definitions (ZW, KE, TZ, etc.)
+- `src/lib/seed-seasons.ts` — country-specific season definitions for 50+ countries across Southern Africa, East Africa, West Africa, Central Africa, North Africa, Indian Ocean, and ASEAN. Each country covers all 12 months. Grouped by climate zone using `expand()` helper.
 
 ### Weather Data
 

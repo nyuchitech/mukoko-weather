@@ -280,7 +280,7 @@ describe("SEASONS seed data shape", () => {
       expect(typeof s.localName).toBe("string");
       expect(Array.isArray(s.months)).toBe(true);
       expect(s.months.length).toBeGreaterThan(0);
-      expect(["north", "south"]).toContain(s.hemisphere);
+      expect(["north", "south", "equatorial"]).toContain(s.hemisphere);
     }
   });
 
@@ -298,6 +298,52 @@ describe("SEASONS seed data shape", () => {
     expect(zwSeasons.length).toBe(4);
     const allMonths = zwSeasons.flatMap((s) => s.months).sort((a, b) => a - b);
     expect(allMonths).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+
+  it("every country's seasons cover all 12 months", () => {
+    const byCountry = new Map<string, number[]>();
+    for (const s of SEASONS) {
+      const months = byCountry.get(s.countryCode) ?? [];
+      months.push(...s.months);
+      byCountry.set(s.countryCode, months);
+    }
+    for (const [code, months] of byCountry) {
+      const unique = [...new Set(months)].sort((a, b) => a - b);
+      const missing = [1,2,3,4,5,6,7,8,9,10,11,12].filter(m => !unique.includes(m));
+      if (missing.length > 0) {
+        throw new Error(`${code} seasons do not cover all 12 months (missing: ${missing.join(", ")})`);
+      }
+      expect(unique).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    }
+  });
+
+  it("covers all major regions (Africa, ASEAN)", () => {
+    const codes = new Set(SEASONS.map((s) => s.countryCode));
+    // Southern Africa
+    expect(codes.has("ZW")).toBe(true);
+    expect(codes.has("ZA")).toBe(true);
+    expect(codes.has("ZM")).toBe(true);
+    // East Africa
+    expect(codes.has("KE")).toBe(true);
+    expect(codes.has("TZ")).toBe(true);
+    expect(codes.has("ET")).toBe(true);
+    // West Africa
+    expect(codes.has("NG")).toBe(true);
+    expect(codes.has("GH")).toBe(true);
+    // North Africa
+    expect(codes.has("EG")).toBe(true);
+    expect(codes.has("MA")).toBe(true);
+    // ASEAN
+    expect(codes.has("TH")).toBe(true);
+    expect(codes.has("ID")).toBe(true);
+    expect(codes.has("PH")).toBe(true);
+    expect(codes.has("MY")).toBe(true);
+    expect(codes.has("VN")).toBe(true);
+  });
+
+  it("has more than 50 unique country codes", () => {
+    const codes = new Set(SEASONS.map((s) => s.countryCode));
+    expect(codes.size).toBeGreaterThan(50);
   });
 });
 
