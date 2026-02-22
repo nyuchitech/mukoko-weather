@@ -28,6 +28,7 @@ from ._status import router as status_router
 from ._tiles import router as tiles_router
 from ._ai_prompts import router as ai_prompts_router
 from ._ai_followup import router as ai_followup_router
+from ._history_analyze import router as history_analyze_router
 from ._db import get_db
 
 # ---------------------------------------------------------------------------
@@ -65,6 +66,7 @@ app.include_router(status_router)
 app.include_router(tiles_router)
 app.include_router(ai_prompts_router)
 app.include_router(ai_followup_router)
+app.include_router(history_analyze_router)
 
 
 # ---------------------------------------------------------------------------

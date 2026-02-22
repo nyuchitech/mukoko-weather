@@ -17,6 +17,7 @@ import { VisibilityChart } from "@/components/weather/charts/VisibilityChart";
 import { ThunderstormChart } from "@/components/weather/charts/ThunderstormChart";
 import { GDDChart } from "@/components/weather/charts/GDDChart";
 import { ChartSkeleton } from "@/components/ui/skeleton";
+import { HistoryAnalysis } from "@/components/weather/HistoryAnalysis";
 import { type ZimbabweLocation, LOCATIONS } from "@/lib/locations";
 import { useAppStore } from "@/lib/store";
 import { weatherCodeToInfo, windDirection, uvLevel } from "@/lib/weather";
@@ -756,6 +757,20 @@ export function HistoryDashboard() {
               <StatCard label="Data Points" value={`${records.length}`} />
             </div>
           </section>
+
+          {/* ── AI Analysis ──────────────────────────────────────────── */}
+          {selectedLocation && (
+            <LazySection label="history-ai" fallback={<ChartSkeleton aspect="aspect-[16/4]" />}>
+              <ChartErrorBoundary name="AI analysis">
+                <HistoryAnalysis
+                  locationSlug={selectedLocation.slug}
+                  locationName={selectedLocation.name}
+                  days={days}
+                  dataPoints={records.length}
+                />
+              </ChartErrorBoundary>
+            </LazySection>
+          )}
 
           {/* ── Temperature trend ──────────────────────────────────────── */}
           <LazySection label="history-temp" fallback={<ChartSkeleton aspect="aspect-[16/6]" />}>
