@@ -111,8 +111,8 @@ describe("error handling", () => {
 });
 
 describe("suggested prompts", () => {
-  it("defines SUGGESTED_PROMPTS array", () => {
-    expect(source).toContain("const SUGGESTED_PROMPTS");
+  it("defines DEFAULT_SUGGESTED_PROMPTS array", () => {
+    expect(source).toContain("const DEFAULT_SUGGESTED_PROMPTS");
   });
 
   it("shows EmptyState when no messages", () => {
@@ -126,6 +126,38 @@ describe("suggested prompts", () => {
 
   it("suggestion buttons meet 44px touch target", () => {
     expect(source).toContain("min-h-[44px]");
+  });
+});
+
+describe("contextual navigation (ShamwariContext)", () => {
+  it("imports isShamwariContextValid and ShamwariContext from store", () => {
+    expect(source).toContain("isShamwariContextValid");
+    expect(source).toContain("ShamwariContext");
+  });
+
+  it("reads shamwariContext from store", () => {
+    expect(source).toContain("shamwariContext");
+    expect(source).toContain("clearShamwariContext");
+  });
+
+  it("generates contextual greeting based on source type", () => {
+    expect(source).toContain("getContextualGreeting");
+    expect(source).toContain('source === "location"');
+    expect(source).toContain('source === "history"');
+    expect(source).toContain('source === "explore"');
+  });
+
+  it("generates contextual prompts based on source type", () => {
+    expect(source).toContain("getContextualPrompts");
+    expect(source).toContain("contextualPrompts");
+  });
+
+  it("clears context after consumption (one-time use)", () => {
+    expect(source).toContain("clearShamwariContext()");
+  });
+
+  it("shows contextual prompt buttons after greeting message", () => {
+    expect(source).toContain("contextualPrompts && contextualPrompts.length > 0");
   });
 });
 

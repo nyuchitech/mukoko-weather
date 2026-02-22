@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { SparklesIcon, SearchIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, isShamwariContextValid, type ShamwariContext } from "@/lib/store";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown — prevents malformed markdown from
@@ -81,7 +81,7 @@ const markdownComponents = {
 /** Cap rendered messages to prevent unbounded memory growth in long conversations. */
 const MAX_RENDERED_MESSAGES = 30;
 
-const SUGGESTED_PROMPTS = [
+const DEFAULT_SUGGESTED_PROMPTS = [
   { label: "Drone flying in Harare", query: "Can I fly a drone in Harare today?" },
   { label: "Farming advice", query: "What's the best time to plant maize in Mashonaland?" },
   { label: "Safari weather", query: "What's the weather like for safari in Victoria Falls?" },
@@ -89,6 +89,62 @@ const SUGGESTED_PROMPTS = [
   { label: "Road trip", query: "Is it safe to drive from Harare to Mutare today?" },
   { label: "Weekend plans", query: "What outdoor activities can I do this weekend in Gweru?" },
 ];
+
+/**
+ * Generate contextual suggested prompts based on Shamwari context.
+ * These replace the default prompts when the user arrives with context.
+ */
+function getContextualPrompts(ctx: ShamwariContext): { label: string; query: string }[] {
+  const loc = ctx.locationName || "this location";
+
+  if (ctx.source === "location") {
+    return [
+      { label: `More about ${loc}`, query: `Tell me more about the weather in ${loc}` },
+      { label: "Activity advice", query: `What activities are best for today's weather in ${loc}?` },
+      { label: "Compare locations", query: `Compare ${loc} weather with nearby cities` },
+    ];
+  }
+
+  if (ctx.source === "history") {
+    return [
+      { label: "Explain trends", query: `What do the weather trends in ${loc} over the last ${ctx.historyDays || 30} days tell us?` },
+      { label: "Farming impact", query: `How have recent weather patterns affected farming in ${loc}?` },
+      { label: "Future outlook", query: `Based on recent history, what should I expect next in ${loc}?` },
+    ];
+  }
+
+  if (ctx.source === "explore") {
+    return [
+      { label: "Refine search", query: ctx.exploreQuery ? `Show me more locations like "${ctx.exploreQuery}"` : `What other locations have similar weather?` },
+      { label: "Detailed comparison", query: `Compare the weather conditions of locations you found` },
+      { label: "Best option", query: `Which location is best for outdoor activities right now?` },
+    ];
+  }
+
+  return DEFAULT_SUGGESTED_PROMPTS;
+}
+
+/**
+ * Generate a contextual greeting message based on Shamwari context.
+ * Returns null if no context or if context type is not recognized.
+ */
+function getContextualGreeting(ctx: ShamwariContext): string | null {
+  if (ctx.source === "location" && ctx.locationName) {
+    const tempInfo = ctx.temperature != null ? ` at ${Math.round(ctx.temperature)}°C` : "";
+    const summaryInfo = ctx.weatherSummary ? ` ${ctx.weatherSummary.slice(0, 150)}...` : "";
+    return `You're looking at weather in **${ctx.locationName}**${tempInfo}.${summaryInfo} How can I help you plan around this weather?`;
+  }
+
+  if (ctx.source === "history" && ctx.locationName) {
+    return `You were analyzing ${ctx.historyDays || 30}-day weather history for **${ctx.locationName}**. Want me to dive deeper into any trends or help plan around what the data shows?`;
+  }
+
+  if (ctx.source === "explore" && ctx.exploreQuery) {
+    return `You searched for "${ctx.exploreQuery}". I can help you explore more locations or get detailed weather for any of the results. What would you like to know?`;
+  }
+
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -115,12 +171,38 @@ export function ExploreChatbot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [contextualPrompts, setContextualPrompts] = useState<{ label: string; query: string }[] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Send user's selected activities so Claude can personalise advice
   const selectedActivities = useAppStore((s) => s.selectedActivities);
+  const shamwariContext = useAppStore((s) => s.shamwariContext);
+  const clearShamwariContext = useAppStore((s) => s.clearShamwariContext);
+
+  // Consume ShamwariContext on mount: generate contextual greeting + prompts
+  useEffect(() => {
+    if (!isShamwariContextValid(shamwariContext)) return;
+
+    const greeting = getContextualGreeting(shamwariContext);
+    if (greeting) {
+      const greetingMessage: ChatMessage = {
+        id: `context-${Date.now()}`,
+        role: "assistant",
+        content: greeting,
+        timestamp: new Date(),
+      };
+      setMessages([greetingMessage]);
+    }
+
+    // Set context-aware suggested prompts
+    setContextualPrompts(getContextualPrompts(shamwariContext));
+
+    // Clear context after consuming (one-time use)
+    clearShamwariContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cancel in-flight fetch on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -260,7 +342,22 @@ export function ExploreChatbot() {
         <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
-              <EmptyState onSuggestionClick={handleSuggestion} />
+              <EmptyState onSuggestionClick={handleSuggestion} contextualPrompts={null} />
+            )}
+            {messages.length > 0 && contextualPrompts && contextualPrompts.length > 0 && messages.length === 1 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {contextualPrompts.map((prompt) => (
+                  <button
+                    key={prompt.query}
+                    onClick={() => handleSuggestion(prompt.query)}
+                    className="flex items-center rounded-[var(--radius-card)] border border-border bg-surface-card px-3 py-2 text-left text-xs text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+                    type="button"
+                    disabled={loading}
+                  >
+                    {prompt.label}
+                  </button>
+                ))}
+              </div>
             )}
 
             {messages.map((msg) => (
@@ -335,7 +432,9 @@ export function ExploreChatbot() {
 // Empty state with suggested prompts
 // ---------------------------------------------------------------------------
 
-function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) => void }) {
+function EmptyState({ onSuggestionClick, contextualPrompts }: { onSuggestionClick: (query: string) => void; contextualPrompts: { label: string; query: string }[] | null }) {
+  const prompts = contextualPrompts ?? DEFAULT_SUGGESTED_PROMPTS;
+
   return (
     <div className="flex flex-col items-center justify-center py-8">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -354,7 +453,7 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) 
           Try asking
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {SUGGESTED_PROMPTS.map((prompt) => (
+          {prompts.map((prompt) => (
             <button
               key={prompt.query}
               onClick={() => onSuggestionClick(prompt.query)}
