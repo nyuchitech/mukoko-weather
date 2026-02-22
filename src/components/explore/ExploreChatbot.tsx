@@ -131,7 +131,14 @@ function getContextualPrompts(ctx: ShamwariContext): { label: string; query: str
 function getContextualGreeting(ctx: ShamwariContext): string | null {
   if (ctx.source === "location" && ctx.locationName) {
     const tempInfo = ctx.temperature != null ? ` at ${Math.round(ctx.temperature)}°C` : "";
-    const summaryInfo = ctx.weatherSummary ? ` ${ctx.weatherSummary.slice(0, 150)}...` : "";
+    const summaryInfo = ctx.weatherSummary
+      ? (() => {
+          const s = ctx.weatherSummary;
+          if (s.length <= 150) return ` ${s}`;
+          const truncated = s.slice(0, s.lastIndexOf(" ", 150));
+          return ` ${truncated || s.slice(0, 150)}...`;
+        })()
+      : "";
     return `You're looking at weather in **${ctx.locationName}**${tempInfo}.${summaryInfo} How can I help you plan around this weather?`;
   }
 
@@ -181,11 +188,15 @@ export function ExploreChatbot() {
   const shamwariContext = useAppStore((s) => s.shamwariContext);
   const clearShamwariContext = useAppStore((s) => s.clearShamwariContext);
 
+  // Capture context at mount time to avoid stale closure issues
+  const initialContextRef = useRef(shamwariContext);
+
   // Consume ShamwariContext on mount: generate contextual greeting + prompts
   useEffect(() => {
-    if (!isShamwariContextValid(shamwariContext)) return;
+    const ctx = initialContextRef.current;
+    if (!isShamwariContextValid(ctx)) return;
 
-    const greeting = getContextualGreeting(shamwariContext);
+    const greeting = getContextualGreeting(ctx);
     if (greeting) {
       const greetingMessage: ChatMessage = {
         id: `context-${Date.now()}`,
@@ -197,12 +208,11 @@ export function ExploreChatbot() {
     }
 
     // Set context-aware suggested prompts
-    setContextualPrompts(getContextualPrompts(shamwariContext));
+    setContextualPrompts(getContextualPrompts(ctx));
 
     // Clear context after consuming (one-time use)
     clearShamwariContext();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clearShamwariContext]);
 
   // Cancel in-flight fetch on unmount to prevent state updates on unmounted component
   useEffect(() => {

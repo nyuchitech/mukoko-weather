@@ -13,11 +13,14 @@ Key advantages over the TypeScript version:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 import anthropic
 from fastapi import APIRouter, HTTPException, Request
@@ -49,9 +52,13 @@ MAX_HISTORY = 10
 MAX_MESSAGE_LEN = 2000
 MAX_ACTIVITIES = 10
 MAX_TOOL_ITERATIONS = 5
-TOOL_TIMEOUT_S = 15
+TOOL_TIMEOUT_S = 15  # applied to each tool execution via asyncio.wait_for
+MAX_ACTIVITIES_IN_PROMPT = 30  # cap activity list in system prompt
 RATE_LIMIT_MAX = 20
 RATE_LIMIT_WINDOW = 3600  # 1 hour
+
+# Thread pool for running sync tool functions with timeouts
+_tool_executor = ThreadPoolExecutor(max_workers=4)
 
 # ---------------------------------------------------------------------------
 # Module-level caches (persist across warm Vercel invocations)
@@ -205,28 +212,73 @@ TOOLS = [
 
 
 def _execute_search_locations(query: str) -> dict:
-    """Search locations via MongoDB text search."""
+    """Search locations via Atlas Search (fuzzy) → $text → $regex fallback."""
     q = query.strip()[:200]
     if not q:
         return {"locations": [], "total": 0}
 
+    projection = {"slug": 1, "name": 1, "province": 1, "tags": 1, "country": 1, "_id": 0}
+
+    def _format_results(docs: list) -> dict:
+        return {
+            "locations": [
+                {"slug": r["slug"], "name": r["name"], "province": r.get("province", ""), "tags": r.get("tags", [])}
+                for r in docs
+            ],
+            "total": len(docs),
+        }
+
+    coll = locations_collection()
+
+    # 1. Try Atlas Search (fuzzy matching + autocomplete)
+    try:
+        pipeline = [
+            {
+                "$search": {
+                    "index": "location_search",
+                    "compound": {
+                        "should": [
+                            {"autocomplete": {"query": q, "path": "name", "fuzzy": {"maxEdits": 1, "prefixLength": 1}}},
+                            {"text": {"query": q, "path": ["name", "province", "slug", "tags"], "fuzzy": {"maxEdits": 1, "prefixLength": 1}}},
+                        ],
+                    },
+                }
+            },
+            {"$limit": 10},
+            {"$project": {**projection, "score": {"$meta": "searchScore"}}},
+        ]
+        results = list(coll.aggregate(pipeline))
+        if results:
+            return _format_results(results)
+    except Exception:
+        pass  # Atlas Search index may not exist — fall through
+
+    # 2. Fallback: $text index search
     try:
         results = list(
-            locations_collection()
-            .find(
+            coll.find(
                 {"$text": {"$search": q}},
-                {"score": {"$meta": "textScore"}, "slug": 1, "name": 1, "province": 1, "tags": 1, "country": 1, "_id": 0},
+                {"score": {"$meta": "textScore"}, **projection},
             )
             .sort([("score", {"$meta": "textScore"})])
             .limit(10)
         )
-        return {
-            "locations": [
-                {"slug": r["slug"], "name": r["name"], "province": r.get("province", ""), "tags": r.get("tags", [])}
-                for r in results
-            ],
-            "total": len(results),
-        }
+        if results:
+            return _format_results(results)
+    except Exception:
+        pass  # $text index may not exist — fall through
+
+    # 3. Last resort: case-insensitive regex on name/province
+    try:
+        regex = {"$regex": re.escape(q), "$options": "i"}
+        results = list(
+            coll.find(
+                {"$or": [{"name": regex}, {"province": regex}, {"slug": regex}]},
+                projection,
+            )
+            .limit(10)
+        )
+        return _format_results(results)
     except Exception:
         return {"locations": [], "total": 0, "error": "Search unavailable"}
 
@@ -304,26 +356,47 @@ def _execute_get_activity_advice(
     if not insights:
         return {"message": "No detailed insights available for suitability evaluation at this location."}
 
+    capped_ids = activity_ids[:5]  # Cap at 5 activities per call
+
+    # Batch-fetch activities (single $in query instead of N individual lookups)
+    activity_map: dict[str, dict] = {}
+    try:
+        for doc in activities_collection().find({"id": {"$in": capped_ids}}, {"_id": 0}):
+            activity_map[doc["id"]] = doc
+    except Exception:
+        pass
+
+    # Batch-fetch rules not already in cache
+    rule_keys_needed = set()
+    for aid in capped_ids:
+        act = activity_map.get(aid)
+        if not act:
+            continue
+        cat = act.get("category", "casual")
+        for key in [f"activity:{aid}", f"category:{cat}"]:
+            if key not in rules_cache:
+                rule_keys_needed.add(key)
+    if rule_keys_needed:
+        try:
+            for doc in suitability_rules_collection().find({"key": {"$in": list(rule_keys_needed)}}):
+                rules_cache[doc["key"]] = doc
+        except Exception:
+            pass
+
     results = []
-    for activity_id in activity_ids[:5]:  # Cap at 5 activities per call
-        # Look up the activity
-        activity = activities_collection().find_one({"id": activity_id})
+    for activity_id in capped_ids:
+        activity = activity_map.get(activity_id)
         if not activity:
             results.append({"activity": activity_id, "error": "Unknown activity"})
             continue
 
         category = activity.get("category", "casual")
 
-        # Try activity-specific rule, then category rule
+        # Try activity-specific rule, then category rule (from cache)
         rule = None
         for key in [f"activity:{activity_id}", f"category:{category}"]:
             if key in rules_cache:
                 rule = rules_cache[key]
-                break
-            doc = suitability_rules_collection().find_one({"key": key})
-            if doc:
-                rules_cache[key] = doc
-                rule = doc
                 break
 
         if not rule:
@@ -414,8 +487,6 @@ def _execute_tool(
     rules_cache: dict,
 ) -> str:
     """Execute a tool and return JSON string result."""
-    import json
-
     try:
         if name == "search_locations":
             result = _execute_search_locations(input_data.get("query", ""))
@@ -457,9 +528,15 @@ Your role:
 - Provide actionable weather-based advice for farming, mining, travel, tourism, sports, and daily life
 - Use your tools to look up real data — never fabricate weather information
 
-Available locations (use slugs for tool calls): {locationList}
+Here are some sample locations (use slugs for tool calls): {locationList}
 Available activities: {activityList}
 {userActivitySection}
+
+LOCATION DISCOVERY — CRITICAL:
+- The location list above is only a SAMPLE — the database contains many more locations.
+- When a user asks about ANY location, ALWAYS use search_locations first to check if it exists.
+- NEVER assume a location does not exist just because it is not in the sample list above.
+- If search_locations returns no results, tell the user the location is not yet in the system and suggest they add it via the location selector.
 
 Guidelines:
 - Always use tools to fetch real weather data before giving advice
@@ -467,7 +544,7 @@ Guidelines:
 - Use markdown formatting (bold, bullets) for readability
 - Never use emoji
 - When comparing locations, fetch weather for each one
-- If a location is not found, suggest similar ones
+- If a location is not found via search, suggest similar ones or recommend adding it
 - For activity advice, always use get_activity_advice (server-side evaluation) instead of guessing
 
 DATA GUARDRAILS:
@@ -508,7 +585,7 @@ def _build_system_prompt(user_activities: list[str]) -> str:
     )
 
     activity_list = ", ".join(
-        f"{act['label']} ({act['id']})" for act in activities
+        f"{act['label']} ({act['id']})" for act in activities[:MAX_ACTIVITIES_IN_PROMPT]
     )
 
     user_activity_section = ""
@@ -547,7 +624,7 @@ def _build_system_prompt(user_activities: list[str]) -> str:
 
 
 class ChatMessage(BaseModel):
-    role: str  # "user" | "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 
@@ -630,6 +707,8 @@ async def chat(body: ChatRequest, request: Request):
     references: list[Reference] = []
     seen_slugs: set[str] = set()
 
+    loop = asyncio.get_event_loop()
+
     for _ in range(MAX_TOOL_ITERATIONS):
         if not anthropic_breaker.is_allowed:
             return ChatResponse(
@@ -638,14 +717,26 @@ async def chat(body: ChatRequest, request: Request):
             )
 
         try:
-            response = client.messages.create(
-                model=chat_model,
-                max_tokens=chat_max_tokens,
-                system=system_prompt,
-                messages=messages,
-                tools=TOOLS,
+            response = await asyncio.wait_for(
+                loop.run_in_executor(
+                    _tool_executor,
+                    lambda: client.messages.create(
+                        model=chat_model,
+                        max_tokens=chat_max_tokens,
+                        system=system_prompt,
+                        messages=messages,
+                        tools=TOOLS,
+                    ),
+                ),
+                timeout=TOOL_TIMEOUT_S,
             )
             anthropic_breaker.record_success()
+        except asyncio.TimeoutError:
+            anthropic_breaker.record_failure()
+            return ChatResponse(
+                response="My AI service is taking too long to respond. Please try again.",
+                error=True,
+            )
         except anthropic.RateLimitError:
             anthropic_breaker.record_failure()
             raise HTTPException(status_code=429, detail="AI service rate limited")
@@ -662,12 +753,21 @@ async def chat(body: ChatRequest, request: Request):
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
-                    tool_result = _execute_tool(
-                        block.name,
-                        block.input,
-                        weather_cache,
-                        rules_cache,
-                    )
+                    try:
+                        tool_result = await asyncio.wait_for(
+                            loop.run_in_executor(
+                                _tool_executor,
+                                lambda b=block: _execute_tool(  # type: ignore[misc]
+                                    b.name,
+                                    b.input,
+                                    weather_cache,
+                                    rules_cache,
+                                ),
+                            ),
+                            timeout=TOOL_TIMEOUT_S,
+                        )
+                    except asyncio.TimeoutError:
+                        tool_result = json.dumps({"error": f"Tool {block.name} timed out after {TOOL_TIMEOUT_S}s"})
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
@@ -676,7 +776,6 @@ async def chat(body: ChatRequest, request: Request):
 
                     # Extract references from tool calls
                     if block.name in ("search_locations", "list_locations_by_tag"):
-                        import json
                         try:
                             parsed = json.loads(tool_result)
                             for loc in parsed.get("locations", []):

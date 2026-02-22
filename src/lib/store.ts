@@ -64,7 +64,8 @@ interface AppState {
   completeOnboarding: () => void;
   /** Shamwari context — carries weather/location data between pages (transient, not persisted) */
   shamwariContext: ShamwariContext | null;
-  setShamwariContext: (ctx: ShamwariContext) => void;
+  /** Accepts context with optional timestamp — auto-sets timestamp to Date.now() */
+  setShamwariContext: (ctx: Omit<ShamwariContext, "timestamp"> & { timestamp?: number }) => void;
   clearShamwariContext: () => void;
   /** Weather report modal visibility (transient) */
   reportModalOpen: boolean;
