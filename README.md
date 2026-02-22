@@ -9,20 +9,24 @@ AI-powered weather intelligence, starting with Zimbabwe and expanding globally. 
 - **Real-time weather** — current conditions from Tomorrow.io (primary) with Open-Meteo fallback
 - **7-day forecasts** — daily highs, lows, precipitation probability, and weather conditions
 - **24-hour hourly forecasts** — hour-by-hour temperature and rain predictions
-- **AI weather intelligence** — Claude-powered markdown-formatted summaries with farming, mining, and travel advice
+- **AI weather intelligence** — Claude-powered markdown-formatted summaries with farming, mining, and travel advice, plus inline follow-up chat (up to 5 messages before seamless handoff to Shamwari)
+- **AI-powered explore search** — natural-language location discovery ("farming areas with low frost risk") using Claude with tool use
+- **AI history analysis** — button-triggered analysis of historical weather trends, patterns, and anomalies with server-side aggregation
 - **Personalised activity insights** — 20 activities across 6 categories (farming, mining, travel, tourism, sports, casual) with mineral-colored cards showing GDD, heat stress, thunderstorm risk, visibility, and more
+- **Community weather reporting** — Waze-style ground-truth observations: 10 weather types, 3 severity levels, AI-assisted clarification, cross-validation against API data, community upvoting
 - **Frost alerts** — automated frost risk detection for overnight hours with severity levels
 - **Dynamic locations** — 90+ seed locations in Zimbabwe, with community-driven expansion to ASEAN and developing regions via geolocation and search
 - **Seasonal awareness** — Zimbabwe seasons (Masika, Chirimo, Zhizha, Munakamwe) and regional context
 - **Geolocation** — automatic nearest-location detection via browser GPS, with auto-creation for new areas
-- **Shamwari AI chat** — dedicated `/shamwari` page with full-viewport Claude app-style chat (search locations, check weather, get activity advice, compare cities)
+- **Shamwari AI chat** — dedicated `/shamwari` page with full-viewport Claude app-style chat (search locations, check weather, get activity advice, compare cities). Contextual navigation carries weather/location data from any page
 - **Suitability scoring** — database-driven weather suitability evaluation for activities (excellent/good/fair/poor ratings with structured metrics)
 - **Country/region browse** — explore locations by country, province, and tag across 64 countries (54 AU + ASEAN)
 - **System status** — live health dashboard for all services (MongoDB, weather APIs, AI, cache)
 - **Embeddable widget** — drop-in weather widget for third-party sites
 - **Dedicated detail pages** — `/harare/atmosphere` for 24h atmospheric charts, `/harare/forecast` for hourly + daily forecast detail, `/harare/map` for full-viewport interactive weather map
 - **Smart theming** — light, dark, and system (auto) modes with OS preference detection
-- **Historical data dashboard** — explore recorded weather trends, precipitation, and climate patterns over time
+- **Historical data dashboard** — explore recorded weather trends, precipitation, and climate patterns over time, with AI-powered analysis
+- **Database-driven AI configuration** — all system prompts, suggested prompt rules, and model configs stored in MongoDB for easy updates without code changes
 - **Resilient architecture** — Netflix-style error isolation: per-section error boundaries, 4-stage weather fallback chain, structured observability logging
 - **PWA** — installable as a standalone app on Android, iOS, and desktop
 
@@ -128,7 +132,14 @@ The main location page is a compact overview. Detail-heavy sections (charts, atm
 | `/api/history?location=&days=` | GET | Historical weather data for a location |
 | `/api/map-tiles?z=&x=&y=&layer=` | GET | Tile proxy for Tomorrow.io map layers (keeps API key server-side) |
 | `/api/og?title=&subtitle=&template=` | GET | Dynamic OG image generation (Edge runtime, Satori). 6 templates, in-memory rate-limited, 1-day CDN cache |
-| `/api/db-init` | POST | One-time DB setup + seed data. Protected by `DB_INIT_SECRET` in production |
+| `/api/db-init` | POST | One-time DB setup + seed data (incl. AI prompts). Protected by `DB_INIT_SECRET` in production |
+| `/api/py/ai/followup` | POST | Inline follow-up chat for AI summaries (max 5 exchanges). Rate-limited 20 req/hour/IP |
+| `/api/py/ai/prompts` | GET/PUT | Database-driven AI prompt library (system prompts + suggested prompt rules) |
+| `/api/py/history/analyze` | POST | AI-powered historical weather analysis (server-side aggregation + Claude). Cached 1h. Rate-limited 10 req/hour/IP |
+| `/api/py/explore/search` | POST | AI-powered natural-language location search (Claude + tool use). Rate-limited 15 req/hour/IP |
+| `/api/py/reports` | POST/GET | Community weather reports — submit (POST, 5/hour/IP) or list (GET) |
+| `/api/py/reports/upvote` | POST | Upvote a community report (IP-based dedup) |
+| `/api/py/reports/clarify` | POST | AI-generated follow-up questions for weather report clarification |
 
 ### Resilience
 
@@ -216,7 +227,7 @@ src/
     ui/                     # shadcn/ui primitives (button, badge, card, chart, dialog, input, skeleton, tabs)
     analytics/              # Google Analytics 4
     brand/                  # Logo, MineralsStripe, ThemeProvider, ThemeToggle
-    explore/                # ExploreChatbot (AI chat UI, typing indicator, suggested prompts)
+    explore/                # Shamwari chatbot + AI explore search
     layout/                 # Header (pill icon group), HeaderSkeleton, Footer
     weather/
       CurrentConditions.tsx  # Large temp display, feels-like, stats grid
@@ -228,8 +239,11 @@ src/
       ChartErrorBoundary.tsx # Error boundary for crash isolation
       StatCard.tsx           # Reusable stat card
       MyWeatherModal.tsx     # Centralized preferences modal
-      AISummary.tsx          # Shamwari AI markdown summary
+      AISummary.tsx          # Shamwari AI markdown summary (onSummaryLoaded callback)
+      AISummaryChat.tsx      # Inline follow-up chat (max 5 messages → Shamwari)
+      HistoryAnalysis.tsx    # AI-powered historical weather analysis
       ActivityInsights.tsx   # Category-specific weather insight cards
+      reports/               # Waze-style community weather reporting
       charts/                # Reusable Canvas chart components (15 charts)
       map/                   # Leaflet map (preview, full, layer switcher, skeleton)
     embed/
@@ -250,13 +264,28 @@ src/
     mongo.ts                # MongoDB client (connection-pooled via @vercel/functions)
     circuit-breaker.ts      # Netflix Hystrix-inspired circuit breaker
     observability.ts        # Structured error logging + GA4 error reporting
-    store.ts                # Zustand state (theme, activities, location)
+    store.ts                # Zustand state (theme, activities, location, ShamwariContext, reportModal)
+    suggested-prompts.ts    # Database-driven suggested prompt generation
     geolocation.ts          # Browser Geolocation API wrapper
     weather-icons.tsx       # SVG weather + activity icon components
     i18n.ts                 # Lightweight i18n (en complete, sn/nd ready)
     error-retry.ts          # Error retry with sessionStorage tracking
     utils.ts                # Tailwind class merging (cn)
-    seed-*.ts               # Seed data files (categories, tags, regions, seasons, suitability rules)
+    seed-*.ts               # Seed data files (categories, tags, regions, seasons, suitability rules, AI prompts)
+api/
+  py/                       # Python FastAPI backend (Vercel serverless functions)
+    index.py                # FastAPI app, router mounting, CORS
+    _weather.py             # Weather data endpoints
+    _ai.py                  # AI summary endpoint
+    _ai_followup.py         # Inline follow-up chat
+    _ai_prompts.py          # AI prompt library CRUD
+    _chat.py                # Shamwari Explorer chatbot
+    _history.py             # Historical weather data
+    _history_analyze.py     # AI history analysis
+    _explore_search.py      # AI-powered explore search
+    _reports.py             # Community weather reports
+    _db.py                  # MongoDB connection + collections
+    ...                     # Additional route modules
 public/
   manifest.json             # PWA manifest with app shortcuts
   icons/                    # PWA icons (192x192, 512x512)

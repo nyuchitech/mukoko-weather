@@ -174,9 +174,11 @@ mukoko-weather/
 │   │   │   └── ThemeToggle.tsx       # Light/dark/system mode toggle (3-state cycle)
 │   │   ├── analytics/
 │   │   │   └── GoogleAnalytics.tsx   # Google Analytics 4 (gtag.js) via next/script
-│   │   ├── explore/                  # Shamwari chatbot component (used by /shamwari page)
-│   │   │   ├── ExploreChatbot.tsx    # AI chatbot UI (message bubbles, typing indicator, suggested prompts)
-│   │   │   └── ExploreChatbot.test.ts
+│   │   ├── explore/                  # Shamwari chatbot + AI explore search
+│   │   │   ├── ExploreChatbot.tsx    # AI chatbot UI (message bubbles, typing indicator, contextual suggested prompts)
+│   │   │   ├── ExploreChatbot.test.ts
+│   │   │   ├── ExploreSearch.tsx     # AI-powered natural-language location search
+│   │   │   └── ExploreSearch.test.ts
 │   │   ├── layout/
 │   │   │   ├── Header.tsx            # Sticky header + 5-item mobile bottom nav (Weather/Explore/Shamwari/History/My Weather)
 │   │   │   ├── HeaderSkeleton.tsx    # Header loading skeleton
@@ -226,8 +228,17 @@ mukoko-weather/
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
 │   │   │   ├── LocationSelector.tsx   # Search/filter dropdown, geolocation
-│   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary
+│   │   │   ├── AISummary.tsx          # Shamwari AI markdown summary (onSummaryLoaded callback)
+│   │   │   ├── AISummaryChat.tsx     # Inline follow-up chat (max 5 messages, then → Shamwari)
+│   │   │   ├── AISummaryChat.test.ts
+│   │   │   ├── HistoryAnalysis.tsx   # AI-powered historical weather analysis (button-triggered)
+│   │   │   ├── HistoryAnalysis.test.ts
 │   │   │   ├── ActivityInsights.tsx   # Category-specific weather insight cards
+│   │   │   ├── reports/               # Waze-style community weather reporting
+│   │   │   │   ├── WeatherReportModal.tsx   # 3-step wizard: select type → AI clarify → confirm
+│   │   │   │   ├── WeatherReportModal.test.ts
+│   │   │   │   ├── RecentReports.tsx        # Recent community reports with upvoting
+│   │   │   │   └── RecentReports.test.ts
 │   │   │   └── map/                   # Interactive weather map (Leaflet + Tomorrow.io tiles)
 │   │   │       ├── MapPreview.tsx         # Compact map card on location page (links to /[location]/map)
 │   │   │       ├── MapLayerSwitcher.tsx   # Layer toggle buttons (radiogroup)
@@ -242,8 +253,10 @@ mukoko-weather/
 │   │       ├── MukokoWeatherEmbed.test.ts
 │   │       └── index.ts
 │   ├── lib/
-│   │   ├── store.ts               # Zustand app state (theme with system detection, location, activities)
-│   │   ├── store.test.ts          # Theme resolution tests
+│   │   ├── store.ts               # Zustand app state (theme, location, activities, ShamwariContext, reportModal)
+│   │   ├── store.test.ts          # Theme resolution, ShamwariContext TTL tests
+│   │   ├── suggested-prompts.ts   # Database-driven suggested prompt generation (fetches from /api/py/ai/prompts)
+│   │   ├── suggested-prompts.test.ts
 │   │   ├── locations.ts           # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS, search, filtering
 │   │   ├── locations.test.ts
 │   │   ├── locations-africa.ts    # African city seed data (capitals + major cities across 54 AU member states)
@@ -262,7 +275,7 @@ mukoko-weather/
 │   │   ├── weather-labels.ts      # Contextual label helpers (humidityLabel, pressureLabel, cloudLabel, feelsLikeContext)
 │   │   ├── weather-labels.test.ts
 │   │   ├── mongo.ts               # MongoDB Atlas connection pooling
-│   │   ├── db.ts                  # Database CRUD + Atlas Search/Vector Search (weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, suitability_rules, tags, regions, seasons)
+│   │   ├── db.ts                  # Database CRUD + Atlas Search/Vector Search (weather_cache, ai_summaries, weather_history, locations, rate_limits, activities, suitability_rules, tags, regions, seasons, ai_prompts, ai_suggested_rules, weather_reports, history_analysis)
 │   │   ├── db.test.ts
 │   │   ├── geocoding.ts           # Nominatim reverse geocoding, Open-Meteo forward geocoding, slug generation
 │   │   ├── geocoding.test.ts
@@ -290,9 +303,30 @@ mukoko-weather/
 │   │   ├── seed-tags.ts           # Seed tag metadata for db-init (powers explore page cards)
 │   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
+│   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
 │   │   └── kv-cache.ts            # DEPRECATED — re-exports from db.ts for migration
 │   └── types/
 │       └── cloudflare.d.ts        # DEPRECATED — empty (KV migration complete)
+├── api/
+│   └── py/                        # Python FastAPI backend (Vercel serverless functions)
+│       ├── index.py               # FastAPI app, router mounting, CORS, error handlers
+│       ├── _db.py                 # MongoDB connection, collection accessors, rate limiting
+│       ├── _weather.py            # Weather data endpoints (Tomorrow.io/Open-Meteo proxy)
+│       ├── _ai.py                 # AI summary endpoint (Claude, tiered TTL cache)
+│       ├── _ai_followup.py        # Inline follow-up chat endpoint (pre-seeded history)
+│       ├── _ai_prompts.py         # AI prompt library CRUD (GET/PUT prompts + suggested rules)
+│       ├── _chat.py               # Shamwari Explorer chatbot (Claude + tool use)
+│       ├── _locations.py          # Location CRUD, search, geo lookup
+│       ├── _history.py            # Historical weather data endpoint
+│       ├── _history_analyze.py    # AI history analysis (server-side aggregation + Claude)
+│       ├── _explore_search.py     # AI-powered explore search (Claude + tool use)
+│       ├── _reports.py            # Community weather reports (submit, list, upvote, clarify)
+│       ├── _suitability.py        # Suitability rules endpoint
+│       ├── _data.py               # DB init, seed data, activities, tags, regions
+│       ├── _devices.py            # Device sync (preferences across devices)
+│       ├── _embeddings.py         # Vector embedding endpoints
+│       ├── _status.py             # System health checks
+│       └── _tiles.py              # Map tile proxy for Tomorrow.io
 ├── worker/                        # Cloudflare Workers edge API (optional)
 │   ├── src/
 │   │   ├── index.ts               # Hono app, route mounting, CORS
@@ -438,7 +472,14 @@ LazySection(fallback=<ChartSkeleton />) + ChartErrorBoundary
 - `/api/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
 - `/api/og` — GET, dynamic OG image generation (Edge runtime, Satori). Query: `title`, `subtitle`, optional `location`, `province`, `season`, `temp`, `condition`, `template` (home/location/explore/history/season/shamwari). In-memory rate-limited (30 req/min/IP), 1-day CDN cache
-- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, API keys). Requires `x-init-secret` header in production
+- `/api/db-init` — POST, one-time DB setup + seed data (locations, activities, categories, tags, regions, seasons, suitability rules, AI prompts, API keys). Requires `x-init-secret` header in production
+- `/api/py/ai/followup` — POST, inline follow-up chat for AI summaries. Pre-seeded with the AI summary as conversation context. Max 5 exchanges then redirects to Shamwari. Rate-limited 20 req/hour/IP
+- `/api/py/ai/prompts` — GET/PUT, database-driven AI prompt library. Returns system prompts and suggested prompt rules. PUT updates individual prompts (admin)
+- `/api/py/history/analyze` — POST, AI-powered historical weather analysis. Server-side aggregation (~800 tokens) + Claude analysis. Cached 1h in `history_analysis` collection. Rate-limited 10 req/hour/IP
+- `/api/py/explore/search` — POST, AI-powered location search using Claude with `search_locations` + `get_weather` tools. Falls back to text search if AI unavailable. Rate-limited 15 req/hour/IP
+- `/api/py/reports` — POST (submit) / GET (list), community weather reports. Submit rate-limited 5 req/hour/IP, auto-captures weather snapshot for cross-validation
+- `/api/py/reports/upvote` — POST, upvote a community report (IP-based dedup)
+- `/api/py/reports/clarify` — POST, AI-generated follow-up questions for weather report clarification
 
 ### Error Handling
 
@@ -584,10 +625,20 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `toggleActivity(id)` — adds/removes an activity selection
 - `myWeatherOpen: boolean` — controls My Weather modal visibility (not persisted)
 - `openMyWeather()` / `closeMyWeather()` — toggle the modal
+- `shamwariContext: ShamwariContext | null` — carries weather/location/summary data between pages (not persisted)
+- `setShamwariContext(ctx)` / `clearShamwariContext()` — set/clear context
+- `reportModalOpen: boolean` — controls Weather Report modal visibility (not persisted)
+- `openReportModal()` / `closeReportModal()` — toggle the report modal
+
+**ShamwariContext** (`interface ShamwariContext`):
+- `source: "location" | "explore" | "history"` — which page set the context
+- Optional fields: `locationSlug`, `locationName`, `province`, `weatherSummary`, `temperature`, `condition`, `season`, `historyDays`, `historyAnalysis`, `exploreQuery`
+- `activities: string[]` — user's selected activities
+- `timestamp: number` — context expires after 10 minutes (`isShamwariContextValid()`)
 
 **Persistence:**
 - Uses Zustand `persist` middleware with `partialize` — only `theme` and `selectedActivities` are saved to localStorage under key `mukoko-weather-prefs`
-- `selectedLocation` and `myWeatherOpen` are transient (reset on page load)
+- `selectedLocation`, `myWeatherOpen`, `shamwariContext`, and `reportModalOpen` are transient (reset on page load)
 - `onRehydrateStorage` callback applies the persisted theme to the DOM on load
 
 **Theme system:**
@@ -649,12 +700,28 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 ### AI Summaries
 
-- Generated by Claude Haiku 3.5 (`claude-haiku-4-5-20251001`) via `POST /api/ai`, rendered in `src/components/weather/AISummary.tsx`
+- Generated by Claude Haiku 3.5 (`claude-haiku-4-5-20251001`) via `POST /api/py/ai`, rendered in `src/components/weather/AISummary.tsx`
 - AI persona: "Shamwari Weather" (Ubuntu philosophy, region-aware context)
 - Summaries are **markdown-formatted** — the system prompt requests bold, bullet points, and no headings
 - Rendered with `react-markdown` inside Tailwind `prose` classes
 - Cached in MongoDB with tiered TTL (30/60/120 min by location tier)
 - If `ANTHROPIC_API_KEY` is unset, a basic weather summary fallback is generated
+- **Inline follow-up chat:** `AISummary` fires `onSummaryLoaded(text)` callback; `WeatherDashboard` passes the summary to `AISummaryChat` which allows up to 5 follow-up messages before redirecting to Shamwari
+- **Ask Shamwari link:** AISummary includes a "Ask Shamwari about this" link that sets `ShamwariContext` with the current location/weather/summary before navigating to `/shamwari`
+
+### AI Prompt Library (Database-Driven)
+
+All AI system prompts, suggested prompt rules, and model configurations are stored in MongoDB and served via `GET /api/py/ai/prompts`. This allows updating AI behavior without code changes.
+
+**Collections:**
+- `ai_prompts` — system prompts keyed by `promptKey` (e.g., `system:weather_summary`, `system:history_analysis`, `system:explore_search`, `system:report_clarification`, `greeting:location`, `greeting:explore`, `greeting:history`). Each document has: `promptKey`, `template` (with `{variable}` placeholders), `model`, `maxTokens`, `active`, `updatedAt`
+- `ai_suggested_rules` — dynamic suggested prompt rules. Each rule has: `ruleKey`, `condition` (weather field + operator + threshold), `prompt` (template with `{location}` placeholders), `category` (weather/activity/general), `priority`, `active`
+
+**Seed data:** `src/lib/seed-ai-prompts.ts` — seeded via `/api/db-init`
+
+**Client integration:** `src/lib/suggested-prompts.ts` — `generateSuggestedPrompts(weather, location, activities)` fetches rules from the database (5-min client cache), evaluates weather conditions against rules, and returns up to 3 contextual prompts. Used by `AISummaryChat` and `ExploreChatbot`
+
+**Fallbacks:** All components include hardcoded fallback prompts/greetings for when the database or API is unavailable
 
 ### Caching Strategy
 
@@ -662,13 +729,17 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 - Weather cache: 15-min TTL (auto-expires via TTL index)
 - AI summaries: tiered TTL — 30 min (major cities), 60 min (mid-tier), 120 min (small locations)
 - Weather history: unlimited retention (recorded on every fresh API fetch)
+- History analysis: 1h TTL in `history_analysis` collection (keyed by location + days + data hash)
+- Weather reports: TTL by severity — 24h (mild), 48h (moderate), 72h (severe) in `weather_reports` collection
 - Explore route: in-memory location context (5-min TTL), activities (5-min TTL), in-request weather cache (`Map<string, WeatherResult>` per request), in-request suitability rules cache (`rulesCache` ref per request)
+- AI prompts: 5-min in-memory cache in Python endpoints (`_ai_prompts.py`, `_reports.py`, `_history_analyze.py`)
 
 **Client-side:**
 - No weather data caching — every page load fetches fresh weather data from the server
 - User preferences (theme + selected activities) are persisted to localStorage via Zustand `persist` middleware under key `mukoko-weather-prefs`
 - Suitability rules: 10-min TTL cache in `src/lib/suitability-cache.ts` (fetched from `/api/suitability`)
 - Category styles: 10-min TTL cache in `src/lib/suitability-cache.ts`, seeded from static `CATEGORY_STYLES` for instant render
+- Suggested prompt rules: 5-min TTL cache in `src/lib/suggested-prompts.ts` (fetched from `/api/py/ai/prompts`)
 
 ### i18n
 
@@ -704,7 +775,8 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 
 - **Route:** `/history` — client-side dashboard for exploring recorded weather data
 - **Components:** `src/app/history/page.tsx` (server, metadata) + `src/app/history/HistoryDashboard.tsx` (client)
-- **Features:** location search, configurable time period (7d–1y), comprehensive charts, summary statistics, and daily records table
+- **Features:** location search, configurable time period (7d–1y), comprehensive charts, summary statistics, daily records table, and AI-powered analysis
+- **AI analysis:** `src/components/weather/HistoryAnalysis.tsx` — button-triggered analysis ("Analyze with Shamwari"). Server-side aggregation computes compact stats (~800 tokens) from raw records, sends to Claude for trend/pattern analysis. Results rendered as markdown with tanzanite border. "Discuss in Shamwari" link carries analysis context via `ShamwariContext`. Cached 1h server-side
 - **Data source:** `GET /api/history?location=<slug>&days=<n>` backed by MongoDB `weather_history` collection
 - **Charts:** Reusable chart components from `src/components/weather/charts/` (Canvas 2D via Chart.js)
 
@@ -731,6 +803,8 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 1. **Map pin** — opens the My Weather modal (location tab)
 2. **Clock** — links to `/history`
 3. **Search** — opens the My Weather modal (location tab)
+
+The header also renders `WeatherReportModal` (lazy-loaded, only mounts when `reportModalOpen` is true).
 
 The header takes no props — location context comes from the URL path.
 
@@ -760,12 +834,15 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 5. **Memory pressure monitoring** — `useMemoryPressure()` hook monitors `performance.memory` for JS heap pressure
 
 **Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
-- `AISummary` → `LazySection` + `Suspense`
-- `ActivityInsights` → `LazySection` + `Suspense`
 - `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AISummary` → `LazySection` + `Suspense`
+- `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
+- `ActivityInsights` → `LazySection` + `Suspense`
 - `AtmosphericSummary` → `LazySection` + `Suspense`
 - `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `SunTimes` → `LazySection` + `Suspense`
+- `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `RecentReports` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - Location info card → `LazySection`
 
 **History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
@@ -807,9 +884,11 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 **Components:**
 - `src/app/shamwari/page.tsx` — server wrapper (metadata, Header only — no Footer for max chat space)
 - `src/app/shamwari/ShamwariPageClient.tsx` — client: full-viewport layout (`100dvh - header`), bottom padding for mobile nav (`pb-[4.5rem] sm:pb-0`)
-- `src/components/explore/ExploreChatbot.tsx` — reusable chat UI: message bubbles, typing indicator, suggested prompts, markdown rendering, location reference links
+- `src/components/explore/ExploreChatbot.tsx` — reusable chat UI: message bubbles, typing indicator, contextual suggested prompts, markdown rendering, location reference links
 
-**API:** `POST /api/explore` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
+**Contextual navigation:** On mount, `ExploreChatbot` checks `useAppStore.shamwariContext`. If present and not expired (10 min), it generates a contextual greeting and location-specific suggested prompts based on the source page (location/explore/history). Context is consumed once and cleared after use. Greetings and prompts are fetched from the database-driven AI prompt library with hardcoded fallbacks.
+
+**API:** `POST /api/py/chat` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
 - **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated via `truncateHistoryContent` to 2000 chars), activities array (user's selected activities from Zustand store) capped at 10 items and injected into system prompt for personalised advice, location slugs validated via `SLUG_RE` (`/^[a-z0-9-]{1,80}$/`), tags validated against `KNOWN_TAGS` allowlist
 - **Security:** IP required (rejects unknown), circuit breaker on all Claude calls, structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
@@ -817,18 +896,41 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL, used for dynamic system prompt activity list)
 - **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
 
-### Explore (Browse-Only)
+### Explore (Browse + AI Search)
 
-**Route:** `/explore` — location browsing by category and country (ISR 1h). No chatbot — links to `/shamwari` for AI chat.
+**Route:** `/explore` — location browsing by category/country (ISR 1h) + AI-powered natural-language search.
 
 **Components:**
-- `src/app/explore/page.tsx` — server component (ISR 1h), fetches tag counts and featured tags, renders Shamwari CTA card + category browse grid + country browse link
+- `src/app/explore/page.tsx` — server component (ISR 1h), fetches tag counts and featured tags, renders AI search + Shamwari CTA card + category browse grid + country browse link
+- `src/components/explore/ExploreSearch.tsx` — client component: natural-language search input (e.g., "farming areas with low frost risk"), results render as location cards with inline weather data. "Ask Shamwari for more" link sets `ShamwariContext` with `source: "explore"` + `exploreQuery`
+- **API:** `POST /api/py/explore/search` — uses Claude with `search_locations` + `get_weather` tools. Falls back to text search if AI unavailable. Rate-limited 15 req/hour/IP
 
 **Sub-routes:**
 - `/explore/[tag]` — locations filtered by tag, server-rendered
 - `/explore/country` — country index page with flag emoji
 - `/explore/country/[code]` — locations in a country, grouped by province
 - `/explore/country/[code]/[province]` — locations in a specific province
+
+### Community Weather Reporting (Waze-Style)
+
+Users can submit real-time ground-truth weather observations, similar to Waze for road incidents.
+
+**Report types (10):** light-rain, heavy-rain, thunderstorm, hail, flooding, strong-wind, clear-skies, fog, dust, frost
+**Severity levels (3):** mild (24h TTL), moderate (48h TTL), severe (72h TTL)
+
+**Components:**
+- `src/components/weather/reports/WeatherReportModal.tsx` — 3-step dialog wizard: select type (grid of icons) → AI clarification (1-2 follow-up questions) → confirm (summary + severity + submit). Uses shadcn Dialog, triggered via `reportModalOpen` store state
+- `src/components/weather/reports/RecentReports.tsx` — shows recent community reports on location pages. Compact cards with type icon, severity badge, verified badge, time ago, upvote button. Includes "Report Weather" trigger
+
+**API endpoints:**
+- `POST /api/py/reports` — submit report (rate-limited 5/hour/IP, auto-captures weather snapshot for cross-validation)
+- `GET /api/py/reports?location=<slug>&hours=<n>` — list recent reports for a location
+- `POST /api/py/reports/upvote` — upvote a report (IP-based dedup)
+- `POST /api/py/reports/clarify` — AI-generated follow-up questions (database-driven prompt via `system:report_clarification`)
+
+**Cross-validation:** Reports are auto-verified against API weather data at the same location/time. User reports "heavy rain" but API shows 0% precipitation → unverified. User reports "clear skies" and API confirms → auto-verified with checkmark badge.
+
+**MongoDB collection:** `weather_reports` with TTL-based expiration via `expiresAt` field
 
 ### Status Page
 
@@ -856,7 +958,8 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/lib/suitability.test.ts` — suitability rule evaluation, condition matching, metric template resolution
 - `src/lib/countries.test.ts` — country/province data, flag emoji, province slug generation
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
-- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback
+- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback, ShamwariContext set/clear/expiry
+- `src/lib/suggested-prompts.test.ts` — suggested prompt generation, weather condition matching, max 3 cap
 - `src/lib/circuit-breaker.test.ts` — circuit breaker state transitions, execute(), reset, error handling
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
@@ -897,7 +1000,8 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
 - `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
 - `src/app/history/HistoryDashboard.test.ts` — history dashboard tests
-- `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary
+- `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary, contextual navigation
+- `src/components/explore/ExploreSearch.test.ts` — AI search structure, search flow, results rendering, Shamwari context
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
 - `src/components/ui/chart-fallbacks.test.ts` — CSS fallback table key parity (light/dark sync)
 - `src/components/ui/primitives.test.ts` — UI primitive variants (StatusIndicator, CTACard, ToggleGroup, InfoRow, SectionHeader)
@@ -910,6 +1014,10 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/components/weather/ChartErrorBoundary.test.ts` — error boundary rendering
 - `src/components/weather/CurrentConditions.test.ts` — current conditions rendering
 - `src/components/weather/LazySection.test.ts` — lazy section mounting, visibility
+- `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
+- `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
+- `src/components/weather/reports/WeatherReportModal.test.ts` — 3-step wizard, report types, severity, accessibility
+- `src/components/weather/reports/RecentReports.test.ts` — report list, upvoting, report trigger, UI patterns
 
 **Conventions:**
 - Tests live next to the code they test (co-located)
