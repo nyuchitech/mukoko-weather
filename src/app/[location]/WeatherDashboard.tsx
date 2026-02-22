@@ -10,6 +10,7 @@ import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
 import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
+import { WelcomeBanner } from "@/components/weather/WelcomeBanner";
 import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
@@ -49,6 +50,7 @@ export function WeatherDashboard({
   countryName,
 }: WeatherDashboardProps) {
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
+  const openMyWeather = useAppStore((s) => s.openMyWeather);
   const selectedActivities = useAppStore((s) => s.selectedActivities);
 
   // Seed with static ACTIVITIES for instant rendering, then upgrade from MongoDB.
@@ -120,6 +122,9 @@ export function WeatherDashboard({
 
         {/* Frost alert banner */}
         {frostAlert && <FrostAlertBanner alert={frostAlert} />}
+
+        {/* Welcome banner for first-time visitors — inline, non-blocking */}
+        <WelcomeBanner locationName={location.name} onChangeLocation={openMyWeather} />
 
         {/* Main grid */}
         <div className="grid gap-6 lg:grid-cols-3">

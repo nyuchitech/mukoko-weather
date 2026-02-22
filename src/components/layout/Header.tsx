@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MukokoLogo } from "@/components/brand/MukokoLogo";
@@ -37,8 +37,6 @@ function CompassIcon({ size = 20 }: { size?: number }) {
 export function Header() {
   const openMyWeather = useAppStore((s) => s.openMyWeather);
   const myWeatherOpen = useAppStore((s) => s.myWeatherOpen);
-  const hasOnboarded = useAppStore((s) => s.hasOnboarded);
-  const onboardingChecked = useRef(false);
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -52,18 +50,6 @@ export function Header() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Auto-open the My Weather modal for first-time visitors so they can
-  // pick their location and activities. Runs once after Zustand rehydrates.
-  useEffect(() => {
-    if (onboardingChecked.current) return;
-    onboardingChecked.current = true;
-    if (!hasOnboarded) {
-      // Small delay to let the page paint first
-      const timer = setTimeout(openMyWeather, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [hasOnboarded, openMyWeather]);
 
   // Determine which mobile nav item is active based on pathname
   const isShamwari = pathname === "/shamwari";
