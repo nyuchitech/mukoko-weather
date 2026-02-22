@@ -66,7 +66,7 @@ export function AISummary({ weather, location }: Props) {
         let activityLabels: string[] = [];
         if (selectedActivities.length > 0) {
           try {
-            const labelsRes = await fetch(`/api/activities?labels=${selectedActivities.join(",")}`);
+            const labelsRes = await fetch(`/api/py/activities?labels=${selectedActivities.join(",")}`);
             if (labelsRes.ok) {
               const labelsData = await labelsRes.json();
               activityLabels = labelsData.labels ?? [];
@@ -75,7 +75,7 @@ export function AISummary({ weather, location }: Props) {
             // Activity labels unavailable — continue without them
           }
         }
-        const res = await fetch("/api/ai", {
+        const res = await fetch("/api/py/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,

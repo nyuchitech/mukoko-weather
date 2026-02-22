@@ -14,7 +14,7 @@ export function Footer() {
   const [stats, setStats] = useState<FooterStats>({ locations: 90, provinces: 10, stars: 0 });
 
   useEffect(() => {
-    fetch("/api/locations?mode=stats")
+    fetch("/api/py/locations?mode=stats")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.locations && data?.provinces) {

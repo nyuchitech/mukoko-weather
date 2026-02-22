@@ -58,7 +58,7 @@ export function WeatherDashboard({
   const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
   useEffect(() => {
     if (selectedActivities.length === 0) return;
-    fetch("/api/activities")
+    fetch("/api/py/activities")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data?.activities?.length) setAllActivities(data.activities); })
       .catch(() => {});

@@ -198,7 +198,7 @@ export function ExploreChatbot() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const res = await fetch("/api/explore", {
+      const res = await fetch("/api/py/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

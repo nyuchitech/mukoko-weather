@@ -73,8 +73,8 @@ describe("sendMessage logic", () => {
     expect(source).toContain("!trimmed || loading");
   });
 
-  it("sends message to /api/explore", () => {
-    expect(source).toContain('fetch("/api/explore"');
+  it("sends message to /api/py/chat", () => {
+    expect(source).toContain('fetch("/api/py/chat"');
   });
 
   it("includes history and activities in request body", () => {

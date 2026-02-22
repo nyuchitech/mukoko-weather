@@ -96,19 +96,19 @@ export function MyWeatherModal() {
   useEffect(() => {
     // Fetch all data from MongoDB API — single source of truth.
     Promise.all([
-      fetch("/api/locations")
+      fetch("/api/py/locations")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => { if (data?.locations?.length) setAllLocations(data.locations); })
         .catch(() => {}),
-      fetch("/api/activities")
+      fetch("/api/py/activities")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => { if (data?.activities?.length) setAllActivities(data.activities); })
         .catch(() => {}),
-      fetch("/api/activities?mode=categories")
+      fetch("/api/py/activities?mode=categories")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
         .catch(() => {}),
-      fetch("/api/tags")
+      fetch("/api/py/tags")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.tags?.length) {

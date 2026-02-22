@@ -403,11 +403,11 @@ export function HistoryDashboard() {
   // Fetch all locations and categories from MongoDB on mount
   useEffect(() => {
     Promise.all([
-      fetch("/api/locations")
+      fetch("/api/py/locations")
         .then((res) => (res.ok ? res.json() : { locations: [] }))
         .then((data) => setAllLocations(data.locations ?? []))
         .catch(() => {}),
-      fetch("/api/activities?mode=categories")
+      fetch("/api/py/activities?mode=categories")
         .then((res) => (res.ok ? res.json() : { categories: [] }))
         .then((data) => { if (data?.categories?.length) setActivityCategories(data.categories); })
         .catch(() => {}),
@@ -427,7 +427,7 @@ export function HistoryDashboard() {
       // a circular dependency with useCallback.
       setLoading(true);
       setFetched(true);
-      fetch(`/api/history?location=${loc.slug}&days=30`)
+      fetch(`/api/py/history?location=${loc.slug}&days=30`)
         .then((res) => {
           if (!res.ok) return res.json().catch(() => ({ error: "Request failed" })).then((b) => { throw new Error(b.error || `HTTP ${res.status}`); });
           return res.json();
@@ -486,7 +486,7 @@ export function HistoryDashboard() {
       setError(null);
       setFetched(true);
       try {
-        const res = await fetch(`/api/history?location=${location.slug}&days=${dayCount}`);
+        const res = await fetch(`/api/py/history?location=${location.slug}&days=${dayCount}`);
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: "Request failed" }));
           throw new Error(body.error || `HTTP ${res.status}`);
