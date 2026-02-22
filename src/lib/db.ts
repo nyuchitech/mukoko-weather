@@ -1563,11 +1563,11 @@ export function getAtlasSearchIndexDefinitions(): {
           dynamic: false,
           fields: {
             name: [
-              { type: "string", analyzer: "luceneStandard" },
-              { type: "autocomplete", analyzer: "luceneStandard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
+              { type: "string", analyzer: "lucene.standard" },
+              { type: "autocomplete", analyzer: "lucene.standard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
             ],
-            province: { type: "string", analyzer: "luceneStandard" },
-            slug: { type: "string", analyzer: "luceneKeyword" },
+            province: { type: "string", analyzer: "lucene.standard" },
+            slug: { type: "string", analyzer: "lucene.keyword" },
             tags: { type: "token" },
             country: { type: "token" },
           },
@@ -1584,10 +1584,10 @@ export function getAtlasSearchIndexDefinitions(): {
           dynamic: false,
           fields: {
             label: [
-              { type: "string", analyzer: "luceneStandard" },
-              { type: "autocomplete", analyzer: "luceneStandard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
+              { type: "string", analyzer: "lucene.standard" },
+              { type: "autocomplete", analyzer: "lucene.standard", tokenization: "edgeGram", minGrams: 2, maxGrams: 15 },
             ],
-            description: { type: "string", analyzer: "luceneStandard" },
+            description: { type: "string", analyzer: "lucene.standard" },
             category: { type: "token" },
           },
         },
