@@ -206,8 +206,8 @@ describe("evaluateSuitability", () => {
   it("returns generic fallback when no rules exist at all", () => {
     const rules = new Map<string, SuitabilityRuleDoc>();
     const result = evaluateSuitability(fakeActivity, fakeInsights, rules);
-    expect(result.level).toBe("good");
-    expect(result.detail).toBe("Conditions look suitable for this activity");
+    expect(result.level).toBe("fair");
+    expect(result.detail).toBe("No specific rules available for this activity");
   });
 
   it("matches a condition when threshold is met", () => {

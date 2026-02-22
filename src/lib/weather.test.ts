@@ -418,16 +418,24 @@ describe("synthesizeOpenMeteoInsights", () => {
     expect(insights.uvHealthConcern).toBe(data.current.uv_index);
   });
 
-  it("derives thunderstormProbability from WMO weather code", () => {
+  it("derives thunderstormProbability from WMO weather code (graduated)", () => {
     const data = createFallbackWeather(-17.83, 31.05, 1483);
     // Fallback weather uses non-thunderstorm code
-    const insights = synthesizeOpenMeteoInsights(data);
-    expect(insights.thunderstormProbability).toBe(0);
+    expect(synthesizeOpenMeteoInsights(data).thunderstormProbability).toBe(0);
 
-    // Simulate thunderstorm weather code (WMO 95)
-    const stormData = createFallbackWeather(-17.83, 31.05, 1483);
-    stormData.current.weather_code = 95;
-    const stormInsights = synthesizeOpenMeteoInsights(stormData);
-    expect(stormInsights.thunderstormProbability).toBe(80);
+    // WMO 95 — moderate thunderstorm → 70%
+    const moderateStorm = createFallbackWeather(-17.83, 31.05, 1483);
+    moderateStorm.current.weather_code = 95;
+    expect(synthesizeOpenMeteoInsights(moderateStorm).thunderstormProbability).toBe(70);
+
+    // WMO 96 — thunderstorm with hail → 85%
+    const hailStorm = createFallbackWeather(-17.83, 31.05, 1483);
+    hailStorm.current.weather_code = 96;
+    expect(synthesizeOpenMeteoInsights(hailStorm).thunderstormProbability).toBe(85);
+
+    // WMO 99 — heavy thunderstorm with hail → 95%
+    const heavyStorm = createFallbackWeather(-17.83, 31.05, 1483);
+    heavyStorm.current.weather_code = 99;
+    expect(synthesizeOpenMeteoInsights(heavyStorm).thunderstormProbability).toBe(95);
   });
 });

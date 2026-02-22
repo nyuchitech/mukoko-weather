@@ -38,6 +38,10 @@ jobs:
 
           # --retry-connrefused handles cold starts (no sleep needed)
           # --retry-delay 10 gives Vercel time to warm up between attempts
+          # NOTE: curl --retry only retries on connection/network errors,
+          # not HTTP 4xx/5xx responses. If db-init returns a 500 (e.g.
+          # MongoDB cold start), curl will NOT retry it — the status
+          # check below will report the failure instead.
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \

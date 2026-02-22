@@ -697,6 +697,9 @@ function sanitizeHistoryContent(content: string): string {
   return content.slice(0, MAX_MESSAGE_LENGTH);
 }
 
+/** Maximum number of reference links returned to the client. */
+const MAX_REFERENCES = 20;
+
 /** Deduplicate references by slug, preferring "location" type over "weather". */
 function deduplicateReferences(refs: { slug: string; name: string; type: string }[]) {
   const map = new Map<string, { slug: string; name: string; type: string }>();
@@ -707,5 +710,5 @@ function deduplicateReferences(refs: { slug: string; name: string; type: string 
       map.set(r.slug, r);
     }
   }
-  return [...map.values()];
+  return [...map.values()].slice(0, MAX_REFERENCES);
 }

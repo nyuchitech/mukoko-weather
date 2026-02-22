@@ -58,11 +58,11 @@ export function uvConcernLabel(concern: number): { label: string; className: str
 
 /** Generic fallback when no DB rules exist for a category */
 const GENERIC_FALLBACK: SuitabilityRating = {
-  level: "good",
-  label: "Good",
-  colorClass: "text-severity-low",
-  bgClass: "bg-severity-low/10",
-  detail: "Conditions look suitable for this activity",
+  level: "fair",
+  label: "Fair",
+  colorClass: "text-severity-moderate",
+  bgClass: "bg-severity-moderate/10",
+  detail: "No specific rules available for this activity",
 };
 
 /** Exported for testing and ActivityCard — resolves the best suitability rule for an activity. */

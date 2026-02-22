@@ -379,4 +379,9 @@ describe("performance and resilience", () => {
     expect(source).toContain("deduplicateReferences");
     expect(source).toContain('existing.type !== "location"');
   });
+
+  it("caps deduplicated references to MAX_REFERENCES", () => {
+    expect(source).toContain("MAX_REFERENCES");
+    expect(source).toContain(".slice(0, MAX_REFERENCES)");
+  });
 });

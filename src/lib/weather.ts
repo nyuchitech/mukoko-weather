@@ -97,8 +97,11 @@ export function synthesizeOpenMeteoInsights(data: WeatherData): WeatherInsights 
   const weatherCode = data.current.weather_code;
 
   // WMO weather codes 95–99 indicate thunderstorm activity.
-  // Translate to a 0–100 probability: 80% for thunderstorm, 0% otherwise.
-  const thunderstormProbability = weatherCode >= 95 ? 80 : 0;
+  // Graduate probability by severity: 95 = moderate, 96/97 = with hail, 99 = heavy hail.
+  let thunderstormProbability = 0;
+  if (weatherCode >= 99) thunderstormProbability = 95;
+  else if (weatherCode >= 96) thunderstormProbability = 85;
+  else if (weatherCode >= 95) thunderstormProbability = 70;
 
   // Derive precipitationType from WMO weather codes:
   //   0=none, 1=rain, 2=snow, 3=freezing rain, 4=ice pellets
