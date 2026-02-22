@@ -244,12 +244,14 @@ async function executeGetWeather(locationSlug: string) {
   // Try cache first, then fetch fresh
   const cached = await getCachedWeather(locationSlug);
   if (cached) {
-    // Look up location name for display; derive season from country code.
-    // getSeasonForDate depends on country, so these remain sequential, but
-    // the season DB lookup is cheap (~1ms with index) and falls back to
-    // sync getZimbabweSeason() if the seasons collection is unavailable.
-    const loc = await getLocationFromDb(locationSlug);
-    const season = await getSeasonForDate(new Date(), loc?.country ?? "ZW");
+    // Fetch location and season in parallel. Start season lookup with "ZW"
+    // default (majority of locations); re-fetch only if the location is non-ZW.
+    const [loc, zwSeason] = await Promise.all([
+      getLocationFromDb(locationSlug),
+      getSeasonForDate(new Date(), "ZW"),
+    ]);
+    const country = loc?.country ?? "ZW";
+    const season = country === "ZW" ? zwSeason : await getSeasonForDate(new Date(), country);
     return {
       found: true,
       locationSlug,
@@ -357,6 +359,15 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
     .map((id) => allActivities.find((a) => a.id === id))
     .filter((a) => a != null);
 
+  if (matchedActivities.length === 0) {
+    const validIds = allActivities.slice(0, 20).map((a) => a.id);
+    return {
+      found: true,
+      locationSlug,
+      error: `No matching activities found for IDs: ${activityIds.join(", ")}. Valid IDs include: ${validIds.join(", ")}`,
+    };
+  }
+
   const insights = "insights" in weatherResult ? weatherResult.insights : null;
 
   // Run suitability evaluation server-side so the LLM receives structured
@@ -369,6 +380,8 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
       if (rulesCache && !rulesCache.rules) {
         rulesCache.rules = await getAllSuitabilityRules();
       }
+      // rulesCache is always provided by the tool-use loop, so rulesCache.rules
+      // is populated above. The ?? fallback guards hypothetical standalone callers.
       const allRules = rulesCache?.rules ?? await getAllSuitabilityRules();
       const ruleMap = new Map(allRules.map((r) => [r.key, r]));
       for (const activity of matchedActivities) {
