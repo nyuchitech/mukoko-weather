@@ -30,6 +30,18 @@ export async function generateMetadata({
   const title = `${loc.name} Weather Today — Forecast & Conditions`;
   const description = `Current weather conditions, 7-day forecast, and hourly predictions for ${loc.name}, ${loc.province}, ${countryName}. AI-powered weather intelligence with frost alerts, farming insights, and accurate temperature data from mukoko weather.`;
 
+  // Build dynamic OG image URL with location-specific season from database
+  const season = await getSeasonForDate(new Date(), loc.country ?? "ZW");
+  const ogParams = new URLSearchParams({
+    title: `${loc.name} Weather`,
+    subtitle: `Live forecast for ${loc.province}, ${countryName}`,
+    location: loc.name,
+    province: loc.province,
+    season: season.name,
+    template: "location",
+  });
+  const ogImageUrl = `${BASE_URL}/api/og?${ogParams.toString()}`;
+
   return {
     title,
     description,
@@ -55,11 +67,13 @@ export async function generateMetadata({
       type: "website",
       locale: "en_ZW",
       siteName: "mukoko weather",
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${loc.name} weather forecast` }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${loc.name} Weather | mukoko weather`,
       description: `Live weather for ${loc.name}, ${countryName} — current conditions, 7-day forecast, and AI insights.`,
+      images: [ogImageUrl],
     },
   };
 }
