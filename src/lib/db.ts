@@ -959,7 +959,32 @@ export async function getActivityCategoriesFromDb(): Promise<ActivityCategory[]>
 // Suitability rules operations
 // ---------------------------------------------------------------------------
 
+/**
+ * Valid condition field names — must match keys of WeatherInsights.
+ * Checked at seed/sync time to catch typos before they reach the database.
+ */
+export const VALID_CONDITION_FIELDS = new Set([
+  "gdd10To30", "gdd10To31", "gdd08To30", "gdd03To25",
+  "evapotranspiration", "dewPoint", "precipitationType",
+  "windSpeed", "windGust",
+  "thunderstormProbability", "heatStressIndex", "uvHealthConcern",
+  "moonPhase", "cloudBase", "cloudCeiling", "visibility",
+  // Future: precipitationIntensity, snowIntensity
+]);
+
 export async function syncSuitabilityRules(rules: Omit<SuitabilityRuleDoc, "updatedAt">[]): Promise<void> {
+  // Validate condition field names at sync time to catch typos early.
+  for (const rule of rules) {
+    for (const cond of rule.conditions) {
+      if (!VALID_CONDITION_FIELDS.has(cond.field)) {
+        throw new Error(
+          `Invalid condition field "${cond.field}" in rule "${rule.key}". ` +
+          `Valid fields: ${[...VALID_CONDITION_FIELDS].join(", ")}`,
+        );
+      }
+    }
+  }
+
   const now = new Date();
   const bulkOps = rules.map((rule) => ({
     updateOne: {
@@ -1361,6 +1386,9 @@ let vectorSearchDisabledAt = 0;
  * generated yet. Once an embedding pipeline is wired up (e.g., via db-init or a
  * separate job), this check auto-resolves on the next warm instance.
  */
+// NOTE: Once set to `true`, this is never reset to `null` within a warm
+// instance — intentional, because embeddings are append-only. If embeddings
+// are ever bulk-deleted, restart the instance or call resetTestState().
 let embeddingsExist: boolean | null = null;
 
 export async function vectorSearchLocations(

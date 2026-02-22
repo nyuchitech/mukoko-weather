@@ -32,9 +32,12 @@ export async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
   inFlightRules = fetch("/api/suitability")
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
-      cachedRules = data?.rules ?? cachedRules ?? [];
-      cachedRulesAt = Date.now();
-      return cachedRules!;
+      const rules = data?.rules;
+      if (rules && rules.length > 0) {
+        cachedRules = rules;
+        cachedRulesAt = Date.now(); // only cache TTL when we got real data
+      }
+      return cachedRules ?? [];
     })
     .catch(() => cachedRules ?? [])
     .finally(() => { inFlightRules = null; });
@@ -68,8 +71,8 @@ export async function fetchCategoryStyles(): Promise<Record<string, CategoryStyl
       }
       if (Object.keys(styles).length > 0) {
         cachedCategoryStyles = styles;
+        cachedStylesAt = Date.now(); // only cache TTL when we got real data
       }
-      cachedStylesAt = Date.now();
       return cachedCategoryStyles;
     })
     .catch(() => cachedCategoryStyles)

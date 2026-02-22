@@ -65,6 +65,42 @@ describe("resetCaches", () => {
 });
 
 describe("fetchSuitabilityRules", () => {
+  it("does not cache empty rules when API returns non-ok response", async () => {
+    // First call: API fails → returns []
+    mockFetch.mockResolvedValueOnce({ ok: false });
+    const result1 = await fetchSuitabilityRules();
+    expect(result1).toEqual([]);
+
+    // Second call: should hit API again (not serve stale empty cache)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ rules: [{ key: "recovered" }] }),
+    });
+    const result2 = await fetchSuitabilityRules();
+    expect(result2).toHaveLength(1);
+    expect(result2[0].key).toBe("recovered");
+    // Should have made 2 fetches (not served from cache)
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache empty rules when API returns null data", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => null,
+    });
+    const result1 = await fetchSuitabilityRules();
+    expect(result1).toEqual([]);
+
+    // Next call should retry (no TTL was stamped)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ rules: [{ key: "real-rule" }] }),
+    });
+    const result2 = await fetchSuitabilityRules();
+    expect(result2).toHaveLength(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("returns cached rules on API failure", async () => {
     // First call succeeds
     mockFetch.mockResolvedValueOnce({

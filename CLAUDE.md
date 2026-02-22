@@ -216,7 +216,9 @@ mukoko-weather/
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
+│   │   │   ├── ActivityCard.test.ts     # Suitability integration (levels, priority, fallbacks)
 │   │   │   ├── AtmosphericSummary.test.ts # Gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
+│   │   │   ├── MetricCard.test.ts       # ArcGauge math, SVG geometry, ARIA contract
 │   │   │   ├── DailyForecast.test.ts     # Temperature percent, gradient helpers
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
@@ -520,7 +522,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)
 
 **Rule storage:** Rules are stored in MongoDB `suitability_rules` collection, seeded from `src/lib/seed-suitability-rules.ts` via `/api/db-init`. Rule keys follow the pattern `category:<category>` (applies to all activities in that category) or `activity:<id>` (overrides category rule for a specific activity).
 
-**Condition fields:** `thunderstormProbability`, `heatStressIndex`, `uvHealthConcern`, `visibility`, `windSpeed`, `windGust`, `precipitationIntensity`, `snowIntensity`, `gdd10To30`, `dewPoint`, `evapotranspiration`
+**Condition fields:** `thunderstormProbability`, `heatStressIndex`, `uvHealthConcern`, `visibility`, `windSpeed`, `windGust`, `precipitationType`, `gdd10To30`, `gdd10To31`, `gdd08To30`, `gdd03To25`, `dewPoint`, `evapotranspiration`, `moonPhase`, `cloudBase`, `cloudCeiling`. Field names are validated at sync time via `VALID_CONDITION_FIELDS` in `db.ts` — typos throw an error before reaching the database.
 
 **Operators:** `gt`, `gte`, `lt`, `lte`, `eq`
 
@@ -894,7 +896,9 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/components/ui/primitives.test.ts` — UI primitive variants (StatusIndicator, CTACard, ToggleGroup, InfoRow, SectionHeader)
 - `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric), hexWithAlpha
 - `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
+- `src/components/weather/ActivityCard.test.ts` — suitability integration (levels, priority, fallbacks, severity tokens)
 - `src/components/weather/AtmosphericSummary.test.ts` — gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
+- `src/components/weather/MetricCard.test.ts` — ArcGauge math, SVG geometry, ARIA contract, exports
 - `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
 - `src/components/weather/ChartErrorBoundary.test.ts` — error boundary rendering
 - `src/components/weather/CurrentConditions.test.ts` — current conditions rendering

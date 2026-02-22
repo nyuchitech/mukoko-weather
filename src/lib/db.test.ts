@@ -28,6 +28,7 @@ import {
   getTagCountsAndStats,
   getAtlasSearchIndexDefinitions,
   _resetSearchFlags,
+  VALID_CONDITION_FIELDS,
 } from "./db";
 import { REGIONS } from "./seed-regions";
 import { TAGS } from "./seed-tags";
@@ -517,5 +518,40 @@ describe("getAtlasSearchIndexDefinitions", () => {
     const nameFields = def.definition.mappings.fields.name;
     expect(Array.isArray(nameFields)).toBe(true);
     expect(nameFields.some((f) => f.type === "autocomplete")).toBe(true);
+  });
+});
+
+// ── VALID_CONDITION_FIELDS ─────────────────────────────────────────────────
+
+describe("VALID_CONDITION_FIELDS", () => {
+  it("contains all WeatherInsights numeric fields", () => {
+    const expected = [
+      "gdd10To30", "gdd10To31", "gdd08To30", "gdd03To25",
+      "evapotranspiration", "dewPoint", "precipitationType",
+      "windSpeed", "windGust",
+      "thunderstormProbability", "heatStressIndex", "uvHealthConcern",
+      "moonPhase", "cloudBase", "cloudCeiling", "visibility",
+    ];
+    for (const field of expected) {
+      expect(VALID_CONDITION_FIELDS.has(field)).toBe(true);
+    }
+  });
+
+  it("rejects unknown field names", () => {
+    expect(VALID_CONDITION_FIELDS.has("typoField")).toBe(false);
+    expect(VALID_CONDITION_FIELDS.has("windspeed")).toBe(false); // wrong case
+    expect(VALID_CONDITION_FIELDS.has("temperature")).toBe(false);
+  });
+
+  it("seed suitability rules only use valid fields", async () => {
+    const { SUITABILITY_RULES } = await import("./seed-suitability-rules");
+    for (const rule of SUITABILITY_RULES) {
+      for (const cond of rule.conditions) {
+        expect(
+          VALID_CONDITION_FIELDS.has(cond.field),
+          `Invalid field "${cond.field}" in rule "${rule.key}"`,
+        ).toBe(true);
+      }
+    }
   });
 });
