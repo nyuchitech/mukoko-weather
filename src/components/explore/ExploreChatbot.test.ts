@@ -17,6 +17,11 @@ describe("ExploreChatbot component structure", () => {
     expect(source).toContain("export function ExploreChatbot");
   });
 
+  it("imports useAppStore for user activity preferences", () => {
+    expect(source).toContain("useAppStore");
+    expect(source).toContain("selectedActivities");
+  });
+
   it("uses ReactMarkdown for assistant messages", () => {
     expect(source).toContain("import ReactMarkdown");
     expect(source).toContain("<ReactMarkdown");
@@ -72,8 +77,10 @@ describe("sendMessage logic", () => {
     expect(source).toContain('fetch("/api/explore"');
   });
 
-  it("includes history in request body", () => {
-    expect(source).toContain("JSON.stringify({ message: trimmed, history })");
+  it("includes history and activities in request body", () => {
+    expect(source).toContain("message: trimmed");
+    expect(source).toContain("history");
+    expect(source).toContain("activities: selectedActivities");
   });
 
   it("builds history from previous messages (sliced to last 10)", () => {

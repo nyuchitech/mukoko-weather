@@ -20,6 +20,15 @@ jobs:
     timeout-minutes: 2
 
     steps:
+      - name: Validate DB_INIT_SECRET is configured
+        env:
+          DB_INIT_SECRET: ${{ secrets.DB_INIT_SECRET }}
+        run: |
+          if [ -z "$DB_INIT_SECRET" ]; then
+            echo "::error::DB_INIT_SECRET is not set — add it as a repository secret"
+            exit 1
+          fi
+
       - name: Call db-init endpoint
         env:
           DEPLOY_URL: ${{ github.event.deployment_status.target_url }}

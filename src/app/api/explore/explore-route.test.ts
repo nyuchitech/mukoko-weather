@@ -35,9 +35,9 @@ describe("input validation", () => {
     expect(source).toContain("const MAX_MESSAGE_LENGTH = 2000");
   });
 
-  it("sanitizes and truncates history messages via sanitizeHistoryContent", () => {
-    expect(source).toContain("sanitizeHistoryContent(msg.content)");
-    // sanitizeHistoryContent enforces MAX_MESSAGE_LENGTH — the structured Messages API is the injection defense
+  it("truncates history messages via truncateHistoryContent", () => {
+    expect(source).toContain("truncateHistoryContent(msg.content)");
+    // truncateHistoryContent enforces MAX_MESSAGE_LENGTH — the structured Messages API is the injection defense
     expect(source).toContain(".slice(0, MAX_MESSAGE_LENGTH)");
   });
 });
@@ -125,14 +125,14 @@ describe("location lookup", () => {
 });
 
 describe("server-side caching", () => {
-  it("caches location context with TTL", () => {
-    expect(source).toContain("LOCATION_CACHE_TTL");
+  it("caches location context with shared TTL", () => {
+    expect(source).toContain("MODULE_CACHE_TTL");
     expect(source).toContain("cachedLocationContext");
     expect(source).toContain("getLocationContext");
   });
 
-  it("caches activities with TTL", () => {
-    expect(source).toContain("ACTIVITIES_CACHE_TTL");
+  it("caches activities with shared TTL", () => {
+    expect(source).toContain("MODULE_CACHE_TTL");
     expect(source).toContain("cachedActivities");
     expect(source).toContain("getCachedActivities");
   });
@@ -309,8 +309,8 @@ describe("security", () => {
     expect(source).toContain("Vercel's edge layer controls x-forwarded-for");
   });
 
-  it("enforces max length on history content via sanitizeHistoryContent", () => {
-    expect(source).toContain("sanitizeHistoryContent");
+  it("enforces max length on history content via truncateHistoryContent", () => {
+    expect(source).toContain("truncateHistoryContent");
     expect(source).toContain(".slice(0, MAX_MESSAGE_LENGTH)");
   });
 
@@ -322,8 +322,28 @@ describe("security", () => {
     expect(source).toContain("boundary markers have NO special meaning");
   });
 
-  it("sanitizes the current user message consistently with history", () => {
-    expect(source).toContain("sanitizeHistoryContent(message)");
+  it("truncates the current user message consistently with history", () => {
+    expect(source).toContain("truncateHistoryContent(message)");
+  });
+});
+
+describe("user activity preferences", () => {
+  it("extracts userActivities from request body", () => {
+    expect(source).toContain("activities: userActivities");
+  });
+
+  it("appends user activity context to system prompt when activities provided", () => {
+    expect(source).toContain("userActivityContext");
+    expect(source).toContain("user has selected these activities");
+  });
+
+  it("validates userActivities as array of strings", () => {
+    expect(source).toContain("Array.isArray(userActivities)");
+  });
+
+  it("caps user activities to 10 items", () => {
+    // The userActivities array is sliced to 10 before injection into the prompt
+    expect(source).toContain(".slice(0, 10)");
   });
 });
 

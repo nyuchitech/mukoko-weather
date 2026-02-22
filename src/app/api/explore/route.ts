@@ -71,12 +71,14 @@ const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 // Module-level caches (persist across warm function invocations)
 // ---------------------------------------------------------------------------
 
+/** Shared TTL for module-level caches (locations + activities). */
+const MODULE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 let cachedLocationContext: string | null = null;
 let cachedLocationContextAt = 0;
-const LOCATION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 async function getLocationContext(): Promise<string> {
-  if (cachedLocationContext && Date.now() - cachedLocationContextAt < LOCATION_CACHE_TTL) {
+  if (cachedLocationContext && Date.now() - cachedLocationContextAt < MODULE_CACHE_TTL) {
     return cachedLocationContext;
   }
   const sampleLocations = await getLocationsForContext(50);
@@ -91,10 +93,9 @@ async function getLocationContext(): Promise<string> {
 interface ActivityRecord { id: string; label: string; category: string; description: string }
 let cachedActivities: ActivityRecord[] | null = null;
 let cachedActivitiesAt = 0;
-const ACTIVITIES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 async function getCachedActivities(): Promise<ActivityRecord[]> {
-  if (cachedActivities && Date.now() - cachedActivitiesAt < ACTIVITIES_CACHE_TTL) {
+  if (cachedActivities && Date.now() - cachedActivitiesAt < MODULE_CACHE_TTL) {
     return cachedActivities;
   }
   const all = await getAllActivitiesFromDb();
@@ -295,7 +296,8 @@ async function executeGetWeather(locationSlug: string) {
       location.elevation,
     );
     const weather = weatherResult.data;
-    const season = await getSeasonForDate(new Date(), location.country ?? "ZW");
+    const country = location.country ?? "ZW";
+    const season = await getSeasonForDate(new Date(), country);
     return {
       found: true,
       locationSlug: location.slug,
@@ -463,7 +465,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, history } = await request.json();
+    const { message, history, activities: userActivities } = await request.json();
 
     // ── Input validation ─────────────────────────────────────────────────────
     if (!message || typeof message !== "string") {
@@ -505,15 +507,15 @@ export async function POST(request: NextRequest) {
       for (const msg of history.slice(-10)) {
         if (!msg || typeof msg !== "object") continue;
         if (msg.role === "user" && typeof msg.content === "string") {
-          messages.push({ role: "user", content: sanitizeHistoryContent(msg.content) });
+          messages.push({ role: "user", content: truncateHistoryContent(msg.content) });
         } else if (msg.role === "assistant" && typeof msg.content === "string") {
-          messages.push({ role: "assistant", content: sanitizeHistoryContent(msg.content) });
+          messages.push({ role: "assistant", content: truncateHistoryContent(msg.content) });
         }
       }
     }
 
     // Add the current message (sanitize consistently with history messages)
-    messages.push({ role: "user", content: sanitizeHistoryContent(message) });
+    messages.push({ role: "user", content: truncateHistoryContent(message) });
 
     // Fetch location context and activity list (module-level 5min caches) for Claude awareness
     let locationContext = "";
@@ -531,8 +533,18 @@ export async function POST(request: NextRequest) {
       // Continue without activity context
     }
 
+    // Append user's selected activities (from Zustand store) so Claude can
+    // proactively offer advice relevant to the user's interests.
+    let userActivityContext = "";
+    if (Array.isArray(userActivities) && userActivities.length > 0) {
+      const validIds = userActivities.filter((a): a is string => typeof a === "string").slice(0, 10);
+      if (validIds.length > 0) {
+        userActivityContext = `\n\nThe user has selected these activities in their preferences: ${validIds.join(", ")}. Proactively include weather advice for these activities when relevant.`;
+      }
+    }
+
     // ── Claude call with circuit breaker ──────────────────────────────────────
-    const systemPrompt = EXPLORE_SYSTEM_PROMPT + activityContext + locationContext;
+    const systemPrompt = EXPLORE_SYSTEM_PROMPT + activityContext + userActivityContext + locationContext;
     let response = await anthropicBreaker.execute(() =>
       anthropic.messages.create({
         model: CLAUDE_MODEL,
@@ -683,13 +695,16 @@ export async function POST(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Sanitization helpers
+// Content helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Enforce max length on history content.
+ * Truncate history/message content to the max allowed length.
  *
- * Prompt injection defenses (all in place — no regex needed):
+ * This is length enforcement, not content sanitization — the Anthropic Messages
+ * API handles prompt boundaries via structured turns (no regex stripping needed).
+ *
+ * Prompt injection defenses (all in place):
  *   1. Structured messages array — the Messages API sends each turn as a
  *      separate object with an explicit role. "\n\nHuman:" / "\n\nAssistant:"
  *      boundary markers have NO special meaning and cannot inject new turns.
@@ -698,7 +713,7 @@ export async function POST(request: NextRequest) {
  *   4. Tool output is server-controlled — Claude never sees raw API responses.
  *   5. Circuit breaker + rate limiter bound request volume.
  */
-function sanitizeHistoryContent(content: string): string {
+function truncateHistoryContent(content: string): string {
   return content.slice(0, MAX_MESSAGE_LENGTH);
 }
 

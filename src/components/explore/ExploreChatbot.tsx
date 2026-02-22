@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { SparklesIcon, SearchIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAppStore } from "@/lib/store";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown — prevents malformed markdown from
@@ -108,6 +109,8 @@ export function ExploreChatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Send user's selected activities so Claude can personalise advice
+  const selectedActivities = useAppStore((s) => s.selectedActivities);
 
   // Cancel in-flight fetch on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -155,7 +158,11 @@ export function ExploreChatbot() {
       const res = await fetch("/api/explore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history }),
+        body: JSON.stringify({
+          message: trimmed,
+          history,
+          ...(selectedActivities.length > 0 && { activities: selectedActivities }),
+        }),
         signal: controller.signal,
       });
 
@@ -192,7 +199,7 @@ export function ExploreChatbot() {
       // Refocus input after response
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [loading, messages]);
+  }, [loading, messages, selectedActivities]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

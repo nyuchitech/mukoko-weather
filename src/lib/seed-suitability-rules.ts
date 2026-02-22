@@ -28,7 +28,16 @@ export const SUITABILITY_RULES: SeedRule[] = [
   // ── Category: Farming ───────────────────────────────────────────────────
   {
     key: "category:farming",
+    // Condition order: most severe first. precipitationType >= 2 (freezing rain,
+    // ice pellets) is the highest-severity farming hazard and must fire before
+    // dew point checks — otherwise a fair dew point would mask severe precip.
     conditions: [
+      {
+        field: "precipitationType", operator: "gte", value: 2,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Severe precipitation expected — protect crops",
+      },
       {
         field: "dewPoint", operator: "gt", value: 20,
         level: "fair", label: "Fair",
@@ -42,12 +51,6 @@ export const SUITABILITY_RULES: SeedRule[] = [
         colorClass: "text-severity-cold", bgClass: "bg-severity-cold/10",
         detail: "Low dew point — cold, dry air stress for crops",
         metricTemplate: "Dew: {value}\u00B0C",
-      },
-      {
-        field: "precipitationType", operator: "gte", value: 2,
-        level: "poor", label: "Poor",
-        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
-        detail: "Severe precipitation expected — protect crops",
       },
       {
         field: "evapotranspiration", operator: "gt", value: 5,
