@@ -21,8 +21,10 @@ import type { ActivityCategoryDoc } from "@/lib/db";
 import { CATEGORIES } from "@/lib/seed-categories";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 const POPULAR_SLUGS = [
   "harare", "bulawayo", "mutare", "gweru", "masvingo",
@@ -320,20 +322,19 @@ function LocationTab({
 
       {/* Tag filter pills */}
       {!query && (
-        <div role="group" aria-label="Filter locations by category" className="flex flex-wrap gap-1.5 px-4 py-2">
+        <ToggleGroup
+          type="single"
+          value={activeTag ?? ""}
+          onValueChange={(val) => setActiveTag((val as LocationTag) || null)}
+          className="flex flex-wrap gap-1.5 px-4 py-2"
+          aria-label="Filter locations by category"
+        >
           {TAG_ORDER.map((tag) => (
-            <Button
-              key={tag}
-              variant={activeTag === tag ? "default" : "secondary"}
-              size="sm"
-              onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-              aria-pressed={activeTag === tag}
-              className="min-h-[44px]"
-            >
+            <ToggleGroupItem key={tag} value={tag} className="min-h-[44px]">
               {tagLabels[tag] ?? tag}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       )}
 
       {/* Location list — no nested scroll, uses tab content scroll */}
@@ -483,25 +484,43 @@ function ActivitiesTab({
       </div>
 
       {/* Category filter pills — 44px touch targets */}
-      <div className="flex gap-2 overflow-x-auto px-4 pt-1 pb-2 scrollbar-hide [overscroll-behavior-x:contain]" role="group" aria-label="Activity categories">
-        <CategoryTab
-          label="All"
-          categoryId="all"
-          active={activeCategory === "all"}
-          onClick={() => setActiveCategory("all")}
-          getCategoryStyle={getCategoryStyle}
-        />
-        {activityCategories.map((cat) => (
-          <CategoryTab
-            key={cat.id}
-            label={cat.label}
-            categoryId={cat.id}
-            active={activeCategory === cat.id}
-            onClick={() => setActiveCategory(cat.id as ActivityCategory)}
-            getCategoryStyle={getCategoryStyle}
-          />
-        ))}
-      </div>
+      <ToggleGroup
+        type="single"
+        value={activeCategory}
+        onValueChange={(val) => { if (val) setActiveCategory(val as ActivityCategory | "all"); }}
+        variant="unstyled"
+        className="flex gap-2 overflow-x-auto px-4 pt-1 pb-2 scrollbar-hide [overscroll-behavior-x:contain]"
+        aria-label="Activity categories"
+      >
+        <ToggleGroupItem
+          value="all"
+          className={cn(
+            "shrink-0 rounded-[var(--radius-badge)] px-4 py-2 min-h-[44px] text-sm font-medium transition-colors",
+            activeCategory === "all"
+              ? "bg-primary text-primary-foreground"
+              : "bg-surface-base text-text-secondary hover:text-text-primary",
+          )}
+        >
+          All
+        </ToggleGroupItem>
+        {activityCategories.map((cat) => {
+          const style = getCategoryStyle(cat.id);
+          return (
+            <ToggleGroupItem
+              key={cat.id}
+              value={cat.id}
+              className={cn(
+                "shrink-0 rounded-[var(--radius-badge)] px-4 py-2 min-h-[44px] text-sm font-medium transition-colors",
+                activeCategory === cat.id
+                  ? style.badge
+                  : "bg-surface-base text-text-secondary hover:text-text-primary",
+              )}
+            >
+              {cat.label}
+            </ToggleGroupItem>
+          );
+        })}
+      </ToggleGroup>
 
       {/* Activity search */}
       <div className="px-4 pb-2">
@@ -564,36 +583,6 @@ function ActivitiesTab({
         )}
       </div>
     </div>
-  );
-}
-
-function CategoryTab({
-  label,
-  categoryId,
-  active,
-  onClick,
-  getCategoryStyle,
-}: {
-  label: string;
-  categoryId: string;
-  active: boolean;
-  onClick: () => void;
-  getCategoryStyle: (category: string) => { bg: string; border: string; text: string; badge: string };
-}) {
-  const style = categoryId === "all" ? null : getCategoryStyle(categoryId);
-
-  return (
-    <button
-      aria-pressed={active}
-      onClick={onClick}
-      className={`shrink-0 rounded-[var(--radius-badge)] px-4 py-2 min-h-[44px] text-sm font-medium transition-colors ${
-        active
-          ? style ? `${style.badge}` : "bg-primary text-primary-foreground"
-          : "bg-surface-base text-text-secondary hover:text-text-primary"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 

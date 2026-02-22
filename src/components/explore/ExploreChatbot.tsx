@@ -5,6 +5,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { SparklesIcon, SearchIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown — prevents malformed markdown from
@@ -172,19 +173,21 @@ export function ExploreChatbot() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0" aria-live="polite" aria-relevant="additions">
-        {messages.length === 0 && (
-          <EmptyState onSuggestionClick={handleSuggestion} />
-        )}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-4 py-4 space-y-4" aria-live="polite" aria-relevant="additions">
+          {messages.length === 0 && (
+            <EmptyState onSuggestionClick={handleSuggestion} />
+          )}
 
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))}
 
-        {loading && <TypingIndicator />}
+          {loading && <TypingIndicator />}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
       {/* Input area */}
       <div className="shrink-0 border-t border-border bg-surface-base/50 backdrop-blur-sm px-4 py-3">

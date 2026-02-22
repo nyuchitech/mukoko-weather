@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { getTagCountsAndStats, getFeaturedTagsFromDb } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { TagDoc } from "@/lib/db";
+import { CTACard } from "@/components/ui/cta-card";
 
 // Cache for 1 hour; regenerates in the background after expiry (ISR).
 // Location data changes rarely — this eliminates cold-start DB latency for visitors.
@@ -74,22 +75,21 @@ export default async function ExplorePage() {
         </p>
 
         {/* Shamwari CTA card */}
-        <div className="mt-6 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-text-primary font-heading">Ask Shamwari</h2>
-              <p className="mt-1 text-sm text-text-secondary">
-                Chat with our AI weather assistant for real-time insights and activity advice
-              </p>
-            </div>
+        <CTACard
+          variant="accent"
+          as="h2"
+          title="Ask Shamwari"
+          description="Chat with our AI weather assistant for real-time insights and activity advice"
+          action={
             <Link
               href="/shamwari"
               className="shrink-0 inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
             >
               Start chatting
             </Link>
-          </div>
-        </div>
+          }
+          className="mt-6"
+        />
 
         {/* Category browse section */}
         <section aria-labelledby="browse-heading" className="mt-8">
@@ -134,22 +134,19 @@ export default async function ExplorePage() {
           </div>
 
           {/* Country browse card */}
-          <div className="mt-6 rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-text-primary font-heading">Browse by Country</h3>
-                <p className="mt-1 text-sm text-text-secondary">
-                  Explore weather across Africa and ASEAN — grouped by country and province
-                </p>
-              </div>
+          <CTACard
+            title="Browse by Country"
+            description="Explore weather across Africa and ASEAN — grouped by country and province"
+            action={
               <Link
                 href="/explore/country"
                 className="shrink-0 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
               >
                 Browse countries
               </Link>
-            </div>
-          </div>
+            }
+            className="mt-6"
+          />
         </section>
       </main>
 

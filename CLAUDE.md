@@ -157,7 +157,12 @@ mukoko-weather/
 │   │   │   ├── accordion.tsx        # Accordion (Radix, animated open/close)
 │   │   │   ├── section-header.tsx   # SectionHeader (title + optional action link/button)
 │   │   │   ├── info-row.tsx         # InfoRow (label + value pair for data lists)
+│   │   │   ├── toggle-group.tsx     # ToggleGroup (Radix, single/multiple, 3 variants incl. unstyled)
+│   │   │   ├── scroll-area.tsx      # ScrollArea (Radix, custom scrollbar, horizontal/vertical)
+│   │   │   ├── status-indicator.tsx # StatusDot + StatusBadge (severity-colored status indicators)
+│   │   │   ├── cta-card.tsx         # CTACard (call-to-action card with title, description, action)
 │   │   │   ├── chart-fallbacks.test.ts # CSS fallback table key parity tests
+│   │   │   ├── primitives.test.ts   # Tests for UI primitive variants and exports
 │   │   │   └── tabs.tsx              # Tabs (Radix, border-bottom active indicator)
 │   │   ├── brand/                    # Branding components
 │   │   │   ├── MukokoLogo.tsx        # Logo with text fallback
@@ -182,6 +187,8 @@ mukoko-weather/
 │   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
 │   │   │   ├── AtmosphericDetails.tsx # Imports chart components for 24h atmospheric views
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (React.lazy + Suspense)
+│   │   │   ├── MetricCard.tsx           # MetricCard + ArcGauge (radial gauge with value display)
+│   │   │   ├── ActivityCard.tsx        # ActivityCard (suitability card for a single activity)
 │   │   │   ├── StatCard.tsx            # Reusable stat card (label + value)
 │   │   │   ├── SectionSkeleton.tsx    # Generic section loading skeleton
 │   │   │   ├── LazySection.tsx        # TikTok-style sequential lazy-load with bidirectional visibility
@@ -209,6 +216,7 @@ mukoko-weather/
 │   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
+│   │   │   ├── AtmosphericSummary.test.ts # Gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
 │   │   │   ├── DailyForecast.test.ts     # Temperature percent, gradient helpers
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
 │   │   │   ├── SeasonBadge.tsx        # Zimbabwe season indicator
@@ -883,8 +891,10 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary
 - `src/components/embed/MukokoWeatherEmbed.test.ts` — widget rendering, data fetching
 - `src/components/ui/chart-fallbacks.test.ts` — CSS fallback table key parity (light/dark sync)
+- `src/components/ui/primitives.test.ts` — UI primitive variants (StatusIndicator, CTACard, ToggleGroup, InfoRow, SectionHeader)
 - `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric), hexWithAlpha
 - `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
+- `src/components/weather/AtmosphericSummary.test.ts` — gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
 - `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
 - `src/components/weather/ChartErrorBoundary.test.ts` — error boundary rendering
 - `src/components/weather/CurrentConditions.test.ts` — current conditions rendering

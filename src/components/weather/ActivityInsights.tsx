@@ -4,11 +4,11 @@ import { useMemo, useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { type Activity, CATEGORY_STYLES } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
-import { ActivityIcon } from "@/lib/weather-icons";
 import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import { fetchSuitabilityRules, fetchCategoryStyles, type CategoryStyle } from "@/lib/suitability-cache";
 import { reportErrorToAnalytics } from "@/lib/observability";
 import { SectionHeader } from "@/components/ui/section-header";
+import { ActivityCard } from "./ActivityCard";
 import type { SuitabilityRuleDoc } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ const GENERIC_FALLBACK: SuitabilityRating = {
   detail: "Conditions look suitable for this activity",
 };
 
-/** Exported for testing — resolves the best suitability rule for an activity. */
+/** Exported for testing and ActivityCard — resolves the best suitability rule for an activity. */
 export function evaluateSuitability(
   activity: Activity,
   insights: WeatherInsights,
@@ -87,55 +87,12 @@ export function evaluateSuitability(
 // Default category style (when API data hasn't loaded yet)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_STYLE = {
+const DEFAULT_STYLE: CategoryStyle = {
   bg: "bg-primary/10",
   border: "border-primary",
   text: "text-primary",
   badge: "bg-primary text-primary-foreground",
 };
-
-// ---------------------------------------------------------------------------
-// Activity suitability card (Tomorrow.io style)
-// ---------------------------------------------------------------------------
-
-function ActivityCard({
-  activity,
-  insights,
-  dbRules,
-  categoryStyles,
-}: {
-  activity: Activity;
-  insights: WeatherInsights;
-  dbRules: Map<string, SuitabilityRuleDoc>;
-  categoryStyles: Record<string, CategoryStyle>;
-}) {
-  const style = categoryStyles[activity.category] ?? DEFAULT_STYLE;
-  const rating = evaluateSuitability(activity, insights, dbRules);
-
-  return (
-    <div className={`flex items-center gap-3 rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm border-l-4 ${style.border}`}>
-      {/* Activity icon */}
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${style.bg}`}>
-        <span className={style.text} aria-hidden="true">
-          <ActivityIcon activity={activity.id} icon={activity.icon} size={20} />
-        </span>
-      </div>
-      {/* Activity info */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-text-primary">{activity.label}</p>
-          <span className={`rounded-[var(--radius-badge)] px-2 py-0.5 text-xs font-bold ${rating.bgClass} ${rating.colorClass}`}>
-            {rating.label}
-          </span>
-          {rating.metric && (
-            <span className="ml-auto text-xs font-medium text-text-tertiary tabular-nums">{rating.metric}</span>
-          )}
-        </div>
-        <p className="mt-0.5 text-sm text-text-secondary">{rating.detail}</p>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Main component
