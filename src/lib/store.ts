@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { queueSync, flushSync, initDeviceSync, type DevicePreferences } from "./device-sync";
 
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -41,28 +42,38 @@ export const useAppStore = create<AppState>()(
       setTheme: (theme: ThemePreference) => {
         applyTheme(theme);
         set({ theme });
+        queueSync({ theme });
       },
       toggleTheme: () =>
         set((state) => {
           const idx = THEME_CYCLE.indexOf(state.theme);
           const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
           applyTheme(next);
+          queueSync({ theme: next });
           return { theme: next };
         }),
       selectedLocation: "harare",
-      setSelectedLocation: (slug) => set({ selectedLocation: slug }),
+      setSelectedLocation: (slug) => {
+        set({ selectedLocation: slug });
+        queueSync({ selectedLocation: slug });
+      },
       selectedActivities: [],
       toggleActivity: (id) =>
-        set((state) => ({
-          selectedActivities: state.selectedActivities.includes(id)
+        set((state) => {
+          const next = state.selectedActivities.includes(id)
             ? state.selectedActivities.filter((a) => a !== id)
-            : [...state.selectedActivities, id],
-        })),
+            : [...state.selectedActivities, id];
+          queueSync({ selectedActivities: next });
+          return { selectedActivities: next };
+        }),
       myWeatherOpen: false,
       openMyWeather: () => set({ myWeatherOpen: true }),
       closeMyWeather: () => set({ myWeatherOpen: false }),
       hasOnboarded: false,
-      completeOnboarding: () => set({ hasOnboarded: true }),
+      completeOnboarding: () => {
+        set({ hasOnboarded: true });
+        queueSync({ hasOnboarded: true });
+      },
     }),
     {
       name: "mukoko-weather-prefs",
@@ -78,3 +89,45 @@ export const useAppStore = create<AppState>()(
     },
   ),
 );
+
+// ---------------------------------------------------------------------------
+// Device sync initialization — runs once on client-side app load
+// ---------------------------------------------------------------------------
+
+/** Initialize device sync after Zustand rehydrates. */
+export function initializeDeviceSync(): void {
+  if (typeof window === "undefined") return;
+
+  const getCurrentPrefs = (): DevicePreferences => {
+    const s = useAppStore.getState();
+    return {
+      theme: s.theme,
+      selectedLocation: s.selectedLocation,
+      selectedActivities: s.selectedActivities,
+      hasOnboarded: s.hasOnboarded,
+    };
+  };
+
+  const applyPrefs = (prefs: DevicePreferences): void => {
+    const store = useAppStore.getState();
+
+    if (prefs.theme && prefs.theme !== store.theme) {
+      store.setTheme(prefs.theme as ThemePreference);
+    }
+    if (prefs.selectedLocation && prefs.selectedLocation !== store.selectedLocation) {
+      // Use setState directly to avoid re-triggering sync
+      useAppStore.setState({ selectedLocation: prefs.selectedLocation });
+    }
+    if (prefs.selectedActivities && prefs.selectedActivities.length > 0) {
+      useAppStore.setState({ selectedActivities: prefs.selectedActivities });
+    }
+    if (prefs.hasOnboarded) {
+      useAppStore.setState({ hasOnboarded: true });
+    }
+  };
+
+  initDeviceSync(getCurrentPrefs, applyPrefs);
+
+  // Flush pending syncs before the page unloads
+  window.addEventListener("beforeunload", flushSync);
+}

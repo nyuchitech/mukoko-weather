@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
-import { useAppStore, resolveTheme } from "@/lib/store";
+import { useEffect, useRef } from "react";
+import { useAppStore, resolveTheme, initializeDeviceSync } from "@/lib/store";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useAppStore((s) => s.theme);
+  const deviceSyncInitialized = useRef(false);
+
+  // Initialize device sync once on mount (after Zustand rehydrates)
+  useEffect(() => {
+    if (!deviceSyncInitialized.current) {
+      deviceSyncInitialized.current = true;
+      initializeDeviceSync();
+    }
+  }, []);
 
   // Apply resolved theme to DOM whenever preference changes
   useEffect(() => {
