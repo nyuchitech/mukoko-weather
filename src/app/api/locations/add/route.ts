@@ -72,8 +72,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicates within 20km (city-level dedup)
-    const duplicate = await findDuplicateLocation(lat, lon, 20);
+    // Reverse geocode first so we know the country for dedup radius
+    const geocoded = await reverseGeocode(lat, lon);
+    if (!geocoded) {
+      return NextResponse.json(
+        { error: "Could not determine location name for these coordinates." },
+        { status: 422 },
+      );
+    }
+
+    // Check for duplicates (5km for Zimbabwe, 10km elsewhere)
+    const dedupKm = geocoded.country?.toUpperCase() === "ZW" ? 5 : 10;
+    const duplicate = await findDuplicateLocation(lat, lon, dedupKm);
     if (duplicate) {
       return NextResponse.json({
         mode: "duplicate",
@@ -85,15 +95,6 @@ export async function POST(request: NextRequest) {
         },
         message: `A location already exists nearby: ${duplicate.name}`,
       });
-    }
-
-    // Reverse geocode
-    const geocoded = await reverseGeocode(lat, lon);
-    if (!geocoded) {
-      return NextResponse.json(
-        { error: "Could not determine location name for these coordinates." },
-        { status: 422 },
-      );
     }
 
     // Get elevation if not provided by geocoder

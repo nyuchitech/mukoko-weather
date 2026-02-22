@@ -334,7 +334,18 @@ def _is_in_supported_region(lat: float, lon: float) -> bool:
         return False
 
 
-def _find_duplicate(lat: float, lon: float, radius_km: float = 20) -> dict | None:
+DEDUP_RADIUS_ZW_KM = 5
+DEDUP_RADIUS_DEFAULT_KM = 10
+
+
+def _dedup_radius(country: str | None) -> float:
+    """Zimbabwe locations use a tighter 5km radius; others use 10km."""
+    if country and country.upper() == "ZW":
+        return DEDUP_RADIUS_ZW_KM
+    return DEDUP_RADIUS_DEFAULT_KM
+
+
+def _find_duplicate(lat: float, lon: float, radius_km: float = DEDUP_RADIUS_DEFAULT_KM) -> dict | None:
     """Check for existing locations within radius_km."""
     try:
         result = locations_collection().find_one(
@@ -439,8 +450,9 @@ async def geo_lookup(
                     detail="Could not determine location name",
                 )
 
-            # Duplicate check
-            duplicate = _find_duplicate(lat, lon, 20)
+            # Duplicate check (5km for Zimbabwe, 10km elsewhere)
+            dedup_km = _dedup_radius(geocoded.get("country"))
+            duplicate = _find_duplicate(lat, lon, dedup_km)
             if duplicate:
                 return {
                     "nearest": duplicate,
@@ -593,8 +605,14 @@ async def add_location(request: Request):
         if not rate["allowed"]:
             raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
-        # Duplicate check
-        duplicate = _find_duplicate(lat, lon, 20)
+        # Reverse geocode first so we know the country for dedup radius
+        geocoded = _reverse_geocode(lat, lon)
+        if not geocoded:
+            raise HTTPException(status_code=422, detail="Could not determine location name")
+
+        # Duplicate check (5km for Zimbabwe, 10km elsewhere)
+        dedup_km = _dedup_radius(geocoded.get("country"))
+        duplicate = _find_duplicate(lat, lon, dedup_km)
         if duplicate:
             return {
                 "mode": "duplicate",
@@ -606,11 +624,6 @@ async def add_location(request: Request):
                 },
                 "message": f"A location already exists nearby: {duplicate['name']}",
             }
-
-        # Reverse geocode
-        geocoded = _reverse_geocode(lat, lon)
-        if not geocoded:
-            raise HTTPException(status_code=422, detail="Could not determine location name")
 
         elevation = geocoded.get("elevation", 0) or 0
         if not elevation:

@@ -72,8 +72,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Double-check for duplicates (race condition protection)
-      const duplicate = await findDuplicateLocation(lat, lon, 20);
+      // Double-check for duplicates (5km for Zimbabwe, 10km elsewhere)
+      const dedupKm = geocoded.country?.toUpperCase() === "ZW" ? 5 : 10;
+      const duplicate = await findDuplicateLocation(lat, lon, dedupKm);
       if (duplicate) {
         return NextResponse.json({
           nearest: duplicate,
