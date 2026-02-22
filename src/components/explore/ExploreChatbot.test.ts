@@ -331,6 +331,9 @@ describe("overflow containment", () => {
   it("constrains markdown prose content overflow", () => {
     expect(source).toContain("prose-pre:overflow-x-auto");
     expect(source).toContain("prose-pre:max-w-full");
+    // Uses break-words (not break-all) for inline code to avoid splitting mid-word
+    expect(source).toContain("prose-code:break-words");
+    expect(source).not.toContain("prose-code:break-all");
   });
 
   it("uses min-w-0 on textarea wrapper for proper flex shrinking", () => {
@@ -390,5 +393,22 @@ describe("scroll-to-bottom button", () => {
 
   it("uses ArrowDownIcon", () => {
     expect(source).toContain("ArrowDownIcon");
+  });
+
+  it("meets 44px minimum touch target", () => {
+    // h-11 w-11 = 44px
+    expect(source).toContain("h-11 w-11");
+  });
+
+  it("auto-scroll respects user scroll position — only scrolls when near bottom", () => {
+    // The auto-scroll effect should check distanceFromBottom before scrolling,
+    // so users reading previous context aren't yanked to the bottom
+    expect(source).toContain("distanceFromBottom < 100");
+  });
+
+  it("documents the Radix internal attribute dependency", () => {
+    expect(source).toContain("data-radix-scroll-area-viewport");
+    // Should have a comment explaining this is an internal Radix attribute
+    expect(source).toContain("internal");
   });
 });

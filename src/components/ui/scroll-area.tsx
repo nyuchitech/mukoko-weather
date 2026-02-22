@@ -16,6 +16,12 @@ function ScrollArea({
       className={cn("relative overflow-hidden", className)}
       {...props}
     >
+      {/* Radix ScrollArea Viewport wraps children in a div with display:table,
+          which breaks flex/block layouts inside (e.g. the Shamwari chatbot).
+          The !block override forces that internal wrapper back to display:block.
+          This applies globally to all ScrollArea instances — if a future Radix
+          update changes the internal markup, this override may need revisiting.
+          See: https://github.com/radix-ui/primitives/issues/926 */}
       <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:!block">
         {children}
       </ScrollAreaPrimitive.Viewport>

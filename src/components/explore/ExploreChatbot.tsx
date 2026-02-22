@@ -127,12 +127,27 @@ export function ExploreChatbot() {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive — but only if the user is
+  // already near the bottom. If they scrolled up to re-read context, don't
+  // yank them back down; the scroll-to-bottom button handles that instead.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const viewport = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLElement | null;
+    const distanceFromBottom = viewport
+      ? viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
+      : 0;
+    if (distanceFromBottom < 100) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
-  // Track scroll position to show/hide scroll-to-bottom button
+  // Track scroll position to show/hide scroll-to-bottom button.
+  // NOTE: We query for [data-radix-scroll-area-viewport] which is an internal
+  // Radix attribute — not part of the public API. This is necessary because
+  // Radix ScrollArea doesn't expose an onScroll prop on the viewport. If Radix
+  // renames or removes this attribute, the scroll tracking will gracefully
+  // degrade (button stays hidden, no crash).
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
     if (!viewport) return;
@@ -261,7 +276,7 @@ export function ExploreChatbot() {
           <button
             type="button"
             onClick={scrollToBottom}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center h-8 w-8 rounded-full bg-surface-card border border-border shadow-md text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center h-11 w-11 rounded-full bg-surface-card border border-border shadow-md text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary"
             aria-label="Scroll to bottom"
           >
             <ArrowDownIcon size={16} />
@@ -379,7 +394,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
         <div className="min-w-0 flex-1">
           <MarkdownErrorBoundary fallback={message.content}>
-            <div className="prose prose-sm max-w-none break-words overflow-hidden text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-all">
+            <div className="prose prose-sm max-w-none break-words overflow-hidden text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-words">
               <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
             </div>
           </MarkdownErrorBoundary>
