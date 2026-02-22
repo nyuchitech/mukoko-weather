@@ -500,7 +500,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)
 
 ### Activities
 
-`src/lib/activities.ts` defines 20 activities across 6 categories for personalized weather advice. Activities extend the LocationTag system with user-activity categories.
+`src/lib/activities.ts` defines 30 activities across 6 categories for personalized weather advice. Activities extend the LocationTag system with user-activity categories.
 
 **Categories:** farming, mining, travel, tourism, sports, casual
 

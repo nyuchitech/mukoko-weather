@@ -275,6 +275,11 @@ describe("server-side suitability evaluation", () => {
     expect(source).toContain("label: rating.label");
     expect(source).toContain("detail: rating.detail");
   });
+
+  it("logs warning when suitability evaluation fails", () => {
+    expect(source).toContain("logWarn(");
+    expect(source).toContain("Suitability evaluation failed");
+  });
 });
 
 describe("robustness", () => {

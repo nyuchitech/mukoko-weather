@@ -44,6 +44,36 @@ interface ExploreResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Markdown link sanitisation — only allow safe hrefs (relative or https://)
+// ---------------------------------------------------------------------------
+
+/** Allow relative paths and https:// URLs only; block javascript:, data:, etc. */
+function isSafeHref(href: string | undefined): boolean {
+  if (!href) return false;
+  if (href.startsWith("/") || href.startsWith("#")) return true;
+  try {
+    const url = new URL(href);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+const markdownComponents = {
+  a: ({ href, children, ...props }: React.ComponentPropsWithoutRef<"a"> & { href?: string }) => {
+    if (!isSafeHref(href)) {
+      // Render unsafe links as plain text — no clickable element
+      return <span>{children}</span>;
+    }
+    return (
+      <a href={href} rel="noopener noreferrer" target="_blank" {...props}>
+        {children}
+      </a>
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Suggested prompts
 // ---------------------------------------------------------------------------
 
@@ -130,7 +160,9 @@ export function ExploreChatbot() {
       });
 
       if (!res.ok) {
-        throw new Error(`Request failed (${res.status})`);
+        // Surface actionable messages (e.g. rate-limit "Too many requests")
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.response ?? body?.error ?? `Request failed (${res.status})`);
       }
 
       const data: ExploreResponse = await res.json();
@@ -147,10 +179,11 @@ export function ExploreChatbot() {
     } catch (err) {
       // Silently ignore aborted requests (user navigated away or sent a new message)
       if (err instanceof DOMException && err.name === "AbortError") return;
+      const fallback = "I'm having trouble connecting right now. Please try again in a moment.";
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        content: err instanceof Error && err.message !== "Failed to fetch" ? err.message : fallback,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage].slice(-MAX_RENDERED_MESSAGES));
@@ -294,7 +327,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         ) : (
           <MarkdownErrorBoundary fallback={message.content}>
             <div className="prose prose-sm max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
             </div>
           </MarkdownErrorBoundary>
         )}

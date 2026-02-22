@@ -19,7 +19,7 @@ describe("ExploreChatbot component structure", () => {
 
   it("uses ReactMarkdown for assistant messages", () => {
     expect(source).toContain("import ReactMarkdown");
-    expect(source).toContain("<ReactMarkdown>");
+    expect(source).toContain("<ReactMarkdown");
   });
 
   it("wraps ReactMarkdown in error boundary for crash isolation", () => {
@@ -183,6 +183,102 @@ describe("memory management", () => {
     const sliceCalls = source.match(/\.slice\(-MAX_RENDERED_MESSAGES\)/g);
     expect(sliceCalls).not.toBeNull();
     expect(sliceCalls!.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("markdown link sanitisation", () => {
+  it("defines isSafeHref function for href validation", () => {
+    expect(source).toContain("function isSafeHref");
+  });
+
+  it("allows relative paths starting with /", () => {
+    expect(source).toContain('href.startsWith("/")');
+  });
+
+  it("allows anchor links starting with #", () => {
+    expect(source).toContain('href.startsWith("#")');
+  });
+
+  it("allows https and http protocols via URL constructor", () => {
+    expect(source).toContain('url.protocol === "https:"');
+    expect(source).toContain('url.protocol === "http:"');
+  });
+
+  it("renders unsafe links as plain <span> text", () => {
+    expect(source).toContain("<span>{children}</span>");
+  });
+
+  it("passes custom components to ReactMarkdown", () => {
+    expect(source).toContain("components={markdownComponents}");
+  });
+
+  it("adds rel=noopener noreferrer and target=_blank to safe links", () => {
+    expect(source).toContain('rel="noopener noreferrer"');
+    expect(source).toContain('target="_blank"');
+  });
+});
+
+describe("isSafeHref behavioral tests", () => {
+  // Mirror of the isSafeHref helper in ExploreChatbot.tsx
+  function isSafeHref(href: string | undefined): boolean {
+    if (!href) return false;
+    if (href.startsWith("/") || href.startsWith("#")) return true;
+    try {
+      const url = new URL(href);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }
+
+  it("blocks javascript: URIs", () => {
+    expect(isSafeHref("javascript:alert(1)")).toBe(false);
+  });
+
+  it("blocks data: URIs", () => {
+    expect(isSafeHref("data:text/html,<script>alert(1)</script>")).toBe(false);
+  });
+
+  it("blocks vbscript: URIs", () => {
+    expect(isSafeHref("vbscript:MsgBox('XSS')")).toBe(false);
+  });
+
+  it("allows https URLs", () => {
+    expect(isSafeHref("https://weather.mukoko.com/harare")).toBe(true);
+  });
+
+  it("allows http URLs", () => {
+    expect(isSafeHref("http://example.com")).toBe(true);
+  });
+
+  it("allows relative paths", () => {
+    expect(isSafeHref("/harare")).toBe(true);
+  });
+
+  it("allows anchor links", () => {
+    expect(isSafeHref("#section")).toBe(true);
+  });
+
+  it("returns false for undefined", () => {
+    expect(isSafeHref(undefined)).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isSafeHref("")).toBe(false);
+  });
+});
+
+describe("rate limit error surfacing", () => {
+  it("reads response body before throwing on non-ok responses", () => {
+    expect(source).toContain("res.json().catch(() => null)");
+  });
+
+  it("extracts response or error message from body", () => {
+    expect(source).toContain("body?.response ?? body?.error");
+  });
+
+  it("uses server error message when available instead of generic fallback", () => {
+    expect(source).toContain("err instanceof Error && err.message");
   });
 });
 

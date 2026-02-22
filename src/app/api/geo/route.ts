@@ -38,7 +38,14 @@ export async function GET(request: NextRequest) {
       reverseGeocode(lat, lon),
     ]);
 
-    const nearest = pickBestMatch(results, geocoded?.country ?? null);
+    let nearest = pickBestMatch(results, geocoded?.country ?? null);
+
+    // If no location within the preference radius, try uncapped nearest
+    // so users far from any seed location still get a result instead of 404.
+    if (!nearest) {
+      const uncapped = await findNearestLocationsFromDb(lat, lon, { limit: 1 });
+      nearest = uncapped[0] ?? null;
+    }
 
     if (nearest) {
       return NextResponse.json({

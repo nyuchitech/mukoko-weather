@@ -396,8 +396,13 @@ async function executeGetActivityAdvice(locationSlug: string, activityIds: strin
           };
         }
       }
-    } catch {
-      // DB unavailable — skip server-side suitability evaluation entirely
+    } catch (suitErr) {
+      logWarn({
+        source: "mongodb",
+        message: "Suitability evaluation failed — skipping server-side ratings",
+        location: locationSlug,
+        error: suitErr,
+      });
     }
   }
 

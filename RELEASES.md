@@ -2,7 +2,6 @@
 
 ## PR #28 — Explore chatbot, activities expansion, and suitability rules
 
-**Branch:** `claude/enhance-activities-locations-VFcbu`
 **Date:** 2026-02-21
 
 ### New Features

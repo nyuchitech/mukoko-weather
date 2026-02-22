@@ -56,6 +56,12 @@ describe("/api/geo route structure", () => {
     expect(source).toContain("pickBestMatch(results,");
   });
 
+  it("falls back to uncapped nearest when preference radius is empty", () => {
+    // After the preference-radius query, the route retries without maxDistanceKm
+    expect(source).toContain("limit: 1");
+    expect(source).toContain("uncapped");
+  });
+
   it("returns 503 when MongoDB is unavailable", () => {
     expect(source).toContain("status: 503");
     expect(source).toContain("Location service unavailable");
