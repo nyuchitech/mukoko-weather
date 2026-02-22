@@ -16,6 +16,12 @@ const MyWeatherModal = lazy(() =>
   })),
 );
 
+const WeatherReportModal = lazy(() =>
+  import("@/components/weather/reports/WeatherReportModal").then((m) => ({
+    default: m.WeatherReportModal,
+  })),
+);
+
 function HomeIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -37,6 +43,7 @@ function CompassIcon({ size = 20 }: { size?: number }) {
 export function Header() {
   const openMyWeather = useAppStore((s) => s.openMyWeather);
   const myWeatherOpen = useAppStore((s) => s.myWeatherOpen);
+  const reportModalOpen = useAppStore((s) => s.reportModalOpen);
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -176,6 +183,12 @@ export function Header() {
       {myWeatherOpen && (
         <Suspense>
           <MyWeatherModal />
+        </Suspense>
+      )}
+
+      {reportModalOpen && (
+        <Suspense>
+          <WeatherReportModal />
         </Suspense>
       )}
     </>

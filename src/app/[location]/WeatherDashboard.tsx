@@ -29,6 +29,7 @@ const AtmosphericSummary = lazy(() => import("@/components/weather/AtmosphericSu
 const SunTimes = lazy(() => import("@/components/weather/SunTimes").then((m) => ({ default: m.SunTimes })));
 const MapPreview = lazy(() => import("@/components/weather/map/MapPreview").then((m) => ({ default: m.MapPreview })));
 const AISummaryChat = lazy(() => import("@/components/weather/AISummaryChat").then((m) => ({ default: m.AISummaryChat })));
+const RecentReports = lazy(() => import("@/components/weather/reports/RecentReports").then((m) => ({ default: m.RecentReports })));
 
 const BASE_URL = "https://weather.mukoko.com";
 
@@ -205,6 +206,14 @@ export function WeatherDashboard({
               <ChartErrorBoundary name="weather map">
                 <Suspense fallback={<SectionSkeleton />}>
                   <MapPreview location={location} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
+
+            <LazySection label="community-reports">
+              <ChartErrorBoundary name="community reports">
+                <Suspense fallback={<SectionSkeleton />}>
+                  <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
