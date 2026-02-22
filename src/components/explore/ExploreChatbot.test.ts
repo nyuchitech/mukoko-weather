@@ -337,3 +337,58 @@ describe("overflow containment", () => {
     expect(source).toContain("relative flex-1 min-w-0");
   });
 });
+
+describe("message layout", () => {
+  it("user messages are in right-aligned bubbles with primary bg", () => {
+    expect(source).toContain("justify-end");
+    expect(source).toContain("bg-primary text-primary-foreground");
+  });
+
+  it("assistant messages are full-width without bubble background", () => {
+    // Assistant messages should have a sparkles icon + full-width prose, no bg-surface-card on message
+    expect(source).toContain("SparklesIcon");
+    expect(source).toContain("flex-1");
+  });
+
+  it("assistant messages show a sparkles avatar icon", () => {
+    expect(source).toContain("rounded-full bg-primary/10");
+    expect(source).toContain("SparklesIcon");
+  });
+
+  it("typing indicator matches assistant message layout with sparkles icon", () => {
+    // Typing indicator should also use the sparkles icon layout
+    const typingSection = source.slice(source.indexOf("function TypingIndicator"));
+    expect(typingSection).toContain("SparklesIcon");
+    expect(typingSection).toContain("rounded-full bg-primary/10");
+  });
+});
+
+describe("scroll-to-bottom button", () => {
+  it("tracks showScrollBtn state", () => {
+    expect(source).toContain("showScrollBtn");
+    expect(source).toContain("setShowScrollBtn");
+  });
+
+  it("monitors scroll position on the ScrollArea viewport", () => {
+    expect(source).toContain("data-radix-scroll-area-viewport");
+    expect(source).toContain("scrollHeight");
+    expect(source).toContain("distanceFromBottom");
+  });
+
+  it("shows button when scrolled more than 100px from bottom", () => {
+    expect(source).toContain("distanceFromBottom > 100");
+  });
+
+  it("renders scroll-to-bottom button with aria-label", () => {
+    expect(source).toContain('aria-label="Scroll to bottom"');
+  });
+
+  it("calls scrollToBottom on click", () => {
+    expect(source).toContain("onClick={scrollToBottom}");
+    expect(source).toContain("scrollIntoView");
+  });
+
+  it("uses ArrowDownIcon", () => {
+    expect(source).toContain("ArrowDownIcon");
+  });
+});

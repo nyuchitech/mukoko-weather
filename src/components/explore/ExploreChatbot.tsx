@@ -102,11 +102,21 @@ function ArrowUpIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+function ArrowDownIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m19 12-7 7-7-7" /><path d="M12 5v14" />
+    </svg>
+  );
+}
+
 export function ExploreChatbot() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Send user's selected activities so Claude can personalise advice
@@ -121,6 +131,22 @@ export function ExploreChatbot() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Track scroll position to show/hide scroll-to-bottom button
+  useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    const handleScroll = () => {
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      setShowScrollBtn(distanceFromBottom > 100);
+    };
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -213,21 +239,35 @@ export function ExploreChatbot() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="px-4 py-4 space-y-4 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
-          {messages.length === 0 && (
-            <EmptyState onSuggestionClick={handleSuggestion} />
-          )}
+      <div className="relative flex-1 min-h-0">
+        <ScrollArea ref={scrollAreaRef} className="h-full">
+          <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
+            {messages.length === 0 && (
+              <EmptyState onSuggestionClick={handleSuggestion} />
+            )}
 
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))}
 
-          {loading && <TypingIndicator />}
+            {loading && <TypingIndicator />}
 
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Scroll-to-bottom button */}
+        {showScrollBtn && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center h-8 w-8 rounded-full bg-surface-card border border-border shadow-md text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary"
+            aria-label="Scroll to bottom"
+          >
+            <ArrowDownIcon size={16} />
+          </button>
+        )}
+      </div>
 
       {/* Input area */}
       <div className="shrink-0 border-t border-border bg-surface-base/50 backdrop-blur-sm px-4 py-3 overflow-hidden">
@@ -320,43 +360,49 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} min-w-0`}>
-      <div
-        className={`max-w-[85%] min-w-0 rounded-[var(--radius-card)] px-4 py-3 ${
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-surface-card shadow-sm"
-        }`}
-      >
-        {isUser ? (
+  if (isUser) {
+    return (
+      <div className="flex justify-end min-w-0">
+        <div className="max-w-[85%] min-w-0 rounded-[var(--radius-card)] px-4 py-3 bg-primary text-primary-foreground">
           <p className="text-sm break-words">{message.content}</p>
-        ) : (
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant messages: full-width, no bubble — like Claude's chat UI
+  return (
+    <div className="min-w-0">
+      <div className="flex items-start gap-2.5">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
+          <SparklesIcon size={14} className="text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
           <MarkdownErrorBoundary fallback={message.content}>
             <div className="prose prose-sm max-w-none break-words overflow-hidden text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-all">
               <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
             </div>
           </MarkdownErrorBoundary>
-        )}
 
-        {/* Location references as quick links */}
-        {!isUser && message.references && message.references.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/50 pt-2.5">
-            {message.references
-              .filter((ref) => ref.type === "location" || ref.type === "weather")
-              .slice(0, 5)
-              .map((ref) => (
-                <Link
-                  key={ref.slug}
-                  href={`/${ref.slug}`}
-                  className="inline-flex items-center gap-1 rounded-[var(--radius-badge)] bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                >
-                  <MapPinIcon size={10} className="shrink-0" />
-                  {ref.name}
-                </Link>
-              ))}
-          </div>
-        )}
+          {/* Location references as quick links */}
+          {message.references && message.references.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5 pt-2">
+              {message.references
+                .filter((ref) => ref.type === "location" || ref.type === "weather")
+                .slice(0, 5)
+                .map((ref) => (
+                  <Link
+                    key={ref.slug}
+                    href={`/${ref.slug}`}
+                    className="inline-flex items-center gap-1 rounded-[var(--radius-badge)] bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <MapPinIcon size={10} className="shrink-0" />
+                    {ref.name}
+                  </Link>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -368,8 +414,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex justify-start" role="status">
-      <div className="flex gap-1.5 rounded-[var(--radius-card)] bg-surface-card px-4 py-3 shadow-sm">
+    <div className="flex items-start gap-2.5" role="status">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
+        <SparklesIcon size={14} className="text-primary" />
+      </div>
+      <div className="flex gap-1.5 py-2">
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:0ms]" />
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:150ms]" />
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:300ms]" />
