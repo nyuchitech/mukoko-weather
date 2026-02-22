@@ -1,7 +1,28 @@
 import { ImageResponse } from "next/og";
+import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export const runtime = "edge";
+
+// ─── In-Memory Rate Limiter ──────────────────────────────────────────────────
+// Edge runtime cannot use MongoDB — lightweight sliding window per IP.
+// Map is cleared on cold start which is acceptable for abuse prevention.
+const OG_RATE_LIMIT = 30;          // max requests per window
+const OG_RATE_WINDOW_MS = 60_000;  // 1-minute window
+const ipHits = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const windowStart = now - OG_RATE_WINDOW_MS;
+  const hits = (ipHits.get(ip) ?? []).filter((t) => t > windowStart);
+  if (hits.length >= OG_RATE_LIMIT) {
+    ipHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  ipHits.set(ip, hits);
+  return false;
+}
 
 // ─── Brand Tokens ────────────────────────────────────────────────────────────
 // NOTE: next/og (Satori) does not support CSS custom properties — inline hex
@@ -46,7 +67,7 @@ const TEMPLATES = {
   shamwari: {
     emoji: "🤝",
     badge: "Shamwari Weather",
-    gradient: `linear-gradient(135deg, #4A148C 0%, #2D0057 60%, ${brand.tanzanite} 100%)`,
+    gradient: `linear-gradient(135deg, ${brand.tanzanite} 0%, #38006B 60%, #1A0033 100%)`,
   },
 } as const;
 
@@ -407,6 +428,15 @@ function OGImage({
 
 // ─── Route Handler ────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  // In-memory rate limit — prevents unique-URL cache-bypass abuse
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
+  }
+
   const { searchParams } = new URL(req.url);
 
   // Truncate inputs to prevent visual overflow on the fixed-size canvas
@@ -414,7 +444,8 @@ export async function GET(req: NextRequest) {
   const subtitle = (searchParams.get("subtitle") ?? "").slice(0, 120);
   const location = (searchParams.get("location") ?? "").slice(0, 60);
   const province = (searchParams.get("province") ?? "").slice(0, 60);
-  const temperature = (searchParams.get("temp") ?? "").slice(0, 6);
+  const rawTemp = searchParams.get("temp") ?? "";
+  const temperature = /^-?\d{1,3}$/.test(rawTemp) ? rawTemp : "";
   const condition = (searchParams.get("condition") ?? "").slice(0, 40);
   const season = (searchParams.get("season") ?? "").slice(0, 40);
   const templateParam = searchParams.get("template") ?? "home";

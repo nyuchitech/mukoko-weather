@@ -111,6 +111,15 @@ describe("templates", () => {
   it("validates template parameter with fallback to home", () => {
     expect(source).toContain("templateParam in TEMPLATES");
   });
+
+  it("shamwari and explore templates have distinct gradients", () => {
+    // Extract gradient strings — each template's gradient line
+    const exploreMatch = source.match(/explore:[\s\S]*?gradient:\s*`([^`]+)`/);
+    const shamwariMatch = source.match(/shamwari:[\s\S]*?gradient:\s*`([^`]+)`/);
+    expect(exploreMatch).not.toBeNull();
+    expect(shamwariMatch).not.toBeNull();
+    expect(exploreMatch![1]).not.toBe(shamwariMatch![1]);
+  });
 });
 
 describe("query parameters", () => {
@@ -150,6 +159,27 @@ describe("query parameters", () => {
     expect(source).toContain('?? "AI Weather Intelligence"');
     expect(source).toContain('?? ""');
     expect(source).toContain('?? "home"');
+  });
+
+  it("validates temperature as numeric with optional negative sign", () => {
+    expect(source).toContain("/^-?\\d{1,3}$/");
+  });
+});
+
+describe("rate limiting", () => {
+  it("implements in-memory rate limiter for edge runtime", () => {
+    expect(source).toContain("isRateLimited");
+    expect(source).toContain("OG_RATE_LIMIT");
+    expect(source).toContain("OG_RATE_WINDOW_MS");
+  });
+
+  it("returns 429 when rate limited", () => {
+    expect(source).toContain("status: 429");
+    expect(source).toContain("Retry-After");
+  });
+
+  it("extracts IP from x-forwarded-for header", () => {
+    expect(source).toContain("x-forwarded-for");
   });
 });
 
@@ -242,6 +272,11 @@ describe("OG image wiring in metadata", () => {
     // Wrapped in try/catch so DB failure doesn't break all metadata
     expect(locationPageSource).toContain("seasonName");
     expect(locationPageSource).toContain("season.name");
+  });
+
+  it("[location]/page.tsx caches season with module-level TTL", () => {
+    expect(locationPageSource).toContain("SEASON_CACHE_TTL");
+    expect(locationPageSource).toContain("getCachedSeason");
   });
 
   it("[location]/page.tsx passes OG image to openGraph.images", () => {

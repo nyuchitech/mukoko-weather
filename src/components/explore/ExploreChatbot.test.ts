@@ -417,6 +417,11 @@ describe("scroll-to-bottom button", () => {
     expect(source).toContain("internal");
   });
 
+  it("includes TODO to remove Radix internal queries when public API available", () => {
+    expect(source).toContain("TODO");
+    expect(source).toContain("radix-ui/primitives#926");
+  });
+
   it("uses forceBlock prop to scope ScrollArea override", () => {
     // The [&>div]:!block fix should be opt-in via forceBlock, not global
     expect(source).toContain("forceBlock");

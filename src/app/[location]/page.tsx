@@ -10,6 +10,21 @@ import { WeatherDashboard } from "./WeatherDashboard";
 const loadLocation = cache((slug: string) => getLocationFromDb(slug).catch(() => null));
 const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => null));
 
+// Module-level season cache — seasons change over weeks, so a 5-min TTL avoids
+// redundant DB calls on every SSR render while staying fresh enough.
+const SEASON_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let cachedSeason: { country: string; result: Awaited<ReturnType<typeof getSeasonForDate>>; at: number } | null = null;
+
+async function getCachedSeason(countryCode: string) {
+  const now = Date.now();
+  if (cachedSeason && cachedSeason.country === countryCode && now - cachedSeason.at < SEASON_CACHE_TTL) {
+    return cachedSeason.result;
+  }
+  const result = await getSeasonForDate(new Date(), countryCode);
+  cachedSeason = { country: countryCode, result, at: now };
+  return result;
+}
+
 export const dynamic = "force-dynamic";
 
 const BASE_URL = "https://weather.mukoko.com";
@@ -35,7 +50,7 @@ export async function generateMetadata({
   // from OG params rather than breaking all metadata for the page.
   let seasonName = "";
   try {
-    const season = await getSeasonForDate(new Date(), loc.country ?? "ZW");
+    const season = await getCachedSeason(loc.country ?? "ZW");
     seasonName = season.name;
   } catch {
     // Season unavailable — omit from OG params
@@ -121,7 +136,7 @@ export default async function LocationPage({
   const countryCode = (location.country ?? "ZW").toUpperCase();
   const [countryDoc, season] = await Promise.all([
     loadCountry(countryCode),
-    getSeasonForDate(new Date(), location.country ?? "ZW"),
+    getCachedSeason(location.country ?? "ZW"),
   ]);
   const countryName = countryDoc?.name ?? countryCode;
   const now = new Date().toISOString();

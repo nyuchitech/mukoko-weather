@@ -153,6 +153,9 @@ export function ExploreChatbot() {
   // Radix ScrollArea doesn't expose an onScroll prop on the viewport. If Radix
   // renames or removes this attribute, the scroll tracking will gracefully
   // degrade (button stays hidden, no crash).
+  // TODO: Remove data-radix-scroll-area-viewport queries when radix-ui/primitives
+  // ships a public onScroll prop (tracked in radix-ui/primitives#926). Audit on
+  // any major @radix-ui/react-scroll-area upgrade.
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
     if (!viewport) return;
