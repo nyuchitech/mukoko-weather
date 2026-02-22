@@ -4,6 +4,37 @@ import { queueSync, flushSync, initDeviceSync, type DevicePreferences } from "./
 
 export type ThemePreference = "light" | "dark" | "system";
 
+// ---------------------------------------------------------------------------
+// Shamwari context — carries weather/location/summary data between pages
+// ---------------------------------------------------------------------------
+
+const SHAMWARI_CONTEXT_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export interface ShamwariContext {
+  source: "location" | "explore" | "history";
+  locationSlug?: string;
+  locationName?: string;
+  province?: string;
+  weatherSummary?: string;
+  temperature?: number;
+  condition?: string;
+  season?: string;
+  activities: string[];
+  /** History-specific context */
+  historyDays?: number;
+  historyAnalysis?: string;
+  /** Explore-specific context */
+  exploreQuery?: string;
+  /** Set automatically — context expires after 10 minutes */
+  timestamp: number;
+}
+
+/** Check if a Shamwari context is still valid (< 10 min old) */
+export function isShamwariContextValid(ctx: ShamwariContext | null): ctx is ShamwariContext {
+  if (!ctx) return false;
+  return Date.now() - ctx.timestamp < SHAMWARI_CONTEXT_TTL_MS;
+}
+
 /** Resolve the effective theme (light/dark) for a given preference */
 export function resolveTheme(pref: ThemePreference): "light" | "dark" {
   if (pref !== "system") return pref;
@@ -31,6 +62,14 @@ interface AppState {
   closeMyWeather: () => void;
   hasOnboarded: boolean;
   completeOnboarding: () => void;
+  /** Shamwari context — carries weather/location data between pages (transient, not persisted) */
+  shamwariContext: ShamwariContext | null;
+  setShamwariContext: (ctx: ShamwariContext) => void;
+  clearShamwariContext: () => void;
+  /** Weather report modal visibility (transient) */
+  reportModalOpen: boolean;
+  openReportModal: () => void;
+  closeReportModal: () => void;
 }
 
 const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
@@ -74,6 +113,12 @@ export const useAppStore = create<AppState>()(
         set({ hasOnboarded: true });
         queueSync({ hasOnboarded: true });
       },
+      shamwariContext: null,
+      setShamwariContext: (ctx) => set({ shamwariContext: { ...ctx, timestamp: Date.now() } }),
+      clearShamwariContext: () => set({ shamwariContext: null }),
+      reportModalOpen: false,
+      openReportModal: () => set({ reportModalOpen: true }),
+      closeReportModal: () => set({ reportModalOpen: false }),
     }),
     {
       name: "mukoko-weather-prefs",

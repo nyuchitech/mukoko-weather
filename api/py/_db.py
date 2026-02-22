@@ -69,6 +69,22 @@ def tags_collection():
     return get_db()["tags"]
 
 
+def ai_prompts_collection():
+    return get_db()["ai_prompts"]
+
+
+def ai_suggested_rules_collection():
+    return get_db()["ai_suggested_rules"]
+
+
+def weather_reports_collection():
+    return get_db()["weather_reports"]
+
+
+def history_analysis_collection():
+    return get_db()["history_analysis"]
+
+
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------

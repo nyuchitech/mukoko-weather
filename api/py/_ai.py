@@ -49,7 +49,8 @@ def _get_ttl(slug: str, tags: list[str]) -> int:
 _client: Optional[anthropic.Anthropic] = None
 _client_key_hash: Optional[str] = None
 
-SYSTEM_PROMPT = """You are Shamwari Weather, the AI assistant for mukoko weather — an AI-powered weather intelligence platform. You provide actionable, contextual weather advice grounded in local geography, agriculture, industry, and culture.
+# Hardcoded fallback — only used if database prompt is unavailable
+_FALLBACK_SYSTEM_PROMPT = """You are Shamwari Weather, the AI assistant for mukoko weather — an AI-powered weather intelligence platform. You provide actionable, contextual weather advice grounded in local geography, agriculture, industry, and culture.
 
 Your personality:
 - Warm, practical, community-minded (Ubuntu philosophy)
@@ -70,6 +71,49 @@ Format guidelines:
 - Always include at least one actionable recommendation
 - Do not use emoji
 - Do not use headings (no # or ##) — the section already has a heading"""
+
+# Module-level prompt cache (5-min TTL)
+import time as _time
+_prompt_cache: dict[str, dict] = {}
+_prompt_cache_at: float = 0
+_PROMPT_CACHE_TTL = 300  # 5 minutes
+
+
+def _get_prompt(prompt_key: str) -> dict | None:
+    """Fetch a prompt template from MongoDB with module-level caching."""
+    global _prompt_cache, _prompt_cache_at
+
+    now = _time.time()
+    if _prompt_cache and (now - _prompt_cache_at) < _PROMPT_CACHE_TTL:
+        return _prompt_cache.get(prompt_key)
+
+    try:
+        from ._db import ai_prompts_collection
+        docs = list(
+            ai_prompts_collection()
+            .find({"active": True}, {"_id": 0, "updatedAt": 0})
+        )
+        _prompt_cache = {d["promptKey"]: d for d in docs}
+        _prompt_cache_at = now
+        return _prompt_cache.get(prompt_key)
+    except Exception:
+        return _prompt_cache.get(prompt_key)
+
+
+def _get_system_prompt() -> str:
+    """Get the system prompt for weather summaries from the database."""
+    doc = _get_prompt("system:summary")
+    if doc and doc.get("template"):
+        return doc["template"]
+    return _FALLBACK_SYSTEM_PROMPT
+
+
+def _get_user_prompt_template() -> str | None:
+    """Get the user prompt template from the database."""
+    doc = _get_prompt("user:summary_request")
+    if doc and doc.get("template"):
+        return doc["template"]
+    return None
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -317,11 +361,17 @@ Provide:
 1. A 2-sentence general summary
 2. {activities_tip}"""
 
+    # Use database-driven prompt (with fallback)
+    system_prompt = _get_system_prompt()
+    prompt_doc = _get_prompt("system:summary")
+    model = (prompt_doc or {}).get("model", "claude-haiku-4-5-20251001")
+    max_tokens = (prompt_doc or {}).get("maxTokens", 400)
+
     try:
         message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=400,
-            system=SYSTEM_PROMPT,
+            model=model,
+            max_tokens=max_tokens,
+            system=system_prompt,
             messages=[{"role": "user", "content": user_content}],
         )
 

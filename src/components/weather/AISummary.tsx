@@ -10,6 +10,8 @@ import type { ZimbabweLocation } from "@/lib/locations";
 interface Props {
   weather: WeatherData;
   location: ZimbabweLocation;
+  /** Called when the AI summary is successfully loaded — used to pass context to AISummaryChat */
+  onSummaryLoaded?: (text: string) => void;
 }
 
 /**
@@ -27,7 +29,7 @@ function waitForIdle(): Promise<void> {
   });
 }
 
-export function AISummary({ weather, location }: Props) {
+export function AISummary({ weather, location, onSummaryLoaded }: Props) {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +100,10 @@ export function AISummary({ weather, location }: Props) {
           throw new Error(`Failed to get AI insight (${res.status})`);
         }
         const data = await res.json();
-        if (!cancelled) setInsight(data.insight);
+        if (!cancelled) {
+          setInsight(data.insight);
+          onSummaryLoaded?.(data.insight);
+        }
       } catch (err) {
         // Don't show error for intentional aborts
         if (err instanceof DOMException && err.name === "AbortError") {
