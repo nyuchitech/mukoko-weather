@@ -77,6 +77,11 @@ describe("brand tokens", () => {
     expect(source).toContain("Satori");
     expect(source).toContain("CSS custom properties");
   });
+
+  it("documents Georgia font fallback behavior in Edge runtime", () => {
+    expect(source).toContain("Georgia is not bundled");
+    expect(source).toContain("sans-serif");
+  });
 });
 
 describe("templates", () => {
@@ -213,6 +218,29 @@ describe("rate limiting", () => {
   });
 });
 
+describe("Satori compatibility", () => {
+  it("does not use inset shorthand (not universally supported in Satori)", () => {
+    // inset: 0 is a CSS shorthand — Satori may not support it.
+    // Use explicit top/right/bottom/left instead.
+    expect(source).not.toMatch(/\binset\s*:/);
+  });
+
+  it("does not use inline-flex (limited Satori support)", () => {
+    // Satori primarily supports display: "flex" and "block".
+    // "inline-flex" may not render correctly.
+    expect(source).not.toContain('"inline-flex"');
+  });
+
+  it("does not use HTML entities (Satori renders to canvas, not DOM)", () => {
+    // HTML entities like &ldquo; would appear as literal text in Satori.
+    expect(source).not.toMatch(/&[a-z]+;/);
+  });
+
+  it("documents grid overlay degradation", () => {
+    expect(source).toContain("degrades gracefully");
+  });
+});
+
 describe("error handling", () => {
   it("wraps ImageResponse in try/catch", () => {
     expect(source).toContain("try {");
@@ -264,8 +292,15 @@ describe("OG image component", () => {
     expect(source).toContain("province ?");
   });
 
-  it("includes Ubuntu philosophy quote", () => {
+  it("includes Ubuntu philosophy quote with Unicode curly quotes", () => {
+    // Satori renders to canvas — HTML entities would appear as literal text.
+    // Must use Unicode: \u201C / \u201D for curly quotes.
     expect(source).toContain("Rain unites people");
+    expect(source).toContain("\\u201C");
+    expect(source).toContain("\\u201D");
+    // Must NOT use HTML entities
+    expect(source).not.toContain("&ldquo;");
+    expect(source).not.toContain("&rdquo;");
   });
 
   it("renders large decorative emoji per template", () => {

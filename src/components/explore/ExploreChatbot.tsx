@@ -147,9 +147,9 @@ export function ExploreChatbot() {
 
   // Track scroll position to show/hide scroll-to-bottom button.
   // Uses viewportRef forwarded through ScrollArea to the Radix Viewport element.
-  // viewportRef is stable (useRef), but listed as a dep for correctness — if the
-  // viewport DOM node ever changes (e.g. Suspense boundary reset), the listener
-  // re-attaches to the new element.
+  // Empty deps [] is correct: viewportRef is a stable useRef object whose identity
+  // never changes. If the entire component remounts (e.g. Suspense boundary reset),
+  // React creates a new component instance and all effects re-run anyway.
   useEffect(() => {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -159,7 +159,7 @@ export function ExploreChatbot() {
     };
     vp.addEventListener("scroll", handleScroll, { passive: true });
     return () => vp.removeEventListener("scroll", handleScroll);
-  }, [viewportRef]);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -114,6 +114,10 @@ function OGImage({
         background: tmpl.gradient,
         display: "flex",
         flexDirection: "column",
+        // NOTE: Georgia is not bundled in Vercel Edge runtime — Satori will
+        // silently fall back to its built-in sans-serif. The serif specification
+        // is kept as a progressive enhancement for environments where it's
+        // available; sans-serif rendering is acceptable for all templates.
         fontFamily: "Georgia, serif",
         position: "relative",
         overflow: "hidden",
@@ -156,11 +160,17 @@ function OGImage({
           opacity: 0.65,
         }}
       />
-      {/* Subtle grid */}
+      {/* Subtle grid — uses explicit position props (top/right/bottom/left)
+          instead of the CSS shorthand which Satori may not support. Multi-image backgroundImage
+          has limited Satori support; the grid is decorative and degrades gracefully
+          to a transparent overlay if not rendered. */}
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
           backgroundSize: "200px 210px",
@@ -266,32 +276,35 @@ function OGImage({
             paddingRight: 220,
           }}
         >
-          {/* Season pill — text must be light (white) for readability on all
-              dark template backgrounds. brand.malachite (#004D40) is a surface
-              color; using it as text on a dark gradient is nearly invisible. */}
+          {/* Season pill — wrapped in a flex row so the pill self-sizes to
+              content. Satori primarily supports display flex and block; inline
+              flex variants may not render correctly. Text must be light (white)
+              for readability on all dark template backgrounds — brand.malachite
+              (#004D40) is a surface color, unreadable as text on dark gradients. */}
           {season && (
-            <div
-              style={{
-                display: "inline-flex",
-                marginBottom: 20,
-                background: "rgba(0,77,64,0.25)",
-                border: "1px solid rgba(0,150,115,0.45)",
-                borderRadius: 9999,
-                padding: "5px 16px",
-              }}
-            >
-              <span
+            <div style={{ display: "flex", flexDirection: "row", marginBottom: 20 }}>
+              <div
                 style={{
-                  color: "rgba(255,255,255,0.90)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase" as const,
-                  fontFamily: "sans-serif",
+                  display: "flex",
+                  background: "rgba(0,77,64,0.25)",
+                  border: "1px solid rgba(0,150,115,0.45)",
+                  borderRadius: 9999,
+                  padding: "5px 16px",
                 }}
               >
-                {season}
-              </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.90)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase" as const,
+                    fontFamily: "sans-serif",
+                  }}
+                >
+                  {season}
+                </span>
+              </div>
             </div>
           )}
 
@@ -416,7 +429,9 @@ function OGImage({
               letterSpacing: "0.02em",
             }}
           >
-            &ldquo;Mvura yemvura inobatanidza vanhu&rdquo; · Rain unites people
+            {/* Unicode curly quotes — Satori renders to canvas, not DOM,
+                so HTML entities (e.g. ampersand-ldquo) would appear as literal text */}
+            {"\u201CMvura yemvura inobatanidza vanhu\u201D \u00B7 Rain unites people"}
           </div>
         </div>
       </div>
