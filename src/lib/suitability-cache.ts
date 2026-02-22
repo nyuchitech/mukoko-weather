@@ -20,16 +20,25 @@ let cachedRulesAt = 0;
 // (via db-init), so a single 10-minute TTL is appropriate for both.
 const RULES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+// In-flight promise guards — prevent parallel callers from issuing duplicate
+// requests when the cache is cold (e.g. multiple ActivityCards mounting at once).
+let inFlightRules: Promise<SuitabilityRuleDoc[]> | null = null;
+
 export async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
   if (cachedRules && Date.now() - cachedRulesAt < RULES_CACHE_TTL) {
     return cachedRules;
   }
-  const res = await fetch("/api/suitability");
-  if (!res.ok) return cachedRules ?? [];
-  const data = await res.json();
-  cachedRules = data?.rules ?? [];
-  cachedRulesAt = Date.now();
-  return cachedRules!;
+  if (inFlightRules) return inFlightRules;
+  inFlightRules = fetch("/api/suitability")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      cachedRules = data?.rules ?? cachedRules ?? [];
+      cachedRulesAt = Date.now();
+      return cachedRules!;
+    })
+    .catch(() => cachedRules ?? [])
+    .finally(() => { inFlightRules = null; });
+  return inFlightRules;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,20 +52,29 @@ let cachedStylesAt = 0;
 
 export type CategoryStyle = { bg: string; border: string; text: string; badge: string };
 
+let inFlightStyles: Promise<Record<string, CategoryStyle>> | null = null;
+
 export async function fetchCategoryStyles(): Promise<Record<string, CategoryStyle>> {
   if (cachedStylesAt > 0 && Date.now() - cachedStylesAt < RULES_CACHE_TTL) {
     return cachedCategoryStyles;
   }
-  const res = await fetch("/api/activities?mode=categories");
-  if (!res.ok) return cachedCategoryStyles;
-  const data = await res.json();
-  const styles: Record<string, CategoryStyle> = {};
-  for (const cat of (data?.categories ?? []) as ActivityCategoryDoc[]) {
-    if (cat.style) styles[cat.id] = cat.style;
-  }
-  cachedCategoryStyles = styles;
-  cachedStylesAt = Date.now();
-  return cachedCategoryStyles;
+  if (inFlightStyles) return inFlightStyles;
+  inFlightStyles = fetch("/api/activities?mode=categories")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      const styles: Record<string, CategoryStyle> = {};
+      for (const cat of (data?.categories ?? []) as ActivityCategoryDoc[]) {
+        if (cat.style) styles[cat.id] = cat.style;
+      }
+      if (Object.keys(styles).length > 0) {
+        cachedCategoryStyles = styles;
+      }
+      cachedStylesAt = Date.now();
+      return cachedCategoryStyles;
+    })
+    .catch(() => cachedCategoryStyles)
+    .finally(() => { inFlightStyles = null; });
+  return inFlightStyles;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,4 +86,6 @@ export function resetCaches(): void {
   cachedRulesAt = 0;
   cachedCategoryStyles = { ...CATEGORY_STYLES };
   cachedStylesAt = 0;
+  inFlightRules = null;
+  inFlightStyles = null;
 }

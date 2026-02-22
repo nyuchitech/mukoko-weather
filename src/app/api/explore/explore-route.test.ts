@@ -37,7 +37,7 @@ describe("input validation", () => {
 
   it("sanitizes and truncates history messages via sanitizeHistoryContent", () => {
     expect(source).toContain("sanitizeHistoryContent(msg.content)");
-    // sanitizeHistoryContent strips boundary markers and enforces max length
+    // sanitizeHistoryContent enforces MAX_MESSAGE_LENGTH — the structured Messages API is the injection defense
     expect(source).toContain(".slice(0, MAX_MESSAGE_LENGTH)");
   });
 });

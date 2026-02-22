@@ -110,7 +110,8 @@ export function synthesizeOpenMeteoInsights(data: WeatherData): WeatherInsights 
   return {
     windSpeed: data.current.wind_speed_10m,
     windGust: data.current.wind_gusts_10m,
-    visibility: data.hourly?.visibility?.[0],
+    // Open-Meteo hourly arrays start at midnight UTC; use the current hour's value.
+    visibility: data.hourly?.visibility?.[new Date().getUTCHours()],
     // Open-Meteo UV index is 0–11+; Tomorrow.io uvHealthConcern uses the same scale
     uvHealthConcern: currentUv,
     thunderstormProbability,

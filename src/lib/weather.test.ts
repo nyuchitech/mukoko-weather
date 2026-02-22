@@ -371,11 +371,12 @@ describe("synthesizeOpenMeteoInsights", () => {
     expect(insights.windGust).toBe(data.current.wind_gusts_10m);
   });
 
-  it("returns visibility from first hourly entry", () => {
+  it("returns visibility from the current UTC hour's entry", () => {
     const data = createFallbackWeather(-17.83, 31.05, 1483);
     const insights = synthesizeOpenMeteoInsights(data);
 
-    expect(insights.visibility).toBe(data.hourly.visibility[0]);
+    const nowHour = new Date().getUTCHours();
+    expect(insights.visibility).toBe(data.hourly.visibility[nowHour]);
   });
 
   it("derives precipitationType from WMO weather code", () => {

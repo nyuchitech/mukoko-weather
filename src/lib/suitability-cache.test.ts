@@ -99,6 +99,43 @@ describe("fetchSuitabilityRules", () => {
   });
 });
 
+describe("in-flight deduplication", () => {
+  it("deduplicates concurrent fetchSuitabilityRules calls", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ rules: [{ key: "dedup-test" }] }),
+    });
+    // Launch multiple concurrent calls
+    const [r1, r2, r3] = await Promise.all([
+      fetchSuitabilityRules(),
+      fetchSuitabilityRules(),
+      fetchSuitabilityRules(),
+    ]);
+    // All should return the same result
+    expect(r1).toEqual(r2);
+    expect(r2).toEqual(r3);
+    // But only one fetch should have been made
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent fetchCategoryStyles calls", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        categories: [{ id: "farming", style: { bg: "bg-m", border: "border-m", text: "text-m", badge: "badge-m" } }],
+      }),
+    });
+    const [s1, s2, s3] = await Promise.all([
+      fetchCategoryStyles(),
+      fetchCategoryStyles(),
+      fetchCategoryStyles(),
+    ]);
+    expect(s1).toEqual(s2);
+    expect(s2).toEqual(s3);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("fetchCategoryStyles", () => {
   it("seeds with static CATEGORY_STYLES on first call if API fails", async () => {
     mockFetch.mockResolvedValueOnce({ ok: false });
