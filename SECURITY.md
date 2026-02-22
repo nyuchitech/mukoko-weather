@@ -55,7 +55,7 @@ We will acknowledge your report within 48 hours and provide an update within 7 d
 
 The Shamwari chatbot endpoint has layered security controls:
 
-- **Rate limiting** — 20 requests/hour/IP via MongoDB-backed rate limiter; IP required (rejects requests with no identifiable client)
+- **Rate limiting** — 20 requests/hour/IP via MongoDB-backed rate limiter; IP required (rejects requests with no identifiable client). **Deployment constraint:** the rate limiter trusts the first entry in `x-forwarded-for` (Vercel prepends the real client IP). If deployed behind a proxy that does not manage `x-forwarded-for`, the rate limiter can be bypassed by spoofing the header
 - **Input validation** — message must be a non-empty string, max 2000 characters; history capped at 10 messages, each truncated to 2000 characters; activities array capped at 10 items
 - **Structured messages API** — the Anthropic Messages API sends each turn as a separate object with an explicit role. Legacy boundary markers (`\n\nHuman:`, `\n\nAssistant:`) have no special meaning and cannot inject new turns
 - **System prompt guardrails** — DATA GUARDRAILS in the system prompt constrain Claude's response scope to weather-related topics

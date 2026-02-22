@@ -338,7 +338,7 @@ function LocationTab({
       )}
 
       {/* Location list — no nested scroll, uses tab content scroll */}
-      <ul role="listbox" aria-label="Available locations" className="px-2 pb-2">
+      <ul role="listbox" aria-label="Available locations" aria-multiselectable="false" className="px-2 pb-2">
         {loading && allLocations.length === 0 && (
           Array.from({ length: 5 }).map((_, i) => (
             <li key={i} className="px-3 py-2" aria-hidden="true">

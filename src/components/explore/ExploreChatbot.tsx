@@ -328,7 +328,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex justify-start" role="status" aria-label="Assistant is typing">
+    <div className="flex justify-start" role="status">
       <div className="flex gap-1.5 rounded-[var(--radius-card)] bg-surface-card px-4 py-3 shadow-sm">
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:0ms]" />
         <span className="h-2 w-2 animate-bounce rounded-full bg-text-tertiary [animation-delay:150ms]" />

@@ -561,7 +561,7 @@ export async function POST(request: NextRequest) {
           const input = toolUse.input as Record<string, unknown>;
           switch (toolUse.name) {
             case "search_locations": {
-              const query = typeof input.query === "string" ? input.query : "";
+              const query = typeof input.query === "string" ? input.query.slice(0, 200) : "";
               if (!query) { result = { error: "Missing query parameter" }; break; }
               result = await withToolTimeout(executeSearchLocations(query), "search_locations");
               const searchResult = result as { found: boolean; locations?: { slug: string; name: string }[] };

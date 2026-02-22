@@ -385,3 +385,90 @@ describe("performance and resilience", () => {
     expect(source).toContain(".slice(0, MAX_REFERENCES)");
   });
 });
+
+// ── deduplicateReferences behavioral tests ─────────────────────────────────
+// The function is private to the route, so we replicate its algorithm here
+// to verify the behavioral contract without importing the full route module.
+
+const MAX_REFERENCES = 20;
+
+function deduplicateReferences(refs: { slug: string; name: string; type: string }[]) {
+  const map = new Map<string, { slug: string; name: string; type: string }>();
+  for (const r of refs) {
+    const existing = map.get(r.slug);
+    if (!existing || (existing.type !== "location" && r.type === "location")) {
+      map.set(r.slug, r);
+    }
+  }
+  return [...map.values()].slice(0, MAX_REFERENCES);
+}
+
+describe("deduplicateReferences behavioral", () => {
+  it("removes duplicate slugs", () => {
+    const refs = [
+      { slug: "harare", name: "Harare", type: "location" },
+      { slug: "harare", name: "Harare", type: "location" },
+      { slug: "bulawayo", name: "Bulawayo", type: "location" },
+    ];
+    const result = deduplicateReferences(refs);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.slug)).toEqual(["harare", "bulawayo"]);
+  });
+
+  it("prefers 'location' type over other types for the same slug", () => {
+    const refs = [
+      { slug: "harare", name: "Harare", type: "weather" },
+      { slug: "harare", name: "Harare", type: "location" },
+    ];
+    const result = deduplicateReferences(refs);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("location");
+  });
+
+  it("keeps first entry when both have 'location' type", () => {
+    const refs = [
+      { slug: "harare", name: "Harare City", type: "location" },
+      { slug: "harare", name: "Harare Metro", type: "location" },
+    ];
+    const result = deduplicateReferences(refs);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("Harare City");
+  });
+
+  it("does not replace location type with non-location type", () => {
+    const refs = [
+      { slug: "harare", name: "Harare", type: "location" },
+      { slug: "harare", name: "Harare", type: "weather" },
+    ];
+    const result = deduplicateReferences(refs);
+    expect(result[0].type).toBe("location");
+  });
+
+  it("caps output to MAX_REFERENCES", () => {
+    const refs = Array.from({ length: 30 }, (_, i) => ({
+      slug: `loc-${i}`,
+      name: `Location ${i}`,
+      type: "location",
+    }));
+    const result = deduplicateReferences(refs);
+    expect(result).toHaveLength(MAX_REFERENCES);
+  });
+
+  it("handles empty input", () => {
+    expect(deduplicateReferences([])).toEqual([]);
+  });
+
+  it("handles mixed types with multiple slugs", () => {
+    const refs = [
+      { slug: "harare", name: "Harare", type: "weather" },
+      { slug: "bulawayo", name: "Bulawayo", type: "location" },
+      { slug: "harare", name: "Harare", type: "location" },
+      { slug: "bulawayo", name: "Bulawayo", type: "activity" },
+    ];
+    const result = deduplicateReferences(refs);
+    expect(result).toHaveLength(2);
+    // harare upgraded to "location", bulawayo kept as "location"
+    expect(result.find((r) => r.slug === "harare")!.type).toBe("location");
+    expect(result.find((r) => r.slug === "bulawayo")!.type).toBe("location");
+  });
+});

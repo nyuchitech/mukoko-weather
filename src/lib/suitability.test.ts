@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { evaluateRule } from "./suitability";
+import { evaluateRule, evaluateSuitability } from "./suitability";
+import type { Activity } from "./activities";
 import type { SuitabilityRuleDoc } from "./db";
+import type { WeatherInsights } from "./weather";
 
 const source = readFileSync(resolve(__dirname, "suitability.ts"), "utf-8");
 
@@ -255,5 +257,65 @@ describe("code quality", () => {
     };
     const result = evaluateRule(etRule, { evapotranspiration: 4.56 });
     expect(result.metric).toBe("ET: 4.6 mm");
+  });
+});
+
+// ── evaluateSuitability (activity-level resolution) ─────────────────────────
+
+describe("evaluateSuitability", () => {
+  const fakeActivity: Activity = {
+    id: "crop-farming",
+    label: "Crop Farming",
+    category: "farming",
+    relevantTags: ["farming"],
+    icon: "wheat",
+    description: "Test",
+  };
+
+  const activityRule: SuitabilityRuleDoc = {
+    key: "activity:crop-farming",
+    conditions: [{
+      field: "dewPoint", operator: "gt", value: 20,
+      level: "fair", label: "Humid",
+      colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+      detail: "High dew point",
+    }],
+    fallback: { level: "good", label: "Good", colorClass: "text-severity-low", bgClass: "bg-severity-low/10", detail: "OK" },
+    updatedAt: new Date(),
+  };
+
+  const categoryRule: SuitabilityRuleDoc = {
+    key: "category:farming",
+    conditions: [{
+      field: "thunderstormProbability", operator: "gt", value: 50,
+      level: "poor", label: "Stormy",
+      colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+      detail: "Storm risk",
+    }],
+    fallback: { level: "good", label: "OK", colorClass: "text-severity-low", bgClass: "bg-severity-low/10", detail: "Fine" },
+    updatedAt: new Date(),
+  };
+
+  it("prefers activity-specific rule over category rule", () => {
+    const rules = new Map<string, SuitabilityRuleDoc>([
+      ["activity:crop-farming", activityRule],
+      ["category:farming", categoryRule],
+    ]);
+    const result = evaluateSuitability(fakeActivity, { dewPoint: 25 } as WeatherInsights, rules);
+    expect(result.label).toBe("Humid");
+  });
+
+  it("falls back to category rule when no activity rule", () => {
+    const rules = new Map<string, SuitabilityRuleDoc>([
+      ["category:farming", categoryRule],
+    ]);
+    const result = evaluateSuitability(fakeActivity, { thunderstormProbability: 60 } as WeatherInsights, rules);
+    expect(result.label).toBe("Stormy");
+  });
+
+  it("returns generic fallback when no rules exist", () => {
+    const result = evaluateSuitability(fakeActivity, {} as WeatherInsights, new Map());
+    expect(result.level).toBe("fair");
+    expect(result.detail).toBe("No specific rules available for this activity");
   });
 });

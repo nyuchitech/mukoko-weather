@@ -209,6 +209,39 @@ export const SUITABILITY_RULES: SeedRule[] = [
     },
   },
 
+  // ── Activity: Stargazing (overrides tourism — cloud ceiling is primary concern)
+  {
+    key: "activity:stargazing",
+    conditions: [
+      {
+        field: "cloudCeiling", operator: "lt", value: 3,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Low cloud ceiling — sky likely obscured",
+        metricTemplate: "Ceiling: {value} km",
+      },
+      {
+        field: "visibility", operator: "lt", value: 5,
+        level: "fair", label: "Fair",
+        colorClass: "text-severity-moderate", bgClass: "bg-severity-moderate/10",
+        detail: "Reduced atmospheric clarity — hazy skies",
+        metricTemplate: "Vis: {value} km",
+      },
+      {
+        field: "thunderstormProbability", operator: "gt", value: 30,
+        level: "poor", label: "Poor",
+        colorClass: "text-severity-severe", bgClass: "bg-severity-severe/10",
+        detail: "Storm risk — poor stargazing conditions",
+        metricTemplate: "Storm: {value}%",
+      },
+    ],
+    fallback: {
+      level: "excellent", label: "Excellent",
+      colorClass: "text-severity-low", bgClass: "bg-severity-low/10",
+      detail: "Clear skies expected — great for stargazing",
+    },
+  },
+
   // ── Category: Casual ────────────────────────────────────────────────────
   {
     key: "category:casual",

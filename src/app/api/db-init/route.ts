@@ -45,15 +45,13 @@ export async function POST(request: Request) {
     await ensureIndexes();
     // Countries must exist before provinces (provinces reference country codes).
     await syncCountries(COUNTRIES);
-    // Remaining syncs are independent — run in parallel for speed.
+    // Remaining syncs write to independent collections — run all in parallel.
     await Promise.all([
       syncProvinces(PROVINCES),
       syncRegions(REGIONS),
       syncTags(TAGS),
       syncSeasons(SEASONS),
       syncActivityCategories(CATEGORIES),
-    ]);
-    await Promise.all([
       syncLocations(LOCATIONS),
       syncActivities(ACTIVITIES),
       syncSuitabilityRules(SUITABILITY_RULES),

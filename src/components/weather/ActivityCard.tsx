@@ -5,7 +5,7 @@ import type { WeatherInsights } from "@/lib/weather"
 import type { CategoryStyle } from "@/lib/suitability-cache"
 import type { SuitabilityRuleDoc } from "@/lib/db"
 import { ActivityIcon } from "@/lib/weather-icons"
-import { evaluateSuitability } from "./ActivityInsights"
+import { evaluateSuitability } from "@/lib/suitability"
 
 // ---------------------------------------------------------------------------
 // Default category style (when API data hasn't loaded yet)

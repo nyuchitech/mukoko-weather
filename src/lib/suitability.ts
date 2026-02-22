@@ -5,6 +5,7 @@
  * Falls back to hardcoded rules when the database is unavailable.
  */
 
+import type { Activity } from "./activities";
 import type { SuitabilityRuleDoc, SuitabilityCondition } from "./db";
 import type { WeatherInsights } from "./weather";
 
@@ -111,4 +112,38 @@ export function evaluateRule(rule: SuitabilityRuleDoc, insights: WeatherInsights
     detail: rule.fallback.detail,
     metric: resolveMetric(rule.fallback.metricTemplate, insights),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Activity-level suitability resolution (rule lookup + evaluation)
+// ---------------------------------------------------------------------------
+
+/** Generic fallback when no DB rules exist for a category */
+const GENERIC_FALLBACK: SuitabilityRating = {
+  level: "fair",
+  label: "Fair",
+  colorClass: "text-severity-moderate",
+  bgClass: "bg-severity-moderate/10",
+  detail: "No specific rules available for this activity",
+};
+
+/**
+ * Resolve the best suitability rule for an activity and evaluate it.
+ * Lookup order: activity-specific rule → category rule → generic fallback.
+ */
+export function evaluateSuitability(
+  activity: Activity,
+  insights: WeatherInsights,
+  dbRules: Map<string, SuitabilityRuleDoc>,
+): SuitabilityRating {
+  // 1. Try activity-specific rule from database
+  const activityRule = dbRules.get(`activity:${activity.id}`);
+  if (activityRule) return evaluateRule(activityRule, insights);
+
+  // 2. Try category rule from database
+  const categoryRule = dbRules.get(`category:${activity.category}`);
+  if (categoryRule) return evaluateRule(categoryRule, insights);
+
+  // 3. Generic fallback — all rules should be in DB, but safety net
+  return GENERIC_FALLBACK;
 }

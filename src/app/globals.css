@@ -65,7 +65,9 @@
   /* Typography — minimum sizes for mobile readability */
   --text-body: 0.875rem;      /* 14px — minimum for body/footer text */
   --text-body-leading: 1.5;
-  --text-nav-label: 0.625rem; /* 10px — mobile bottom nav labels */
+  /* 10px — matches iOS/Android native bottom nav label conventions.
+     Below WCAG 12px minimum for body text, but intentional for nav chrome. */
+  --text-nav-label: 0.625rem;
 
   /* Radii */
   --radius-button: 12px;

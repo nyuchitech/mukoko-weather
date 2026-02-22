@@ -4,12 +4,14 @@ import { useMemo, useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { type Activity, CATEGORY_STYLES } from "@/lib/activities";
 import type { WeatherInsights } from "@/lib/weather";
-import { evaluateRule, type SuitabilityRating } from "@/lib/suitability";
 import { fetchSuitabilityRules, fetchCategoryStyles, type CategoryStyle } from "@/lib/suitability-cache";
 import { reportErrorToAnalytics } from "@/lib/observability";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ActivityCard } from "./ActivityCard";
 import type { SuitabilityRuleDoc } from "@/lib/db";
+
+// Re-export for backward compatibility (tests import from this path)
+export { evaluateSuitability } from "@/lib/suitability";
 
 // ---------------------------------------------------------------------------
 // Label helpers (exported for tests)
@@ -50,37 +52,6 @@ export function uvConcernLabel(concern: number): { label: string; className: str
   if (concern <= 7) return { label: "High", className: "text-severity-high" };
   if (concern <= 10) return { label: "Very High", className: "text-severity-severe" };
   return { label: "Extreme", className: "text-severity-extreme" };
-}
-
-// ---------------------------------------------------------------------------
-// Suitability evaluation — fully database-driven
-// ---------------------------------------------------------------------------
-
-/** Generic fallback when no DB rules exist for a category */
-const GENERIC_FALLBACK: SuitabilityRating = {
-  level: "fair",
-  label: "Fair",
-  colorClass: "text-severity-moderate",
-  bgClass: "bg-severity-moderate/10",
-  detail: "No specific rules available for this activity",
-};
-
-/** Exported for testing and ActivityCard — resolves the best suitability rule for an activity. */
-export function evaluateSuitability(
-  activity: Activity,
-  insights: WeatherInsights,
-  dbRules: Map<string, SuitabilityRuleDoc>,
-): SuitabilityRating {
-  // 1. Try activity-specific rule from database
-  const activityRule = dbRules.get(`activity:${activity.id}`);
-  if (activityRule) return evaluateRule(activityRule, insights);
-
-  // 2. Try category rule from database
-  const categoryRule = dbRules.get(`category:${activity.category}`);
-  if (categoryRule) return evaluateRule(categoryRule, insights);
-
-  // 3. Generic fallback — all rules should be in DB, but safety net
-  return GENERIC_FALLBACK;
 }
 
 // ---------------------------------------------------------------------------
