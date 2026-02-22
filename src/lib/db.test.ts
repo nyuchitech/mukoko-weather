@@ -28,6 +28,7 @@ import {
   getTagCountsAndStats,
   getAtlasSearchIndexDefinitions,
   _resetSearchFlags,
+  getLocationCount,
   VALID_CONDITION_FIELDS,
 } from "./db";
 import { REGIONS } from "./seed-regions";
@@ -157,6 +158,10 @@ describe("new DB helper function exports", () => {
 
   it("getProvincesWithLocationCounts is a function", () => {
     expect(typeof getProvincesWithLocationCounts).toBe("function");
+  });
+
+  it("getLocationCount is a function", () => {
+    expect(typeof getLocationCount).toBe("function");
   });
 });
 

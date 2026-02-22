@@ -313,3 +313,27 @@ describe("UI patterns", () => {
     expect(source).not.toContain("style={{");
   });
 });
+
+describe("overflow containment", () => {
+  it("prevents horizontal overflow on the chat container", () => {
+    expect(source).toContain("overflow-hidden");
+    expect(source).toContain("overflow-x-hidden");
+  });
+
+  it("uses break-words on user message text", () => {
+    expect(source).toContain("break-words");
+  });
+
+  it("uses min-w-0 on message bubble flex containers", () => {
+    expect(source).toContain("min-w-0");
+  });
+
+  it("constrains markdown prose content overflow", () => {
+    expect(source).toContain("prose-pre:overflow-x-auto");
+    expect(source).toContain("prose-pre:max-w-full");
+  });
+
+  it("uses min-w-0 on textarea wrapper for proper flex shrinking", () => {
+    expect(source).toContain("relative flex-1 min-w-0");
+  });
+});

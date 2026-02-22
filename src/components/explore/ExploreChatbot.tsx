@@ -211,10 +211,10 @@ export function ExploreChatbot() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-4 py-4 space-y-4" aria-live="polite" aria-relevant="additions">
+        <div className="px-4 py-4 space-y-4 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
           {messages.length === 0 && (
             <EmptyState onSuggestionClick={handleSuggestion} />
           )}
@@ -230,9 +230,9 @@ export function ExploreChatbot() {
       </ScrollArea>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-border bg-surface-base/50 backdrop-blur-sm px-4 py-3">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
-          <div className="relative flex-1">
+      <div className="shrink-0 border-t border-border bg-surface-base/50 backdrop-blur-sm px-4 py-3 overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-full">
+          <div className="relative flex-1 min-w-0">
             <textarea
               ref={inputRef}
               value={input}
@@ -253,7 +253,7 @@ export function ExploreChatbot() {
               }}
               placeholder="Ask about weather, locations, activities..."
               rows={1}
-              className="flex w-full resize-none rounded-[var(--radius-input)] bg-surface-base pl-9 pr-4 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 max-h-32 overflow-y-auto"
+              className="flex w-full resize-none rounded-[var(--radius-input)] bg-surface-base pl-9 pr-4 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 max-h-32 overflow-y-auto break-words"
               aria-label="Ask Shamwari Explorer"
               disabled={loading}
             />
@@ -321,19 +321,19 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} min-w-0`}>
       <div
-        className={`max-w-[85%] rounded-[var(--radius-card)] px-4 py-3 ${
+        className={`max-w-[85%] min-w-0 rounded-[var(--radius-card)] px-4 py-3 ${
           isUser
             ? "bg-primary text-primary-foreground"
             : "bg-surface-card shadow-sm"
         }`}
       >
         {isUser ? (
-          <p className="text-sm">{message.content}</p>
+          <p className="text-sm break-words">{message.content}</p>
         ) : (
           <MarkdownErrorBoundary fallback={message.content}>
-            <div className="prose prose-sm max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+            <div className="prose prose-sm max-w-none break-words overflow-hidden text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-all">
               <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
             </div>
           </MarkdownErrorBoundary>

@@ -118,9 +118,40 @@ describe("location lookup", () => {
     expect(source).toContain("getLocationFromDb");
   });
 
-  it("uses bounded getLocationsForContext instead of getAllLocationsFromDb for context building", () => {
-    expect(source).toContain("getLocationsForContext(50)");
+  it("uses getLocationCount for context instead of listing all locations", () => {
+    expect(source).toContain("getLocationCount");
     expect(source).not.toContain("getAllLocationsFromDb()");
+  });
+});
+
+describe("system prompt location discovery", () => {
+  it("instructs Claude to ALWAYS use search_locations for any location query", () => {
+    expect(source).toContain("ALWAYS use the search_locations tool when a user asks about ANY location");
+  });
+
+  it("builds dynamic location context from DB (count + regions) instead of listing locations", () => {
+    expect(source).toContain("getLocationCount");
+    expect(source).toContain("getActiveRegions");
+    expect(source).toContain("locations across these active regions");
+  });
+
+  it("does not hard-code geographic scope in the static prompt", () => {
+    // The static EXPLORE_SYSTEM_PROMPT should not list specific countries/regions.
+    // Geographic scope comes dynamically from the active regions in the DB.
+    const promptSection = source.slice(
+      source.indexOf("EXPLORE_SYSTEM_PROMPT"),
+      source.indexOf("// Tool definitions"),
+    );
+    expect(promptSection).not.toContain("54 African Union");
+    expect(promptSection).not.toContain("Singapore, Malaysia, Thailand");
+  });
+
+  it("tells Claude not to say locations are not in the system without searching", () => {
+    expect(source).toContain("Never assume a location does not exist without searching first");
+  });
+
+  it("suggests My Weather feature when location is not found", () => {
+    expect(source).toContain("My Weather");
   });
 });
 
@@ -141,16 +172,17 @@ describe("server-side caching", () => {
     expect(source).toContain("getCachedActivities()");
   });
 
-  it("builds activity list dynamically from DB cache instead of hardcoding in prompt", () => {
-    // The system prompt should NOT contain a hardcoded "Key activities:" list
+  it("builds activity list dynamically from DB cache with categories", () => {
+    // The system prompt should NOT contain a hardcoded activity list
     const promptSection = source.slice(
       source.indexOf("EXPLORE_SYSTEM_PROMPT"),
       source.indexOf("// Tool definitions"),
     );
     expect(promptSection).not.toContain("crop farming, livestock, gardening");
-    // Instead, activity context is built dynamically at request time
+    // Activity context is built dynamically including categories
     expect(source).toContain("activityContext");
-    expect(source).toContain("activities.map((a) => a.label.toLowerCase()).join");
+    expect(source).toContain("Activity categories:");
+    expect(source).toContain("Activities available:");
   });
 
   it("uses shared model ID constant", () => {

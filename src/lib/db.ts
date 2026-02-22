@@ -609,6 +609,11 @@ export async function getLocationsForContext(limit: number): Promise<LocationDoc
     .toArray();
 }
 
+/** Get total count of locations in the database */
+export async function getLocationCount(): Promise<number> {
+  return locationsCollection().countDocuments();
+}
+
 /** Insert a new community-contributed location */
 export async function createLocation(
   location: ZimbabweLocation,

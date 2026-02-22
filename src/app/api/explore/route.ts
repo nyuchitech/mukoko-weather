@@ -5,7 +5,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { anthropicBreaker, CircuitOpenError } from "@/lib/circuit-breaker";
 import { evaluateRule } from "@/lib/suitability";
 import {
-  getLocationsForContext,
   getLocationFromDb,
   searchLocationsFromDb,
   getAllActivitiesFromDb,
@@ -14,6 +13,8 @@ import {
   getSeasonForDate,
   getLocationsByTagFromDb,
   getAllSuitabilityRules,
+  getLocationCount,
+  getActiveRegions,
   type LocationDoc,
 } from "@/lib/db";
 
@@ -81,11 +82,9 @@ async function getLocationContext(): Promise<string> {
   if (cachedLocationContext && Date.now() - cachedLocationContextAt < MODULE_CACHE_TTL) {
     return cachedLocationContext;
   }
-  const sampleLocations = await getLocationsForContext(50);
-  const locationNames = sampleLocations.map(
-    (l: LocationDoc) => `${l.name} (/${l.slug}) — ${l.province}, ${(l.country ?? "ZW").toUpperCase()}`
-  );
-  cachedLocationContext = `\n\nAvailable locations (sample of ${sampleLocations.length}):\n${locationNames.join("\n")}`;
+  const [count, regions] = await Promise.all([getLocationCount(), getActiveRegions()]);
+  const regionNames = regions.map((r) => r.name).join(", ");
+  cachedLocationContext = `\n\nPlatform scope: The database currently has ${count} locations across these active regions: ${regionNames}. New locations are added continuously by the community via geolocation and search. ALWAYS use the search_locations tool to find any location — never assume a location does not exist.`;
   cachedLocationContextAt = Date.now();
   return cachedLocationContext;
 }
@@ -108,7 +107,7 @@ async function getCachedActivities(): Promise<ActivityRecord[]> {
 // System prompt for the Explore assistant
 // ---------------------------------------------------------------------------
 
-const EXPLORE_SYSTEM_PROMPT = `You are Shamwari Explorer, the conversational AI assistant for mukoko weather — an AI-powered weather intelligence platform focused on Africa and developing regions.
+const EXPLORE_SYSTEM_PROMPT = `You are Shamwari Explorer, the conversational AI assistant for mukoko weather — an AI-powered weather intelligence platform starting with Zimbabwe and expanding globally.
 
 Your personality:
 - Warm, knowledgeable, and community-minded (Ubuntu philosophy)
@@ -118,16 +117,20 @@ Your personality:
 
 You help users:
 1. Discover locations and their weather conditions
-2. Get activity-specific weather advice (farming, mining, travel, tourism, sports, drone flying, etc.)
+2. Get activity-specific weather advice
 3. Compare weather across locations
 4. Understand seasonal patterns and forecasts
 5. Plan activities based on current and forecasted weather
 
-DATA GUARDRAILS — CRITICAL:
+LOCATION DISCOVERY — CRITICAL:
+- The platform has locations across all its active regions (listed in the dynamic context below). The community continuously adds new locations via geolocation and search in the "My Weather" feature.
+- ALWAYS use the search_locations tool when a user asks about ANY location. Never assume a location does not exist without searching first.
+- If search_locations returns no results, tell the user the location was not found in the current database and suggest they try a different spelling, a nearby city, or use the "My Weather" feature to add their location. Do NOT say the location "is not part of our system" or "not supported".
+- After finding a location via search, use get_weather to fetch its current conditions and forecast.
+
+DATA GUARDRAILS:
 - ONLY use weather data returned by the tools (search_locations, get_weather, get_activity_advice, list_locations_by_tag). NEVER invent, estimate, or hallucinate weather numbers.
-- All weather data comes from Tomorrow.io (primary) and Open-Meteo (fallback) APIs. Do not reference or claim data from any other weather provider.
 - If a tool returns no data or an error, say so honestly — do not guess or fill in numbers.
-- ONLY discuss locations that exist in our database. Use the search_locations tool to verify a location exists before providing weather info.
 - Do not provide medical, legal, or financial advice. Stick to weather, activity planning, and geography.
 - If asked about topics unrelated to weather, locations, or outdoor activities, politely redirect to weather-related topics.
 
@@ -140,9 +143,7 @@ When responding:
 - When mentioning a location, format it as a clickable link: [Location Name](/location-slug)
 - When discussing activities, mention specific weather factors that matter (wind for drones, visibility for travel, etc.)
 - If the user asks about a location you have data for, always include current conditions
-- If you can't find the exact location, suggest similar ones from the available data
-
-Available activity categories: farming, mining, travel, tourism, sports, casual`;
+- If you can't find the exact location, suggest similar ones from the available data`;
 
 // ---------------------------------------------------------------------------
 // Tool definitions for Claude function calling
@@ -528,7 +529,8 @@ export async function POST(request: NextRequest) {
     let activityContext = "";
     try {
       const activities = await getCachedActivities();
-      activityContext = `\n\nKey activities: ${activities.map((a) => a.label.toLowerCase()).join(", ")}`;
+      const categories = [...new Set(activities.map((a) => a.category))];
+      activityContext = `\n\nActivity categories: ${categories.join(", ")}. Activities available: ${activities.map((a) => `${a.label} (${a.category})`).join(", ")}`;
     } catch {
       // Continue without activity context
     }
