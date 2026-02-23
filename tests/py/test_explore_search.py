@@ -79,7 +79,7 @@ class TestExecSearch:
         assert result[0]["slug"] == "chinhoyi"
 
     @patch("py._explore_search._get_location_context")
-    def test_filters_by_query_and_tag(self, mock_ctx):
+    def test_filters_by_query_or_tag(self, mock_ctx):
         mock_ctx.return_value = [
             {"slug": "harare", "name": "Harare", "province": "Harare", "tags": ["city"], "country": "ZW"},
             {"slug": "chinhoyi", "name": "Chinhoyi", "province": "Mash West", "tags": ["farming"], "country": "ZW"},

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, hasStoreHydrated } from "@/lib/store";
 import { detectUserLocation } from "@/lib/geolocation";
 import { WeatherLoadingScene } from "@/components/weather/WeatherLoadingScene";
 
@@ -16,6 +16,9 @@ const FALLBACK_LOCATION = "harare";
  * New users → auto-detect location via geolocation (3s timeout) → redirect.
  * Fallback → redirect to Harare.
  *
+ * Waits for Zustand rehydration before reading persisted state to avoid
+ * acting on default values before localStorage is loaded.
+ *
  * Uses router.replace() so the home page doesn't appear in browser history.
  */
 export function HomeRedirect() {
@@ -24,8 +27,21 @@ export function HomeRedirect() {
   const selectedLocation = useAppStore((s) => s.selectedLocation);
   const hasOnboarded = useAppStore((s) => s.hasOnboarded);
 
+  // Track Zustand rehydration — hasStoreHydrated() is not reactive,
+  // so we poll once on mount to catch the async hydration completion.
+  const [hydrated, setHydrated] = useState(hasStoreHydrated);
   useEffect(() => {
-    if (hasRedirected.current) return;
+    if (hydrated) return;
+    // Zustand persist rehydration typically fires within a single microtask
+    // after the store is created. Check after the current event loop.
+    const id = requestAnimationFrame(() => {
+      if (hasStoreHydrated()) setHydrated(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (hasRedirected.current || !hydrated) return;
 
     // Returning user with a saved location — go straight there
     if (hasOnboarded && selectedLocation && selectedLocation !== FALLBACK_LOCATION) {
@@ -62,7 +78,7 @@ export function HomeRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [router, selectedLocation, hasOnboarded]);
+  }, [router, selectedLocation, hasOnboarded, hydrated]);
 
   return <WeatherLoadingScene statusText="Finding your location..." />;
 }

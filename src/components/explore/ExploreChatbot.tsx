@@ -227,6 +227,17 @@ export function ExploreChatbot() {
     return () => { abortRef.current?.abort(); };
   }, []);
 
+  // Scroll behavior respecting prefers-reduced-motion (CSS media query doesn't
+  // affect JS scrollIntoView — must check via matchMedia)
+  const getScrollBehavior = useCallback(
+    (): ScrollBehavior =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    [],
+  );
+
   // Auto-scroll to bottom when new messages arrive — but only if the user is
   // already near the bottom. If they scrolled up to re-read context, don't
   // yank them back down; the scroll-to-bottom button handles that instead.
@@ -239,7 +250,7 @@ export function ExploreChatbot() {
         ? vp.scrollHeight - vp.scrollTop - vp.clientHeight
         : 0;
       if (distanceFromBottom < 100) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current?.scrollIntoView({ behavior: getScrollBehavior() });
       }
     });
     return () => cancelAnimationFrame(id);
@@ -262,7 +273,7 @@ export function ExploreChatbot() {
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: getScrollBehavior() });
   }, []);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -439,7 +450,7 @@ export function ExploreChatbot() {
                 type="submit"
                 size="sm"
                 disabled={loading || !input.trim()}
-                className="h-10 w-10 rounded-full p-0 shrink-0"
+                className="h-11 w-11 rounded-full p-0 shrink-0"
                 aria-label="Send message"
               >
                 <ArrowUpIcon size={18} />

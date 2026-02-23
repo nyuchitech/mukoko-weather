@@ -114,7 +114,7 @@ class TestMongoConnectionError:
 
 
 # ---------------------------------------------------------------------------
-# Router mounting — verify all 15 routers are included
+# Router mounting — verify all 16 routers are included
 # ---------------------------------------------------------------------------
 
 
