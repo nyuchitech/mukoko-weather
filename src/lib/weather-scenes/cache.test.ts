@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { CachedWeatherHint } from "./types";
 
-// Mock localStorage for Node test environment
+// Mock localStorage for Node test environment (with length/key for eviction)
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -9,6 +9,8 @@ const localStorageMock = (() => {
     setItem: (key: string, value: string) => { store[key] = value; },
     removeItem: (key: string) => { delete store[key]; },
     clear: () => { store = {}; },
+    get length() { return Object.keys(store).length; },
+    key: (i: number) => Object.keys(store)[i] ?? null,
   };
 })();
 Object.defineProperty(globalThis, "localStorage", { value: localStorageMock, writable: true });
@@ -84,5 +86,40 @@ describe("weather hint cache", () => {
   it("handles malformed JSON gracefully", () => {
     localStorageMock.setItem("mukoko-weather-hint:harare", "not-json");
     expect(getCachedWeatherHint("harare")).toBeNull();
+  });
+
+  it("evicts oldest entries when exceeding 50 cached locations", () => {
+    // Fill cache with 51 entries — oldest should be evicted
+    for (let i = 0; i < 51; i++) {
+      const h: CachedWeatherHint = {
+        ...hint,
+        timestamp: Date.now() - (51 - i) * 1000, // oldest first
+      };
+      cacheWeatherHint(`location-${i}`, h);
+    }
+
+    // The oldest entry (location-0) should have been evicted
+    expect(localStorageMock.getItem("mukoko-weather-hint:location-0")).toBeNull();
+    // Recent entries should still exist
+    expect(localStorageMock.getItem("mukoko-weather-hint:location-50")).not.toBeNull();
+  });
+
+  it("does not evict when under 50 entries", () => {
+    for (let i = 0; i < 10; i++) {
+      cacheWeatherHint(`location-${i}`, hint);
+    }
+    // All 10 should still exist
+    for (let i = 0; i < 10; i++) {
+      expect(localStorageMock.getItem(`mukoko-weather-hint:location-${i}`)).not.toBeNull();
+    }
+  });
+
+  it("ignores non-hint localStorage keys during eviction", () => {
+    localStorageMock.setItem("unrelated-key", "some-data");
+    for (let i = 0; i < 51; i++) {
+      cacheWeatherHint(`loc-${i}`, { ...hint, timestamp: Date.now() - (51 - i) * 1000 });
+    }
+    // Unrelated key should not be touched
+    expect(localStorageMock.getItem("unrelated-key")).toBe("some-data");
   });
 });

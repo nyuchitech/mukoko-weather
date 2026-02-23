@@ -2,14 +2,45 @@ import type { CachedWeatherHint } from "./types";
 
 const KEY_PREFIX = "mukoko-weather-hint:";
 const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const MAX_ENTRIES = 50;
+
+/**
+ * Evict oldest weather hint entries when the cache exceeds MAX_ENTRIES.
+ * Scans localStorage for matching keys, sorts by timestamp, removes the oldest.
+ */
+function evictOldest(): void {
+  const entries: { key: string; timestamp: number }[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(KEY_PREFIX)) continue;
+    try {
+      const hint: CachedWeatherHint = JSON.parse(localStorage.getItem(key)!);
+      entries.push({ key, timestamp: hint.timestamp });
+    } catch {
+      // Corrupt entry — remove it
+      localStorage.removeItem(key);
+    }
+  }
+
+  if (entries.length <= MAX_ENTRIES) return;
+
+  // Sort oldest-first and remove excess
+  entries.sort((a, b) => a.timestamp - b.timestamp);
+  const toRemove = entries.length - MAX_ENTRIES;
+  for (let i = 0; i < toRemove; i++) {
+    localStorage.removeItem(entries[i].key);
+  }
+}
 
 /**
  * Store a weather hint for a location in localStorage.
  * Used by WeatherDashboard to enable weather-aware loading scenes on return visits.
+ * Caps storage at 50 entries (LRU eviction of oldest timestamps).
  */
 export function cacheWeatherHint(slug: string, hint: CachedWeatherHint): void {
   try {
     localStorage.setItem(KEY_PREFIX + slug, JSON.stringify(hint));
+    evictOldest();
   } catch {
     // localStorage full or unavailable — silently ignore
   }

@@ -129,6 +129,8 @@ export function LazySection({
 
   // Track if the section has ever been mounted (for unload observer)
   const hasRendered = useRef(false);
+  // Whether to play entrance animation (true only on first mount, not remounts)
+  const [animate, setAnimate] = useState(false);
 
   // ── Load observer: mount when entering viewport ───────────────────────
   useEffect(() => {
@@ -141,6 +143,7 @@ export function LazySection({
         if (entry.isIntersecting) {
           observer.disconnect();
           cancelRef.current = enqueueMount(() => {
+            setAnimate(!hasRendered.current);
             setVisible(true);
             hasRendered.current = true;
           });
@@ -185,7 +188,7 @@ export function LazySection({
       data-lazy-section={label}
     >
       {visible ? (
-        <div className="animate-fade-in-up">
+        <div className={animate ? "animate-fade-in-up" : undefined}>
           {children}
         </div>
       ) : (
