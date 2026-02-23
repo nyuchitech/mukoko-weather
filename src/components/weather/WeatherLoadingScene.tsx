@@ -32,8 +32,25 @@ interface Props {
  */
 export function WeatherLoadingScene({ slug, statusText }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [use3D, setUse3D] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect 3D capability and device type via lazy initializers (SSR-safe).
+  // Avoids setState in effects; matchMedia is sync and available on mount.
+  const [use3D] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch {
+      return false;
+    }
+  });
+  const [isMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+    } catch {
+      return false;
+    }
+  });
 
   // Extract slug from URL path as fallback if not passed as prop
   const pathname = usePathname();
@@ -43,24 +60,6 @@ export function WeatherLoadingScene({ slug, statusText }: Props) {
   const locationDisplay = resolvedSlug
     ? resolvedSlug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
     : null;
-
-  // Enable 3D on all device types. Only skip for prefers-reduced-motion.
-  useEffect(() => {
-    try {
-      const prefersReduced = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      if (!prefersReduced) {
-        setUse3D(true);
-      }
-      const mobile = window.matchMedia(
-        "(hover: none), (pointer: coarse)",
-      ).matches;
-      setIsMobile(mobile);
-    } catch {
-      // matchMedia not available — skip 3D
-    }
-  }, []);
 
   useEffect(() => {
     if (!use3D) return;
