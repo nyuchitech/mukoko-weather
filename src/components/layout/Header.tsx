@@ -90,7 +90,7 @@ export function Header() {
             <button
               onClick={openMyWeather}
               aria-label="My Weather preferences"
-              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
               <MapPinIcon size={18} className="text-primary-foreground" />
@@ -99,14 +99,14 @@ export function Header() {
               href="/history"
               prefetch={false}
               aria-label="Weather history"
-              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
             >
               <ClockIcon size={18} className="text-primary-foreground" />
             </Link>
             <button
               onClick={openMyWeather}
               aria-label="Search locations"
-              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
               <SearchIcon size={18} className="text-primary-foreground" />
@@ -123,54 +123,58 @@ export function Header() {
         <div className="mx-auto flex items-center justify-around px-2 min-h-[4.5rem]">
           <Link
             href="/"
-            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
-              isHome ? "text-primary" : "text-text-tertiary"
+            className={`relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-all min-w-[56px] min-h-[56px] active:scale-95 ${
+              isHome ? "text-primary" : "text-text-tertiary hover:text-text-secondary"
             }`}
             aria-label="Weather home"
             aria-current={isHome ? "page" : undefined}
           >
             <HomeIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Weather</span>
+            {isHome && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/explore"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
-              isExplore ? "text-primary" : "text-text-tertiary"
+            className={`relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-all min-w-[56px] min-h-[56px] active:scale-95 ${
+              isExplore ? "text-primary" : "text-text-tertiary hover:text-text-secondary"
             }`}
             aria-label="Explore locations"
             aria-current={isExplore ? "page" : undefined}
           >
             <CompassIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Explore</span>
+            {isExplore && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/shamwari"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
-              isShamwari ? "text-primary" : "text-text-tertiary"
+            className={`relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-all min-w-[56px] min-h-[56px] active:scale-95 ${
+              isShamwari ? "text-primary" : "text-text-tertiary hover:text-text-secondary"
             }`}
             aria-label="Shamwari AI assistant"
             aria-current={isShamwari ? "page" : undefined}
           >
             <SparklesIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Shamwari</span>
+            {isShamwari && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/history"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
-              isHistory ? "text-primary" : "text-text-tertiary"
+            className={`relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-all min-w-[56px] min-h-[56px] active:scale-95 ${
+              isHistory ? "text-primary" : "text-text-tertiary hover:text-text-secondary"
             }`}
             aria-label="Weather history"
             aria-current={isHistory ? "page" : undefined}
           >
             <ClockIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">History</span>
+            {isHistory && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <button
             onClick={openMyWeather}
-            className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] text-text-tertiary"
+            className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-all min-w-[56px] min-h-[56px] text-text-tertiary hover:text-text-secondary active:scale-95"
             aria-label="My Weather settings"
             type="button"
           >

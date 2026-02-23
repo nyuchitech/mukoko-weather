@@ -170,7 +170,7 @@ export function ExploreSearch() {
             <Link
               key={loc.slug}
               href={`/${loc.slug}`}
-              className="group flex items-start gap-3.5 rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+              className="group card-interactive flex items-start gap-3.5 rounded-[var(--radius-card)] border border-border/50 bg-surface-card p-5 shadow-sm focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
                 <MapPinIcon size={16} className="text-primary" />
@@ -225,7 +225,7 @@ export function ExploreSearch() {
           <Link
             href="/shamwari"
             onClick={handleAskShamwari}
-            className="inline-flex items-center gap-1.5 rounded-[var(--radius-input)] bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20 min-h-[44px]"
+            className="press-scale inline-flex items-center gap-1.5 rounded-[var(--radius-input)] bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/20 min-h-[44px]"
           >
             <SparklesIcon size={14} />
             Ask Shamwari for more

@@ -68,7 +68,7 @@ export default async function ExplorePage() {
         </ol>
       </nav>
 
-      <main id="main-content" className="mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8">
+      <main id="main-content" className="animate-[fade-in_300ms_ease-out] mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8">
         <h1 className="text-2xl font-bold text-text-primary font-heading sm:text-3xl">
           Explore
         </h1>
@@ -92,7 +92,7 @@ export default async function ExplorePage() {
           action={
             <Link
               href="/shamwari"
-              className="shrink-0 inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+              className="press-scale shrink-0 inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
             >
               Start chatting
             </Link>
@@ -124,7 +124,7 @@ export default async function ExplorePage() {
                 <Link
                   key={tag}
                   href={`/explore/${tag}`}
-                  className="group rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm transition-all hover:shadow-md hover:bg-surface-card/80 focus-visible:outline-2 focus-visible:outline-primary"
+                  className="group card-interactive rounded-[var(--radius-card)] border border-border/50 bg-surface-card p-5 shadow-sm focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   <div className="flex items-start justify-between">
                     <h3 className="text-base font-semibold text-text-primary font-heading group-hover:text-primary transition-colors">
@@ -149,7 +149,7 @@ export default async function ExplorePage() {
             action={
               <Link
                 href="/explore/country"
-                className="shrink-0 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+                className="press-scale shrink-0 inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
               >
                 Browse countries
               </Link>

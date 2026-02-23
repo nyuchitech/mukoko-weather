@@ -109,7 +109,7 @@ export function WeatherDashboard({
           sm:pb-6 restores normal padding on larger screens where there is no nav bar. */}
       <main
         id="main-content"
-        className="mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8"
+        className="animate-[fade-in_300ms_ease-out] mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8"
         aria-label={`Weather dashboard for ${location.name}`}
       >
         {/* H1 for SEO — visually integrated but semantically correct */}
@@ -221,7 +221,7 @@ export function WeatherDashboard({
             {/* Location info card */}
             <LazySection label="location-info">
               <section aria-labelledby={`about-${location.slug}`}>
-                <div className="rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm sm:p-6">
+                <div className="rounded-[var(--radius-card)] border border-border/50 bg-surface-card p-5 shadow-sm sm:p-6">
                   <h2 id={`about-${location.slug}`} className="text-lg font-semibold text-text-primary font-heading">
                     About {location.name}
                   </h2>

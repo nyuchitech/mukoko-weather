@@ -37,7 +37,7 @@ export function WelcomeBanner({
   return (
     <section
       aria-label="Welcome to mukoko weather"
-      className="mb-7 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-5 sm:p-6"
+      className="mb-7 animate-[fade-in-down_400ms_ease-out] rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-5 sm:p-6"
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10" aria-hidden="true">
@@ -54,7 +54,7 @@ export function WelcomeBanner({
             <button
               type="button"
               onClick={onChangeLocation}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 min-h-[44px]"
+              className="press-scale inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-md min-h-[44px]"
             >
               <MapPinIcon size={14} />
               Personalise
@@ -62,7 +62,7 @@ export function WelcomeBanner({
             <button
               type="button"
               onClick={completeOnboarding}
-              className="inline-flex items-center rounded-full border border-text-tertiary/20 px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-card min-h-[44px]"
+              className="press-scale inline-flex items-center rounded-full border border-text-tertiary/20 px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-all hover:bg-surface-card hover:border-text-tertiary/40 min-h-[44px]"
             >
               Continue with {locationName}
             </button>

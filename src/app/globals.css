@@ -352,6 +352,9 @@
   --animate-fade-in-down: fade-in-down 300ms ease-out;
   --animate-slide-in-right: slide-in-right 300ms ease-out;
   --animate-scale-in: scale-in 200ms ease-out;
+  --animate-shimmer: shimmer 2s ease-in-out infinite;
+  --animate-nav-indicator-in: nav-indicator-in 300ms ease-out;
+  --animate-subtle-bounce: subtle-bounce 300ms ease-out;
 }
 
 @keyframes accordion-down {
@@ -387,6 +390,21 @@
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes nav-indicator-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes subtle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
 html {
@@ -534,3 +552,39 @@ body {
 .pb-safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ===== Card interaction utilities ===== */
+
+/* Subtle card hover lift — use on clickable/interactive cards */
+.card-interactive {
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.card-interactive:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.card-interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Button press scale — subtle haptic-like feedback */
+.press-scale {
+  transition: transform 100ms ease;
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+/* Staggered children entrance — each child fades in with delay */
+.stagger-children > * {
+  animation: fade-in-up 400ms ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }

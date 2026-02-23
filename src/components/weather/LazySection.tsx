@@ -179,15 +179,20 @@ export function LazySection({
   }, [visible]);
 
   // Maintain a persistent ref div that the observer can track even after unmount
-  const content = visible ? children : fallback;
-
   return (
     <div
       ref={sentinelRef}
       data-lazy-section={label}
-      className={visible ? "animate-[fade-in-up_400ms_ease-out]" : undefined}
     >
-      {content}
+      {visible ? (
+        <div className="animate-[fade-in-up_400ms_ease-out]">
+          {children}
+        </div>
+      ) : (
+        <div className="transition-opacity duration-200">
+          {fallback}
+        </div>
+      )}
     </div>
   );
 }

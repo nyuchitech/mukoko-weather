@@ -18,7 +18,7 @@ export function HourlyForecast({ hourly }: Props) {
 
   return (
     <section aria-labelledby="hourly-forecast-heading">
-      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm sm:p-6">
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-border/50 bg-surface-card p-5 shadow-sm sm:p-6">
         <h2 id="hourly-forecast-heading" className="text-lg font-semibold text-text-primary font-heading">24-Hour Forecast</h2>
         <HourlyChart hourly={hourly} />
         <ScrollArea className="mt-5 w-full" type="hover">
@@ -35,7 +35,7 @@ export function HourlyForecast({ hourly }: Props) {
                   key={time}
                   role="listitem"
                   aria-label={`${timeLabel}: ${temp} degrees, ${info.label}`}
-                  className="flex min-w-[72px] flex-col items-center gap-2 rounded-[var(--radius-input)] bg-surface-base px-3 py-3"
+                  className="flex min-w-[72px] flex-col items-center gap-2 rounded-[var(--radius-input)] bg-surface-base px-3 py-3 transition-colors hover:bg-surface-elevated"
                 >
                   <span className="text-sm font-medium text-text-secondary">
                     {timeLabel}
