@@ -2,6 +2,7 @@
 
 import type { LocationTag } from "./locations";
 
+/** Activity categories — includes location tags plus sports/casual */
 export type ActivityCategory = LocationTag | "sports" | "casual";
 
 export interface Activity {

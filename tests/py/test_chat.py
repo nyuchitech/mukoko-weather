@@ -14,12 +14,12 @@ from py._chat import (
     _execute_get_weather,
     _execute_tool,
     SLUG_RE,
-    KNOWN_TAGS,
     MAX_MESSAGE_LEN,
     MAX_HISTORY,
     MAX_ACTIVITIES,
     _FALLBACK_CHAT_PROMPT,
 )
+from py._db import get_known_tags
 
 
 # ---------------------------------------------------------------------------
@@ -140,10 +140,12 @@ class TestConstants:
         assert SLUG_RE.match("a" * 81) is None  # too long
         assert SLUG_RE.match("") is None
 
-    def test_known_tags_set(self):
-        assert "farming" in KNOWN_TAGS
-        assert "mining" in KNOWN_TAGS
-        assert "invalid" not in KNOWN_TAGS
+    def test_known_tags_fallback(self):
+        """get_known_tags returns a fallback set when DB is unavailable."""
+        tags = get_known_tags()
+        assert "farming" in tags
+        assert "mining" in tags
+        assert "invalid" not in tags
 
 
 # ---------------------------------------------------------------------------

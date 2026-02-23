@@ -39,19 +39,31 @@ def _get_http() -> httpx.Client:
 # ---------------------------------------------------------------------------
 
 
+MAX_LOCATIONS_LIMIT = 200
+DEFAULT_LOCATIONS_LIMIT = 50
+
+
 @router.get("/api/py/locations")
 async def list_locations(
     slug: str | None = None,
     tag: str | None = None,
+    country: str | None = None,
     mode: str | None = None,
+    limit: int = DEFAULT_LOCATIONS_LIMIT,
+    skip: int = 0,
 ):
     """
     GET /api/py/locations
     GET /api/py/locations?slug=harare
     GET /api/py/locations?tag=farming
+    GET /api/py/locations?tag=farming&limit=20&skip=0
+    GET /api/py/locations?country=ZW&limit=30
     GET /api/py/locations?mode=tags
     GET /api/py/locations?mode=stats
     """
+    limit = max(1, min(limit, MAX_LOCATIONS_LIMIT))
+    skip = max(0, skip)
+
     try:
         coll = locations_collection()
 
@@ -80,12 +92,21 @@ async def list_locations(
                 "totalCountries": countries,
             }
 
+        # Build query filter
+        query_filter: dict = {}
         if tag:
-            locs = list(coll.find({"tags": tag}, {"_id": 0}).sort("name", 1))
-            return {"locations": locs, "total": len(locs)}
+            query_filter["tags"] = tag
+        if country:
+            query_filter["country"] = country.upper()
 
-        locs = list(coll.find({}, {"_id": 0}).sort("name", 1))
-        return {"locations": locs, "total": len(locs)}
+        total = coll.count_documents(query_filter)
+        locs = list(
+            coll.find(query_filter, {"_id": 0})
+            .sort("name", 1)
+            .skip(skip)
+            .limit(limit)
+        )
+        return {"locations": locs, "total": total, "limit": limit, "skip": skip}
     except HTTPException:
         raise
     except Exception:

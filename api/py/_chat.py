@@ -30,6 +30,7 @@ from ._db import (
     check_rate_limit,
     get_client_ip,
     get_api_key,
+    get_known_tags,
     locations_collection,
     weather_cache_collection,
     activities_collection,
@@ -45,10 +46,6 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 SLUG_RE = re.compile(r"^[a-z0-9-]{1,80}$")
-KNOWN_TAGS = {
-    "city", "farming", "mining", "tourism", "education",
-    "border", "travel", "national-park",
-}
 MAX_HISTORY = 10
 MAX_MESSAGE_LEN = 2000
 MAX_ACTIVITIES = 20  # user-selected activities from client
@@ -472,8 +469,9 @@ def _execute_get_activity_advice(
 
 def _execute_list_by_tag(tag: str) -> dict:
     """List locations matching a tag."""
-    if tag not in KNOWN_TAGS:
-        return {"error": f"Unknown tag: {tag}. Valid tags: {', '.join(sorted(KNOWN_TAGS))}"}
+    known = get_known_tags()
+    if tag not in known:
+        return {"error": f"Unknown tag: {tag}. Valid tags: {', '.join(sorted(known))}"}
 
     try:
         results = list(

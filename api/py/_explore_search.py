@@ -37,10 +37,6 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 SLUG_RE = re.compile(r"^[a-z0-9-]{1,80}$")
-KNOWN_TAGS = {
-    "city", "farming", "mining", "tourism", "education",
-    "border", "travel", "national-park",
-}
 RATE_LIMIT_MAX = 15
 RATE_LIMIT_WINDOW = 3600  # 1 hour
 MAX_QUERY_LEN = 500

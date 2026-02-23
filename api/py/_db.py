@@ -114,6 +114,43 @@ def get_client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
+# ---------------------------------------------------------------------------
+# Tag cache — shared across chat, explore, etc.
+# ---------------------------------------------------------------------------
+
+import time as _time
+
+_known_tags: Optional[set[str]] = None
+_known_tags_at: float = 0
+_TAGS_CACHE_TTL = 300  # 5 minutes
+
+
+def get_known_tags() -> set[str]:
+    """
+    Fetch the set of valid tag slugs from MongoDB (cached 5 min).
+    Falls back to a minimal hardcoded set if the database is unavailable.
+    """
+    global _known_tags, _known_tags_at
+
+    now = _time.time()
+    if _known_tags is not None and (now - _known_tags_at) < _TAGS_CACHE_TTL:
+        return _known_tags
+
+    try:
+        docs = list(tags_collection().find({}, {"slug": 1, "_id": 0}))
+        _known_tags = {d["slug"] for d in docs if d.get("slug")}
+        _known_tags_at = now
+        return _known_tags
+    except Exception:
+        if _known_tags is not None:
+            return _known_tags
+        # Minimal fallback — matches the seed tags
+        return {
+            "city", "farming", "mining", "tourism", "education",
+            "border", "travel", "national-park",
+        }
+
+
 def check_rate_limit(ip: str, action: str, max_requests: int, window_seconds: int) -> dict:
     """
     MongoDB-backed rate limiter using atomic findOneAndUpdate.
