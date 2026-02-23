@@ -103,8 +103,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-3">
+        <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-4">
             <p className="text-text-tertiary">
               &copy; {year}{" "}
               <a href="https://nyuchi.com" className="underline transition-colors hover:text-text-secondary" rel="noopener">
@@ -127,7 +127,7 @@ export function Footer() {
               Built with Ubuntu philosophy — weather as a public good.
             </p>
           </div>
-          <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-5 gap-y-2 text-text-tertiary">
+          <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-3 text-text-tertiary">
             <Link href="/about" prefetch={false} className={linkClass}>About</Link>
             <Link href="/explore" prefetch={false} className={linkClass}>Explore</Link>
             <Link href="/shamwari" prefetch={false} className={linkClass}>Shamwari</Link>

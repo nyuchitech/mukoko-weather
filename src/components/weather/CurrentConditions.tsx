@@ -99,7 +99,7 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
         </div>
 
         {/* Quick stats grid */}
-        <div className="stagger-children mt-6 grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4" role="list" aria-label="Weather statistics">
+        <div className="stagger-children mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5" role="list" aria-label="Weather statistics">
           <QuickStat
             icon={<DropletIcon size={18} />}
             label="Humidity"
@@ -150,7 +150,7 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
 
 function QuickStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div role="listitem" className="flex min-w-0 items-center gap-3 rounded-[var(--radius-input)] bg-surface-base p-3.5">
+    <div role="listitem" className="flex min-w-0 items-center gap-3 rounded-[var(--radius-input)] bg-surface-base p-4">
       <span className="shrink-0 text-text-tertiary" aria-hidden="true">{icon}</span>
       <div className="min-w-0">
         <p className="text-xs text-text-tertiary">{label}</p>

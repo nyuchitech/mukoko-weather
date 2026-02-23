@@ -130,9 +130,9 @@ export function WeatherDashboard({
         <WelcomeBanner locationName={location.name} onChangeLocation={openMyWeather} />
 
         {/* Main grid */}
-        <div className="grid gap-7 lg:grid-cols-3 lg:gap-8">
+        <div className="grid gap-8 lg:grid-cols-3 lg:gap-10">
           {/* Left column: Current + AI Summary */}
-          <div className="min-w-0 space-y-7 lg:col-span-2">
+          <div className="min-w-0 space-y-8 lg:col-span-2">
             <ChartErrorBoundary name="current conditions">
               <CurrentConditions
                 current={weather.current}
@@ -186,7 +186,7 @@ export function WeatherDashboard({
           </div>
 
           {/* Right column: Daily + Sun + Info */}
-          <div className="min-w-0 space-y-7">
+          <div className="min-w-0 space-y-8">
             <LazySection label="daily-forecast">
               <ChartErrorBoundary name="daily forecast">
                 <Suspense fallback={<SectionSkeleton />}>

@@ -22,7 +22,7 @@ export function HourlyForecast({ hourly }: Props) {
         <h2 id="hourly-forecast-heading" className="text-lg font-semibold text-text-primary font-heading">24-Hour Forecast</h2>
         <HourlyChart hourly={hourly} />
         <ScrollArea className="mt-5 w-full" type="hover">
-          <div className="flex gap-3.5 pb-2 sm:gap-4 [overscroll-behavior-x:contain]" role="list" aria-label="Hourly weather forecast">
+          <div className="flex gap-4 pb-2 sm:gap-5 [overscroll-behavior-x:contain]" role="list" aria-label="Hourly weather forecast">
             {hours.map((time, i) => {
               const idx = start + i;
               const date = new Date(time);
@@ -35,7 +35,7 @@ export function HourlyForecast({ hourly }: Props) {
                   key={time}
                   role="listitem"
                   aria-label={`${timeLabel}: ${temp} degrees, ${info.label}`}
-                  className="flex min-w-[72px] flex-col items-center gap-2 rounded-[var(--radius-input)] bg-surface-base px-3 py-3 transition-colors hover:bg-surface-elevated"
+                  className="flex min-w-[72px] flex-col items-center gap-2.5 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5 transition-colors hover:bg-surface-elevated"
                 >
                   <span className="text-sm font-medium text-text-secondary">
                     {timeLabel}
