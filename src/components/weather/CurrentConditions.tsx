@@ -54,7 +54,7 @@ export function CurrentConditions({ current, locationName, daily, slug }: Props)
 
   return (
     <section aria-labelledby="current-conditions-heading">
-      <div className="rounded-[var(--radius-card)] border border-border/50 bg-surface-card p-5 shadow-sm sm:p-6">
+      <div className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6">
         <h2 id="current-conditions-heading" className="sr-only">
           Current weather conditions in {locationName}
         </h2>

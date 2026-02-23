@@ -67,10 +67,10 @@ export function Header() {
   return (
     <>
       <header
-        className={`sticky top-0 z-30 transition-all duration-300 ${
+        className={`sticky top-0 z-30 border-b transition-all duration-300 ${
           isScrolled
-            ? "bg-surface-base/70 backdrop-blur-xl border-b border-text-tertiary/10 shadow-sm"
-            : ""
+            ? "bg-surface-base/70 backdrop-blur-xl border-text-tertiary/10 shadow-sm"
+            : "border-transparent"
         }`}
         role="banner"
       >
@@ -81,7 +81,38 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Action pill — solid primary background with white icons */}
+          {/* Desktop nav links — hidden on mobile where bottom nav is used */}
+          <div className="hidden sm:flex items-center gap-1">
+            <Link
+              href="/explore"
+              prefetch={false}
+              className={`rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium transition-colors ${
+                isExplore ? "text-primary bg-primary/10" : "text-text-secondary hover:text-text-primary hover:bg-surface-base"
+              }`}
+            >
+              Explore
+            </Link>
+            <Link
+              href="/shamwari"
+              prefetch={false}
+              className={`rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium transition-colors ${
+                isShamwari ? "text-primary bg-primary/10" : "text-text-secondary hover:text-text-primary hover:bg-surface-base"
+              }`}
+            >
+              Shamwari
+            </Link>
+            <Link
+              href="/history"
+              prefetch={false}
+              className={`rounded-[var(--radius-input)] px-3 py-2 text-sm font-medium transition-colors ${
+                isHistory ? "text-primary bg-primary/10" : "text-text-secondary hover:text-text-primary hover:bg-surface-base"
+              }`}
+            >
+              History
+            </Link>
+          </div>
+
+          {/* Action pill — location + search */}
           <div
             className="flex shrink-0 items-center gap-1 rounded-full bg-primary p-1"
             role="toolbar"
@@ -95,14 +126,6 @@ export function Header() {
             >
               <MapPinIcon size={18} className="text-primary-foreground" />
             </button>
-            <Link
-              href="/history"
-              prefetch={false}
-              aria-label="Weather history"
-              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
-            >
-              <ClockIcon size={18} className="text-primary-foreground" />
-            </Link>
             <button
               onClick={openMyWeather}
               aria-label="Search locations"
