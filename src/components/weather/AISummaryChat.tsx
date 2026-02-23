@@ -355,8 +355,10 @@ export function AISummaryChat({ weather, location, initialSummary, season }: Pro
                     value={input}
                     onChange={(e) => {
                       setInput(e.target.value);
+                      // Auto-grow: capped at 96px (max-h-24) so inline style.height
+                      // doesn't override the Tailwind max-height constraint.
                       e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight}px`;
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 96)}px`;
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {

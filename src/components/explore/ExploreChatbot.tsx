@@ -357,12 +357,12 @@ export function ExploreChatbot() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Messages area */}
       <div className="relative flex-1 min-h-0">
-        {/* forceBlock: override Radix's display:table on viewport wrapper —
+        {/* fixRadixTableLayout: override Radix's display:table on viewport wrapper —
             without it, the flex message layout breaks.
-            Tested with radix-ui@1.4.3 — verify after Radix upgrades.
+            Tested with @radix-ui/react-scroll-area@1.4.3 — verify after upgrades.
             TODO: Remove when upstream resolves this —
             https://github.com/radix-ui/primitives/issues/926 */}
-        <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
+        <ScrollArea viewportRef={viewportRef} className="h-full" fixRadixTableLayout>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <EmptyState onSuggestionClick={handleSuggestion} loading={loading} />
@@ -415,11 +415,11 @@ export function ExploreChatbot() {
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
-                // Auto-grow: reset height then expand to scrollHeight (capped by max-h).
-                // Uses inline style.height because the value is dynamically calculated
-                // from scrollHeight — not expressible as a static Tailwind class.
+                // Auto-grow: reset height then expand to scrollHeight.
+                // Capped at 128px (max-h-32) so inline style.height doesn't
+                // override the Tailwind max-height constraint.
                 e.target.style.height = "auto";
-                e.target.style.height = `${e.target.scrollHeight}px`;
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
               }}
               onKeyDown={(e) => {
                 // Submit on Enter (without Shift); Shift+Enter inserts a newline

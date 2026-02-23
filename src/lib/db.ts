@@ -626,7 +626,13 @@ export async function getLocationsForContext(limit: number): Promise<LocationDoc
     .toArray();
 }
 
-/** Get approximate count of locations — uses collection metadata (no scan). */
+/**
+ * Get approximate count of locations — uses collection metadata (no scan).
+ *
+ * Currently used by the Python backend (_chat.py) via its own MongoDB client.
+ * This TypeScript export is provided for future TS callers (e.g., OG route,
+ * sitemap generation) and to maintain API parity with the Python path.
+ */
 export async function getLocationCount(): Promise<number> {
   return locationsCollection().estimatedDocumentCount();
 }

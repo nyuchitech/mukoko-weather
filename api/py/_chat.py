@@ -277,7 +277,8 @@ def _execute_search_locations(query: str) -> dict:
     except Exception:
         pass  # $text index may not exist — fall through
 
-    # 3. Last resort: case-insensitive regex on name/province
+    # 3. Last resort: case-insensitive regex on name/province.
+    # Capped with maxTimeMS to prevent slow collection scans in serverless.
     try:
         regex = {"$regex": re.escape(q), "$options": "i"}
         results = list(
@@ -286,6 +287,7 @@ def _execute_search_locations(query: str) -> dict:
                 projection,
             )
             .limit(10)
+            .max_time_ms(3000)
         )
         return _format_results(results)
     except Exception:

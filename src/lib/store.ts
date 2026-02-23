@@ -75,6 +75,19 @@ interface AppState {
 
 const THEME_CYCLE: ThemePreference[] = ["light", "dark", "system"];
 
+/**
+ * Module-level hydration flag — set by onRehydrateStorage once Zustand
+ * finishes reading from localStorage. Components that depend on persisted
+ * state (e.g. WelcomeBanner checking hasOnboarded) should wait for this
+ * to avoid a flash of incorrect content.
+ */
+let _hasHydrated = false;
+
+/** Check if the Zustand store has finished hydrating from localStorage. */
+export function hasStoreHydrated(): boolean {
+  return _hasHydrated;
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
@@ -131,6 +144,7 @@ export const useAppStore = create<AppState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);
+        _hasHydrated = true;
       },
     },
   ),

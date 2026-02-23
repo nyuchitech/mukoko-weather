@@ -630,8 +630,8 @@ describe("scroll-to-bottom button", () => {
     expect(source).toContain("cancelAnimationFrame");
   });
 
-  it("uses forceBlock prop to scope ScrollArea override", () => {
-    // The [&>div]:!block fix should be opt-in via forceBlock, not global
-    expect(source).toContain("forceBlock");
+  it("uses fixRadixTableLayout prop to scope ScrollArea override", () => {
+    // The [&>div]:!block fix should be opt-in via fixRadixTableLayout, not global
+    expect(source).toContain("fixRadixTableLayout");
   });
 });

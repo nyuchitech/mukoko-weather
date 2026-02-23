@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/lib/store";
+import { useAppStore, hasStoreHydrated } from "@/lib/store";
 import { MapPinIcon, SparklesIcon } from "@/lib/weather-icons";
 
 /**
@@ -14,6 +14,10 @@ import { MapPinIcon, SparklesIcon } from "@/lib/weather-icons";
  *
  * The banner sits above the weather grid, is dismissible, and lets the
  * user personalize on their own terms rather than interrupting them.
+ *
+ * Waits for Zustand store hydration before rendering to prevent a flash
+ * of the welcome banner for returning users whose hasOnboarded=true is
+ * still loading from localStorage.
  */
 export function WelcomeBanner({
   locationName,
@@ -25,6 +29,9 @@ export function WelcomeBanner({
   const hasOnboarded = useAppStore((s) => s.hasOnboarded);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
+  // Don't render until the store has hydrated from localStorage —
+  // prevents a flash for returning users whose hasOnboarded is true.
+  if (!hasStoreHydrated()) return null;
   if (hasOnboarded) return null;
 
   return (
