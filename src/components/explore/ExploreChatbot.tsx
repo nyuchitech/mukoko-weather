@@ -127,6 +127,11 @@ function getContextualPrompts(ctx: ShamwariContext): { label: string; query: str
 /**
  * Generate a contextual greeting message based on Shamwari context.
  * Returns null if no context or if context type is not recognized.
+ *
+ * Note: Greeting templates are also seeded in seed-ai-prompts.ts
+ * (greeting:location_context, etc.) for future DB-driven rendering.
+ * These hardcoded greetings serve as the primary source until
+ * the greeting logic is migrated to fetch from the API.
  */
 function getContextualGreeting(ctx: ShamwariContext): string | null {
   if (ctx.source === "location" && ctx.locationName) {
@@ -352,6 +357,7 @@ export function ExploreChatbot() {
       <div className="relative flex-1 min-h-0">
         {/* forceBlock: override Radix's display:table on viewport wrapper —
             without it, the flex message layout breaks.
+            Tested with radix-ui@1.4.3 — verify after Radix upgrades.
             TODO: Remove when upstream resolves this —
             https://github.com/radix-ui/primitives/issues/926 */}
         <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>

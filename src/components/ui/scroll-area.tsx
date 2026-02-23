@@ -16,6 +16,7 @@ function ScrollArea({
    *  Radix wraps children in a div with display:table which breaks flex/block
    *  layouts (e.g. the Shamwari chatbot). Pass forceBlock to opt in to the fix
    *  only where needed, avoiding global side effects on other ScrollArea usages.
+   *  Tested with radix-ui@1.4.3 — verify after Radix upgrades.
    *  See: https://github.com/radix-ui/primitives/issues/926 */
   forceBlock?: boolean;
   /** Ref forwarded to the Radix Viewport element — use this for scroll

@@ -225,6 +225,10 @@ Rules:
     active: true,
     order: 6,
   },
+  // Greeting templates — seeded for future DB-driven rendering.
+  // Currently, ExploreChatbot.tsx uses hardcoded getContextualGreeting()
+  // as the primary source with these templates reserved for when the
+  // client-side greeting logic migrates to a server-driven approach.
   {
     promptKey: "greeting:location_context",
     description: "Greeting when Shamwari has location context from the weather page",
