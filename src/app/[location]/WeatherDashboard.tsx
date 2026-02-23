@@ -78,8 +78,8 @@ export function WeatherDashboard({
       <Header />
 
       {/* Breadcrumb navigation for SEO and accessibility */}
-      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 md:px-8">
-        <ol className="flex flex-wrap items-center gap-1 text-xs text-text-tertiary">
+      <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-5 sm:px-6 md:px-8">
+        <ol className="flex flex-wrap items-center gap-1.5 text-xs text-text-tertiary">
           <li>
             <a href={BASE_URL} className="hover:text-text-secondary transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:rounded">
               Home
@@ -109,14 +109,14 @@ export function WeatherDashboard({
           sm:pb-6 restores normal padding on larger screens where there is no nav bar. */}
       <main
         id="main-content"
-        className="mx-auto max-w-5xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 sm:pb-6 md:px-8"
+        className="mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8"
         aria-label={`Weather dashboard for ${location.name}`}
       >
         {/* H1 for SEO — visually integrated but semantically correct */}
         <h1 className="sr-only">{location.name} Weather Forecast — Current Conditions and 7-Day Outlook</h1>
 
         {/* Season indicator */}
-        <div className="mb-4">
+        <div className="mb-5">
           <SeasonBadge season={season} />
         </div>
 
@@ -130,9 +130,9 @@ export function WeatherDashboard({
         <WelcomeBanner locationName={location.name} onChangeLocation={openMyWeather} />
 
         {/* Main grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-7 lg:grid-cols-3 lg:gap-8">
           {/* Left column: Current + AI Summary */}
-          <div className="min-w-0 space-y-6 lg:col-span-2">
+          <div className="min-w-0 space-y-7 lg:col-span-2">
             <ChartErrorBoundary name="current conditions">
               <CurrentConditions
                 current={weather.current}
@@ -186,7 +186,7 @@ export function WeatherDashboard({
           </div>
 
           {/* Right column: Daily + Sun + Info */}
-          <div className="min-w-0 space-y-6">
+          <div className="min-w-0 space-y-7">
             <LazySection label="daily-forecast">
               <ChartErrorBoundary name="daily forecast">
                 <Suspense fallback={<SectionSkeleton />}>
@@ -221,11 +221,11 @@ export function WeatherDashboard({
             {/* Location info card */}
             <LazySection label="location-info">
               <section aria-labelledby={`about-${location.slug}`}>
-                <div className="rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm sm:p-6">
+                <div className="rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm sm:p-6">
                   <h2 id={`about-${location.slug}`} className="text-lg font-semibold text-text-primary font-heading">
                     About {location.name}
                   </h2>
-                  <dl className="mt-4 space-y-3 text-sm">
+                  <dl className="mt-5 space-y-3.5 text-sm">
                     <InfoRow label="Province" value={location.province} />
                     <InfoRow label="Elevation" value={`${location.elevation}m`} />
                     <InfoRow

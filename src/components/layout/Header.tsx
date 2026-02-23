@@ -83,14 +83,14 @@ export function Header() {
 
           {/* Action pill — solid primary background with white icons */}
           <div
-            className="flex shrink-0 items-center gap-0.5 sm:gap-1 rounded-full bg-primary p-0.5 sm:p-1"
+            className="flex shrink-0 items-center gap-1 rounded-full bg-primary p-1"
             role="toolbar"
             aria-label="Quick actions"
           >
             <button
               onClick={openMyWeather}
               aria-label="My Weather preferences"
-              className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
               type="button"
             >
               <MapPinIcon size={18} className="text-primary-foreground" />
@@ -99,14 +99,14 @@ export function Header() {
               href="/history"
               prefetch={false}
               aria-label="Weather history"
-              className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
             >
               <ClockIcon size={18} className="text-primary-foreground" />
             </Link>
             <button
               onClick={openMyWeather}
               aria-label="Search locations"
-              className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 transition-colors"
               type="button"
             >
               <SearchIcon size={18} className="text-primary-foreground" />
@@ -120,10 +120,10 @@ export function Header() {
         aria-label="Mobile navigation"
         className="fixed bottom-0 left-0 right-0 z-30 border-t border-text-tertiary/10 bg-surface-base/95 backdrop-blur-xl sm:hidden pb-safe-bottom"
       >
-        <div className="mx-auto flex items-center justify-around px-1 min-h-[4.5rem]">
+        <div className="mx-auto flex items-center justify-around px-2 min-h-[4.5rem]">
           <Link
             href="/"
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
+            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
               isHome ? "text-primary" : "text-text-tertiary"
             }`}
             aria-label="Weather home"
@@ -135,7 +135,7 @@ export function Header() {
           <Link
             href="/explore"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
+            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
               isExplore ? "text-primary" : "text-text-tertiary"
             }`}
             aria-label="Explore locations"
@@ -147,7 +147,7 @@ export function Header() {
           <Link
             href="/shamwari"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
+            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
               isShamwari ? "text-primary" : "text-text-tertiary"
             }`}
             aria-label="Shamwari AI assistant"
@@ -159,7 +159,7 @@ export function Header() {
           <Link
             href="/history"
             prefetch={false}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
+            className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] ${
               isHistory ? "text-primary" : "text-text-tertiary"
             }`}
             aria-label="Weather history"
@@ -170,7 +170,7 @@ export function Header() {
           </Link>
           <button
             onClick={openMyWeather}
-            className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] text-text-tertiary"
+            className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors min-w-[56px] min-h-[56px] text-text-tertiary"
             aria-label="My Weather settings"
             type="button"
           >

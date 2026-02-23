@@ -363,7 +363,7 @@ export function ExploreChatbot() {
             TODO: Remove when upstream resolves this —
             https://github.com/radix-ui/primitives/issues/926 */}
         <ScrollArea viewportRef={viewportRef} className="h-full" fixRadixTableLayout>
-          <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
+          <div className="px-4 py-5 space-y-6 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <EmptyState onSuggestionClick={handleSuggestion} loading={loading} />
             )}
@@ -503,8 +503,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   if (isUser) {
     return (
       <div className="flex justify-end min-w-0">
-        <div className="max-w-[85%] min-w-0 rounded-[var(--radius-card)] px-4 py-3 bg-primary text-primary-foreground">
-          <p className="text-sm break-words">{message.content}</p>
+        <div className="max-w-[85%] min-w-0 rounded-[var(--radius-card)] px-4 py-3.5 bg-primary text-primary-foreground">
+          <p className="text-sm break-words leading-relaxed">{message.content}</p>
         </div>
       </div>
     );

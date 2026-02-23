@@ -18,11 +18,11 @@ export function HourlyForecast({ hourly }: Props) {
 
   return (
     <section aria-labelledby="hourly-forecast-heading">
-      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface-card p-4 shadow-sm sm:p-6">
+      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface-card p-5 shadow-sm sm:p-6">
         <h2 id="hourly-forecast-heading" className="text-lg font-semibold text-text-primary font-heading">24-Hour Forecast</h2>
         <HourlyChart hourly={hourly} />
-        <ScrollArea className="mt-4 w-full" type="hover">
-          <div className="flex gap-3 pb-2 sm:gap-4 [overscroll-behavior-x:contain]" role="list" aria-label="Hourly weather forecast">
+        <ScrollArea className="mt-5 w-full" type="hover">
+          <div className="flex gap-3.5 pb-2 sm:gap-4 [overscroll-behavior-x:contain]" role="list" aria-label="Hourly weather forecast">
             {hours.map((time, i) => {
               const idx = start + i;
               const date = new Date(time);

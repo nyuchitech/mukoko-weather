@@ -37,7 +37,7 @@ export function WelcomeBanner({
   return (
     <section
       aria-label="Welcome to mukoko weather"
-      className="mb-6 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-4 sm:p-5"
+      className="mb-7 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-5 sm:p-6"
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10" aria-hidden="true">
@@ -47,10 +47,10 @@ export function WelcomeBanner({
           <p className="text-sm font-medium text-text-primary">
             Welcome to mukoko weather
           </p>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className="mt-1.5 text-sm text-text-secondary leading-relaxed">
             You&apos;re viewing weather for <strong>{locationName}</strong>. Pick your own location and activities for personalised forecasts.
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={onChangeLocation}

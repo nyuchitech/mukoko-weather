@@ -19,7 +19,7 @@ export function MapPreview({ location }: MapPreviewProps) {
   return (
     <section aria-labelledby="map-preview-heading">
       <div className="rounded-[var(--radius-card)] bg-surface-card shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between p-4 pb-2 sm:px-6">
+        <div className="flex items-center justify-between p-5 pb-2 sm:px-6">
           <h2
             id="map-preview-heading"
             className="text-lg font-semibold text-text-primary font-heading"

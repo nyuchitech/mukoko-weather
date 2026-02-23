@@ -182,7 +182,11 @@ export function LazySection({
   const content = visible ? children : fallback;
 
   return (
-    <div ref={sentinelRef} data-lazy-section={label}>
+    <div
+      ref={sentinelRef}
+      data-lazy-section={label}
+      className={visible ? "animate-[fade-in-up_400ms_ease-out]" : undefined}
+    >
       {content}
     </div>
   );
