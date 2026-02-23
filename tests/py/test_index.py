@@ -18,7 +18,9 @@ from py.index import app, _ALLOWED_ORIGINS, health, mongo_connection_error
 
 class TestAllowedOrigins:
     def test_contains_production_url(self):
-        assert "https://weather.mukoko.com" in _ALLOWED_ORIGINS
+        assert any(
+            origin == "https://weather.mukoko.com" for origin in _ALLOWED_ORIGINS
+        )
 
     def test_contains_localhost(self):
         assert "http://localhost:3000" in _ALLOWED_ORIGINS

@@ -171,6 +171,6 @@ class TestProxyMapTile:
 
         call_args = mock_http.return_value.get.call_args
         url = call_args[0][0]
-        assert "api.tomorrow.io" in url
+        assert url.startswith("https://api.tomorrow.io/")
         assert "/5/18/17/windSpeed/now.png" in url
         assert "apikey=my-key" in url
