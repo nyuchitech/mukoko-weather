@@ -122,7 +122,7 @@ export function WeatherDashboard({
           sm:pb-6 restores normal padding on larger screens where there is no nav bar. */}
       <main
         id="main-content"
-        className="animate-[fade-in_300ms_ease-out] mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8"
+        className="animate-fade-in mx-auto max-w-5xl overflow-x-hidden px-4 py-8 pb-24 sm:px-6 sm:pb-8 md:px-8"
         aria-label={`Weather dashboard for ${location.name}`}
       >
         {/* H1 for SEO — visually integrated but semantically correct */}
@@ -146,7 +146,7 @@ export function WeatherDashboard({
             Mobile: top→right→bottom (Daily right after Hourly)
             Tablet (md): 2 columns — top+right side-by-side, bottom below
             Desktop (lg): 3 columns — top+bottom stack in cols 1-2, right in col 3 */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 md:gap-8 lg:gap-10">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
           {/* Left-top: Current conditions + hourly forecast (eager) */}
           <div className="min-w-0 space-y-8 order-1 md:col-span-1 lg:col-span-2">
             <ChartErrorBoundary name="current conditions">

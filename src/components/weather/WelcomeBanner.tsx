@@ -37,7 +37,7 @@ export function WelcomeBanner({
   return (
     <section
       aria-label="Welcome to mukoko weather"
-      className="mb-7 animate-[fade-in-down_400ms_ease-out] rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-5 sm:p-6"
+      className="mb-7 animate-fade-in-down rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-5 sm:p-6"
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10" aria-hidden="true">

@@ -28,15 +28,19 @@ export function HomeRedirect() {
   const hasOnboarded = useAppStore((s) => s.hasOnboarded);
 
   // Track Zustand rehydration — hasStoreHydrated() is not reactive,
-  // so we poll once on mount to catch the async hydration completion.
+  // so we poll via rAF until hydration completes (retries on slow devices).
   const [hydrated, setHydrated] = useState(hasStoreHydrated);
   useEffect(() => {
     if (hydrated) return;
-    // Zustand persist rehydration typically fires within a single microtask
-    // after the store is created. Check after the current event loop.
-    const id = requestAnimationFrame(() => {
-      if (hasStoreHydrated()) setHydrated(true);
-    });
+    let id: number;
+    const check = () => {
+      if (hasStoreHydrated()) {
+        setHydrated(true);
+      } else {
+        id = requestAnimationFrame(check);
+      }
+    };
+    id = requestAnimationFrame(check);
     return () => cancelAnimationFrame(id);
   }, [hydrated]);
 
@@ -58,22 +62,28 @@ export function HomeRedirect() {
       setTimeout(() => resolve(null), GEO_TIMEOUT_MS),
     );
 
-    Promise.race([geoPromise, timeoutPromise]).then((result) => {
-      if (cancelled || hasRedirected.current) return;
-      hasRedirected.current = true;
+    Promise.race([geoPromise, timeoutPromise])
+      .then((result) => {
+        if (cancelled || hasRedirected.current) return;
+        hasRedirected.current = true;
 
-      if (
-        result &&
-        "status" in result &&
-        (result.status === "success" || result.status === "created") &&
-        result.location
-      ) {
-        router.replace(`/${result.location.slug}`);
-      } else {
-        // Geolocation denied, timed out, or outside supported region
+        if (
+          result &&
+          "status" in result &&
+          (result.status === "success" || result.status === "created") &&
+          result.location
+        ) {
+          router.replace(`/${result.location.slug}`);
+        } else {
+          // Geolocation denied, timed out, or outside supported region
+          router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
+        }
+      })
+      .catch(() => {
+        if (cancelled || hasRedirected.current) return;
+        hasRedirected.current = true;
         router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
-      }
-    });
+      });
 
     return () => {
       cancelled = true;

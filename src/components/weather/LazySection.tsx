@@ -185,7 +185,7 @@ export function LazySection({
       data-lazy-section={label}
     >
       {visible ? (
-        <div className="animate-[fade-in-up_400ms_ease-out]">
+        <div className="animate-fade-in-up">
           {children}
         </div>
       ) : (

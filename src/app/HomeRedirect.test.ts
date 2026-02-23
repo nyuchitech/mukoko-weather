@@ -48,6 +48,11 @@ describe("HomeRedirect — Zustand rehydration guard", () => {
     // The redirect effect should check hydration
     expect(source).toContain("!hydrated");
   });
+
+  it("retries rAF polling until hydration completes", () => {
+    // Should retry via recursive rAF, not a single poll
+    expect(source).toContain("requestAnimationFrame(check)");
+  });
 });
 
 describe("HomeRedirect — redirect logic", () => {
@@ -77,5 +82,10 @@ describe("HomeRedirect — redirect logic", () => {
 
   it("cancels geolocation on unmount", () => {
     expect(source).toContain("cancelled = true");
+  });
+
+  it("handles geolocation promise rejection", () => {
+    // .catch() prevents unhandled promise rejections
+    expect(source).toContain(".catch(");
   });
 });
