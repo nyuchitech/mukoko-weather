@@ -163,6 +163,18 @@ describe("new DB helper function exports", () => {
   it("getLocationCount is a function", () => {
     expect(typeof getLocationCount).toBe("function");
   });
+
+  it("getLocationCount calls estimatedDocumentCount (metadata only, no collection scan)", () => {
+    const dbSource = readFileSync(resolve(__dirname, "db.ts"), "utf-8");
+    expect(dbSource).toContain("estimatedDocumentCount()");
+    // Should NOT use countDocuments (which does a full scan)
+    const countFnBody = dbSource.slice(
+      dbSource.indexOf("async function getLocationCount"),
+      dbSource.indexOf("}", dbSource.indexOf("async function getLocationCount")) + 1
+    );
+    expect(countFnBody).toContain("estimatedDocumentCount");
+    expect(countFnBody).not.toContain("countDocuments");
+  });
 });
 
 describe("regions/tags/seasons DB function exports", () => {

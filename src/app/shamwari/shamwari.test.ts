@@ -55,7 +55,7 @@ describe("shamwari page client — chatbot integration", () => {
 
   it("prevents horizontal overflow on the page", () => {
     expect(clientSource).toContain("overflow-hidden");
-    expect(clientSource).toContain("max-w-[100vw]");
+    expect(clientSource).toContain("max-w-full");
   });
 });
 

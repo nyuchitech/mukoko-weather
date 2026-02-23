@@ -135,8 +135,9 @@ function getContextualGreeting(ctx: ShamwariContext): string | null {
       ? (() => {
           const s = ctx.weatherSummary;
           if (s.length <= 150) return ` ${s}`;
-          const truncated = s.slice(0, s.lastIndexOf(" ", 150));
-          return ` ${truncated || s.slice(0, 150)}...`;
+          const idx = s.lastIndexOf(" ", 150);
+          const truncated = idx > 0 ? s.slice(0, idx) : s.slice(0, 150);
+          return ` ${truncated}...`;
         })()
       : "";
     return `You're looking at weather in **${ctx.locationName}**${tempInfo}.${summaryInfo} How can I help you plan around this weather?`;
@@ -352,7 +353,7 @@ export function ExploreChatbot() {
         <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
-              <EmptyState onSuggestionClick={handleSuggestion} contextualPrompts={null} />
+              <EmptyState onSuggestionClick={handleSuggestion} />
             )}
             {messages.length > 0 && contextualPrompts && contextualPrompts.length > 0 && messages.length === 1 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -442,8 +443,8 @@ export function ExploreChatbot() {
 // Empty state with suggested prompts
 // ---------------------------------------------------------------------------
 
-function EmptyState({ onSuggestionClick, contextualPrompts }: { onSuggestionClick: (query: string) => void; contextualPrompts: { label: string; query: string }[] | null }) {
-  const prompts = contextualPrompts ?? DEFAULT_SUGGESTED_PROMPTS;
+function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) => void }) {
+  const prompts = DEFAULT_SUGGESTED_PROMPTS;
 
   return (
     <div className="flex flex-col items-center justify-center py-8">

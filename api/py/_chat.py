@@ -582,11 +582,11 @@ def _build_system_prompt(user_activities: list[str]) -> str:
 
     location_list = ", ".join(
         f"{loc['name']} ({loc['slug']})" for loc in locations[:30]
-    )
+    ) or "No sample locations available — use the search_locations tool to discover locations"
 
     activity_list = ", ".join(
         f"{act['label']} ({act['id']})" for act in activities[:MAX_ACTIVITIES_IN_PROMPT]
-    )
+    ) or "No activities loaded — ask users what activities interest them"
 
     user_activity_section = ""
     if user_activities:
