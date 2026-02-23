@@ -115,7 +115,7 @@ def _get_location_context() -> tuple[list[dict], str]:
         docs = list(
             coll.find({}, {"slug": 1, "name": 1, "province": 1, "tags": 1, "_id": 0})
             .sort([("source", -1), ("name", 1)])
-            .limit(50)
+            .limit(20)
         )
         # Cache count alongside context (same TTL, same DB round-trip window)
         try:
@@ -717,7 +717,7 @@ async def chat(body: ChatRequest, request: Request):
     references: list[Reference] = []
     seen_slugs: set[str] = set()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     for _ in range(MAX_TOOL_ITERATIONS):
         if not anthropic_breaker.is_allowed:

@@ -351,7 +351,9 @@ export function ExploreChatbot() {
       {/* Messages area */}
       <div className="relative flex-1 min-h-0">
         {/* forceBlock: override Radix's display:table on viewport wrapper —
-            without it, the flex message layout breaks (see radix-ui/primitives#926) */}
+            without it, the flex message layout breaks.
+            TODO: Remove when upstream resolves this —
+            https://github.com/radix-ui/primitives/issues/926 */}
         <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (

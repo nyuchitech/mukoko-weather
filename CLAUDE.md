@@ -288,7 +288,8 @@ mukoko-weather/
 │   │   ├── seed-tags.ts           # Seed tag metadata for db-init (powers explore page cards)
 │   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
-│   │   └── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
+│   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
+│   │   └── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
 ├── api/
 │   └── py/                        # Python FastAPI backend (Vercel serverless functions)
 │       ├── index.py               # FastAPI app, router mounting, CORS, error handlers
@@ -1015,6 +1016,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
+- `src/lib/seed-ai-prompts.test.ts` — AI prompt/rule uniqueness, LOCATION DISCOVERY guardrails presence, structural integrity
 
 *TypeScript API route tests (remaining):*
 - `src/app/api/og/og-route.test.ts` — OG image route (templates, brand tokens, rate limiting, metadata wiring in layout + location pages)
