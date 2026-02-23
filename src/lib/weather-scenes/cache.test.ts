@@ -88,6 +88,18 @@ describe("weather hint cache", () => {
     expect(getCachedWeatherHint("harare")).toBeNull();
   });
 
+  it("returns null and removes entry with wrong shape (missing timestamp)", () => {
+    localStorageMock.setItem("mukoko-weather-hint:harare", JSON.stringify({ weatherCode: 1 }));
+    expect(getCachedWeatherHint("harare")).toBeNull();
+    expect(localStorageMock.getItem("mukoko-weather-hint:harare")).toBeNull();
+  });
+
+  it("returns null and removes entry that is a JSON primitive", () => {
+    localStorageMock.setItem("mukoko-weather-hint:harare", JSON.stringify(42));
+    expect(getCachedWeatherHint("harare")).toBeNull();
+    expect(localStorageMock.getItem("mukoko-weather-hint:harare")).toBeNull();
+  });
+
   it("evicts oldest entries when exceeding 50 cached locations", () => {
     // Fill cache with 51 entries — oldest should be evicted
     for (let i = 0; i < 51; i++) {

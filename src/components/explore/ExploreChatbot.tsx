@@ -228,7 +228,6 @@ export function ExploreChatbot() {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-
   // Auto-scroll to bottom when new messages arrive — but only if the user is
   // already near the bottom. If they scrolled up to re-read context, don't
   // yank them back down; the scroll-to-bottom button handles that instead.

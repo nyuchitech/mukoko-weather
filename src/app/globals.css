@@ -350,11 +350,8 @@
   --animate-fade-in: fade-in 400ms ease-out;
   --animate-fade-in-up: fade-in-up 400ms ease-out;
   --animate-fade-in-down: fade-in-down 300ms ease-out;
-  --animate-slide-in-right: slide-in-right 300ms ease-out;
   --animate-scale-in: scale-in 200ms ease-out;
-  --animate-shimmer: shimmer 2s ease-in-out infinite;
   --animate-nav-indicator-in: nav-indicator-in 300ms ease-out;
-  --animate-subtle-bounce: subtle-bounce 300ms ease-out;
 }
 
 @keyframes accordion-down {
@@ -382,29 +379,14 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes nav-indicator-in {
   from { transform: scaleX(0); opacity: 0; }
   to { transform: scaleX(1); opacity: 1; }
-}
-
-@keyframes subtle-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
 }
 
 html {

@@ -69,13 +69,17 @@ export function getCachedWeatherHint(slug: string): CachedWeatherHint | null {
     const raw = localStorage.getItem(KEY_PREFIX + slug);
     if (!raw) return null;
 
-    const hint: CachedWeatherHint = JSON.parse(raw);
+    const hint = JSON.parse(raw);
+    if (typeof hint !== "object" || hint === null || typeof hint.timestamp !== "number") {
+      localStorage.removeItem(KEY_PREFIX + slug);
+      return null;
+    }
     if (Date.now() - hint.timestamp > MAX_AGE_MS) {
       localStorage.removeItem(KEY_PREFIX + slug);
       return null;
     }
 
-    return hint;
+    return hint as CachedWeatherHint;
   } catch {
     return null;
   }
