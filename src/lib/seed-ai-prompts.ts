@@ -390,6 +390,7 @@ export const AI_SUGGESTED_PROMPT_RULES: Omit<AISuggestedPromptRule, "updatedAt">
   },
 
   // --- Activity-based prompts ---
+  // NOTE: Activity IDs below must match actual IDs in src/lib/activities.ts.
 
   {
     ruleId: "activity:farming",
@@ -399,11 +400,25 @@ export const AI_SUGGESTED_PROMPT_RULES: Omit<AISuggestedPromptRule, "updatedAt">
     condition: {
       field: "activities",
       operator: "in",
-      value: ["maize-farming", "tobacco-farming", "horticulture"],
+      value: ["crop-farming", "livestock", "horticulture", "irrigation", "aquaculture"],
       source: "activities",
     },
     active: true,
     order: 10,
+  },
+  {
+    ruleId: "activity:conservation",
+    label: "Conservation conditions",
+    queryTemplate: "How do weather conditions affect conservation work in {location} today?",
+    category: "activity",
+    condition: {
+      field: "activities",
+      operator: "in",
+      value: ["conservation", "wildlife-research"],
+      source: "activities",
+    },
+    active: true,
+    order: 11,
   },
   {
     ruleId: "activity:drone",
@@ -417,7 +432,7 @@ export const AI_SUGGESTED_PROMPT_RULES: Omit<AISuggestedPromptRule, "updatedAt">
       source: "activities",
     },
     active: true,
-    order: 11,
+    order: 12,
   },
   {
     ruleId: "activity:exercise",
@@ -427,11 +442,39 @@ export const AI_SUGGESTED_PROMPT_RULES: Omit<AISuggestedPromptRule, "updatedAt">
     condition: {
       field: "activities",
       operator: "in",
-      value: ["running", "cycling", "hiking"],
+      value: ["running", "cycling", "hiking", "athletics", "swimming"],
       source: "activities",
     },
     active: true,
-    order: 12,
+    order: 13,
+  },
+  {
+    ruleId: "activity:events",
+    label: "Event weather",
+    queryTemplate: "Will the weather be good for an outdoor event in {location} today?",
+    category: "activity",
+    condition: {
+      field: "activities",
+      operator: "in",
+      value: ["outdoor-events", "festivals", "weddings"],
+      source: "activities",
+    },
+    active: true,
+    order: 14,
+  },
+  {
+    ruleId: "activity:transport",
+    label: "Transport conditions",
+    queryTemplate: "How do weather conditions affect transport and logistics in {location}?",
+    category: "activity",
+    condition: {
+      field: "activities",
+      operator: "in",
+      value: ["trucking", "shipping", "driving"],
+      source: "activities",
+    },
+    active: true,
+    order: 15,
   },
 
   // --- Generic fallback (always included) ---

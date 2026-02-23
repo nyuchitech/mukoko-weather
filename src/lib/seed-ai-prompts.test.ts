@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { AI_PROMPTS, AI_SUGGESTED_PROMPT_RULES } from "./seed-ai-prompts";
+import { ACTIVITIES } from "./activities";
 
 describe("AI_PROMPTS uniqueness and structure", () => {
   it("has no duplicate promptKey values", () => {
@@ -98,5 +99,25 @@ describe("AI_SUGGESTED_PROMPT_RULES uniqueness and structure", () => {
     for (const rule of AI_SUGGESTED_PROMPT_RULES) {
       expect(rule.queryTemplate).toMatch(/\{[a-zA-Z]+\}/);
     }
+  });
+
+  it("activity rule IDs reference actual activities from ACTIVITIES array", () => {
+    const activityIds = new Set(ACTIVITIES.map((a) => a.id));
+    const activityRules = AI_SUGGESTED_PROMPT_RULES.filter(
+      (r) => r.category === "activity" && r.condition?.source === "activities"
+    );
+    for (const rule of activityRules) {
+      const ruleActivityIds = rule.condition!.value as string[];
+      for (const id of ruleActivityIds) {
+        expect(activityIds.has(id)).toBe(true);
+      }
+    }
+  });
+
+  it("includes rules for conservation and events activities", () => {
+    const ruleIds = AI_SUGGESTED_PROMPT_RULES.map((r) => r.ruleId);
+    expect(ruleIds).toContain("activity:conservation");
+    expect(ruleIds).toContain("activity:events");
+    expect(ruleIds).toContain("activity:transport");
   });
 });

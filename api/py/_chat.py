@@ -51,10 +51,10 @@ KNOWN_TAGS = {
 }
 MAX_HISTORY = 10
 MAX_MESSAGE_LEN = 2000
-MAX_ACTIVITIES = 10
+MAX_ACTIVITIES = 20  # user-selected activities from client
 MAX_TOOL_ITERATIONS = 5
 TOOL_TIMEOUT_S = 15  # applied to each tool execution via asyncio.wait_for
-MAX_ACTIVITIES_IN_PROMPT = 30  # cap activity list in system prompt
+MAX_ACTIVITIES_IN_PROMPT = 60  # cap activity list in system prompt (grows with categories)
 RATE_LIMIT_MAX = 20
 RATE_LIMIT_WINDOW = 3600  # 1 hour
 
@@ -368,7 +368,7 @@ def _execute_get_activity_advice(
     if not insights:
         return {"message": "No detailed insights available for suitability evaluation at this location."}
 
-    capped_ids = activity_ids[:5]  # Cap at 5 activities per call
+    capped_ids = activity_ids[:10]  # Cap at 10 activities per call
 
     # Batch-fetch activities (single $in query instead of N individual lookups)
     activity_map: dict[str, dict] = {}

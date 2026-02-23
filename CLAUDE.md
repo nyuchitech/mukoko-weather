@@ -570,13 +570,25 @@ Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)
 
 ### Activities
 
-`src/lib/activities.ts` defines 30 activities across 6 categories for personalized weather advice. Activities extend the LocationTag system with user-activity categories.
+`src/lib/activities.ts` defines 50+ activities across 6 broadened categories covering the full scope of African industries and lifestyles. Activities extend the LocationTag system with user-activity categories.
 
-**Categories:** farming, mining, travel, tourism, sports, casual
+**Categories (broadened labels, same IDs for backward compat):**
+| Category ID | Display Label | Covers |
+|-------------|---------------|--------|
+| `farming` | Agriculture & Forestry | Crops, livestock, horticulture, forestry, beekeeping, aquaculture, irrigation |
+| `mining` | Industry & Construction | Mining, construction, manufacturing, energy, logistics |
+| `travel` | Transport & Logistics | Driving, commuting, flying, trucking, marine shipping |
+| `tourism` | Outdoors & Conservation | Safari, camping, conservation, wildlife research, hiking, fishing, stargazing |
+| `sports` | Sports & Fitness | Football, rugby, cricket, athletics, coaching, swimming, cycling, horse riding |
+| `casual` | Lifestyle & Events | Festivals, weddings, education, health/wellness, drone flying, picnics |
 
-**Key functions:** `getActivitiesByCategory(category)`, `getActivityById(id)`, `getActivityLabels(ids)`, `getRelevantActivities(locationTags, selectedIds)`, `searchActivities(query)`
+**Key functions:** `getActivitiesByCategory(category)`, `getActivityById(id)`, `getActivityLabels(ids)`, `getRelevantActivities(locationTags, selectedIds)`, `getDefaultActivitiesForLocation(locationTags, limit)`, `searchActivities(query)`
+
+**Location-activity association:** `getDefaultActivitiesForLocation(locationTags)` scores activities by tag overlap with a location's tags. Farming areas surface agriculture activities; national parks surface conservation and safari. Universal activities (empty `relevantTags`) are included at lower priority.
 
 **Styling:** `CATEGORY_STYLES` in `activities.ts` maps each category to mineral color CSS classes (`bg`, `border`, `text`, `badge`). Used by `ActivitySelector`, `ActivityInsights`, and any category-aware UI.
+
+**Icons:** `ActivityIcon` in `weather-icons.tsx` resolves icons using a 3-tier strategy: (1) custom `ICON_REGISTRY` for app-specific SVGs, (2) Lucide React library (1600+ icons) via PascalCase name lookup, (3) default SunIcon fallback. New activities can reference any Lucide icon name (e.g., `"TreePine"`, `"Anchor"`) in the database without code changes.
 
 **UI:** Activity selection is centralized in the **My Weather** modal (`src/components/weather/MyWeatherModal.tsx`), accessible from the header pill icon group. The Activities tab shows mineral-colored activity cards in a 2-column grid with icon, label, and category badge. Selected activities display as bordered cards with a checkmark. Category tabs and search allow filtering. Selections are persisted in Zustand (`selectedActivities`) via localStorage and sent to the AI prompt for context-aware advice.
 
@@ -590,7 +602,7 @@ Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)
 
 **Rating levels:** `excellent`, `good`, `fair`, `poor`
 
-**Rule storage:** Rules are stored in MongoDB `suitability_rules` collection, seeded from `src/lib/seed-suitability-rules.ts` via `/api/db-init`. Rule keys follow the pattern `category:<category>` (applies to all activities in that category) or `activity:<id>` (overrides category rule for a specific activity).
+**Rule storage:** Rules are stored in MongoDB `suitability_rules` collection, seeded from `src/lib/seed-suitability-rules.ts` via `/api/db-init`. Rule keys follow the pattern `category:<category>` (applies to all activities in that category) or `activity:<id>` (overrides category rule for a specific activity). Activity-specific overrides: `stargazing` (cloud ceiling), `drone-flying` (wind/visibility), `conservation` (storm/visibility/heat), `shipping` (wind/storm/visibility).
 
 **Condition fields:** `thunderstormProbability`, `heatStressIndex`, `uvHealthConcern`, `visibility`, `windSpeed`, `windGust`, `precipitationType`, `gdd10To30`, `gdd10To31`, `gdd08To30`, `gdd03To25`, `dewPoint`, `evapotranspiration`, `moonPhase`, `cloudBase`, `cloudCeiling`. Field names are validated at sync time via `VALID_CONDITION_FIELDS` in `db.ts` — typos throw an error before reaching the database.
 
