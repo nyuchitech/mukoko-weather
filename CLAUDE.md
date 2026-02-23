@@ -31,20 +31,22 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations; Atlas Search for fuzzy queries, Vector Search infrastructure for semantic search)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
-- **Testing:** Vitest 4.0.18
-- **CI/CD:** GitHub Actions (tests + lint + typecheck on push/PR, CodeQL default setup, Claude AI review on PRs)
+- **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
+- **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
+- **CI/CD:** GitHub Actions (TypeScript + Python tests, lint, typecheck on push/PR; Claude AI review on PRs; post-deploy DB init)
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
 
 ## Key Commands
 
 ```bash
-npm run dev        # Start dev server
-npm run build      # Production build
-npm run lint       # ESLint
-npm test           # Run Vitest tests (single run)
-npm run test:watch # Run Vitest in watch mode
-npx tsc --noEmit   # Type check (no output)
+npm run dev           # Start dev server
+npm run build         # Production build
+npm run lint          # ESLint
+npm test              # Run Vitest tests (single run)
+npm run test:watch    # Run Vitest in watch mode
+npm run test:coverage # Run Vitest with v8 coverage reporting
+npx tsc --noEmit      # Type check (no output)
 python -m pytest tests/py/ -v  # Run Python backend tests (pytest)
 ```
 
@@ -55,7 +57,9 @@ mukoko-weather/
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── layout.tsx                # Root layout, metadata, JSON-LD schemas
-│   │   ├── page.tsx                  # Home — redirects to /harare
+│   │   ├── page.tsx                  # Home — smart redirect (saved location / geolocation / harare)
+│   │   ├── HomeRedirect.tsx          # Client: smart redirect with Zustand rehydration guard + geolocation
+│   │   ├── HomeRedirect.test.ts      # HomeRedirect tests (structure, rehydration, redirect logic)
 │   │   ├── globals.css               # Brand System v6 CSS custom properties
 │   │   ├── loading.tsx               # Root loading skeleton
 │   │   ├── error.tsx                 # Global error boundary (client component)
@@ -207,7 +211,7 @@ mukoko-weather/
 │   │   │   ├── WelcomeBanner.tsx      # Inline welcome banner for first-time visitors (replaces auto-modal)
 │   │   │   ├── WelcomeBanner.test.ts
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
-│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
+│   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
 │   │   │   ├── ActivityCard.test.ts     # Suitability integration (levels, priority, fallbacks)
@@ -289,7 +293,16 @@ mukoko-weather/
 │   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
 │   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
-│   │   └── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
+│   │   ├── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
+│   │   └── weather-scenes/        # Weather-aware Three.js particle animations for loading screens
+│   │       ├── index.ts             # Module exports (createWeatherScene, resolveScene, cache helpers)
+│   │       ├── types.ts             # WeatherSceneType, WeatherSceneConfig, CachedWeatherHint, SceneBuilder
+│   │       ├── cache.ts             # Client-side weather hint cache (2h TTL per location, localStorage)
+│   │       ├── cache.test.ts        # Cache tests (set/get, TTL expiry, cleanup)
+│   │       ├── create-scene.ts      # Three.js scene factory — creates renderer, camera, lights, particle systems
+│   │       ├── resolve-scene.ts     # Weather code → scene type mapping (WMO codes to visual conditions)
+│   │       ├── resolve-scene.test.ts # Resolution tests (code mapping, day/night, edge cases)
+│   │       └── scenes/              # 8 scene builder modules (clear, partly-cloudy, cloudy, rain, thunderstorm, fog, snow, windy)
 ├── api/
 │   └── py/                        # Python FastAPI backend (Vercel serverless functions)
 │       ├── index.py               # FastAPI app, router mounting, CORS, error handlers
@@ -326,20 +339,20 @@ mukoko-weather/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/            # Bug report and feature request templates
 │   └── workflows/
-│       ├── ci.yml                 # Tests, lint, type check on push/PR
-│       └── claude-review.yml      # Claude AI code review on PRs
+│       ├── ci.yml                 # TypeScript + Python tests, lint, type check on push/PR
+│       ├── claude-code-review.yml # Claude AI code review on PRs
+│       ├── claude.yml             # Claude Code for @claude mentions in issues/PRs
+│       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
 ├── tests/
-│   └── py/                        # Python backend tests (pytest)
+│   └── py/                        # Python backend tests (pytest, 19 files, 559 tests)
 │       ├── conftest.py            # Shared fixtures, sys.path/module mocking
-│       ├── test_circuit_breaker.py # Circuit breaker state machine tests
-│       ├── test_db_helpers.py     # get_client_ip, check_rate_limit tests
-│       └── test_chat.py           # System prompt building, tool helpers, validation
+│       └── test_*.py              # 19 test files covering all Python endpoints + circuit breaker
 ├── vercel.json                    # Rewrites /api/py/* to Python serverless functions
 ├── requirements.txt               # Python dependencies (FastAPI, pymongo, anthropic, httpx, pytest)
-├── pytest.ini                     # pytest configuration (testpaths, asyncio mode)
+├── pytest.ini                     # pytest configuration (testpaths=tests/py, asyncio mode)
 ├── next.config.ts                 # CORS headers for /api/* and /embed/*
 ├── tsconfig.json                  # Strict, path alias @/* → ./src/*
-├── vitest.config.ts               # Node env, glob src/**/*.test.ts
+├── vitest.config.ts               # Node env, glob src/**/*.test.ts, v8 coverage config
 ├── eslint.config.mjs              # Next.js core-web-vitals + TypeScript
 ├── postcss.config.mjs             # Tailwind CSS 4 plugin
 ├── components.json                # shadcn/ui configuration (new-york style)
@@ -460,7 +473,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
-- `/` redirects to `/harare`
+- `/` — smart redirect via `HomeRedirect`: returning users → saved location, new users → geolocation (3s timeout), fallback → `/harare`
 - `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
@@ -873,6 +886,40 @@ The header takes no props — location context comes from the URL path.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
+### Weather Loading Scenes (Three.js)
+
+`src/lib/weather-scenes/` — weather-aware Three.js particle animation system for loading screens.
+
+**Architecture:**
+- `types.ts` — `WeatherSceneType` (8 types: clear, partly-cloudy, cloudy, rain, thunderstorm, fog, snow, windy), `WeatherSceneConfig`, `CachedWeatherHint`, `SceneBuilder`
+- `create-scene.ts` — Three.js scene factory: creates renderer, camera, ambient/directional lights, calls the appropriate scene builder, returns an animation loop + cleanup
+- `resolve-scene.ts` — maps WMO weather codes to `WeatherSceneType` (supports day/night variants)
+- `cache.ts` — client-side `localStorage` cache for weather hints (2h TTL per location slug). First visit shows default partly-cloudy scene; subsequent visits show last-known weather condition
+- `scenes/` — 8 builder modules, each adding particle systems to the Three.js scene (sun orbs, cloud particles, rain drops, lightning flashes, fog wisps, snow flakes, wind streaks)
+
+**Integration:** `src/components/weather/WeatherLoadingScene.tsx` — branded loading overlay used by:
+- `src/app/HomeRedirect.tsx` — home page redirect (shows "Finding your location...")
+- `src/app/[location]/loading.tsx` — location page loading (shows location-aware weather animation)
+
+**Accessibility:** Respects `prefers-reduced-motion` — skips Three.js entirely, shows text-only loading with animated dots. Three.js failures are caught and degraded gracefully (CSS-only fallback).
+
+**Note:** Three.js WebGL requires raw hex colors — CSS custom properties don't work in WebGL shaders. Hardcoded hex values in `scenes/*.ts` are a documented exception to the "no hardcoded styles" rule.
+
+### HomeRedirect (Smart Home Page)
+
+`src/app/HomeRedirect.tsx` — client component that replaces the simple `/` → `/harare` redirect with location-aware routing.
+
+**Redirect logic (priority order):**
+1. **Returning user** — if `hasOnboarded && selectedLocation !== "harare"` → instant redirect to saved location
+2. **New user** — attempt browser geolocation via `detectUserLocation()` with 3s timeout → redirect to detected location
+3. **Fallback** — redirect to `/harare`
+
+**Key implementation details:**
+- Waits for Zustand `persist` rehydration before reading state (uses `hasStoreHydrated()` from `store.ts`) to avoid acting on default values before localStorage loads
+- Uses `router.replace()` so the home page doesn't appear in browser history
+- `hasRedirected` ref prevents duplicate redirects
+- Effect cleanup cancels in-flight geolocation on unmount
+
 ### Lazy Loading & Mobile Performance (TikTok-Style)
 
 All pages use a **TikTok-style sequential mounting** pattern — only ONE section mounts at a time via a global FIFO queue. This caps peak memory regardless of how many sections exist.
@@ -998,6 +1045,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - Global test APIs enabled
 - Test glob: `src/**/*.test.ts`
 - Path alias: `@/*` → `./src/*`
+- Coverage: `@vitest/coverage-v8` provider, reporters: `text` + `lcov`
+- Coverage command: `npm run test:coverage`
 
 **Python (pytest 8.3)** — configured in `pytest.ini`
 - Test directory: `tests/py/`
@@ -1029,6 +1078,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
 - `src/lib/seed-ai-prompts.test.ts` — AI prompt/rule uniqueness, LOCATION DISCOVERY guardrails presence, structural integrity
+- `src/lib/weather-scenes/cache.test.ts` — weather hint cache (set/get, 2h TTL expiry, localStorage cleanup)
+- `src/lib/weather-scenes/resolve-scene.test.ts` — weather code → scene type mapping (WMO codes, day/night, edge cases)
 
 *TypeScript API route tests (remaining):*
 - `src/app/api/og/og-route.test.ts` — OG image route (templates, brand tokens, rate limiting, metadata wiring in layout + location pages)
@@ -1052,13 +1103,14 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_suitability.py` — Suitability rules: key regex validation, single/all rules, cache headers, error fallback
 - `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
 - `tests/py/test_ai_prompts.py` — AI prompts: single/all prompts, suggested rules, module-level caching, DB error graceful degradation
-- `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 15 routers mounted
+- `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 16 routers mounted
 - `tests/py/test_tiles.py` — Map tiles: layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers
 - `tests/py/test_status.py` — System health: MongoDB/Tomorrow.io/Open-Meteo/Anthropic/cache checks, overall status aggregation
 - `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
+- `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard, redirect logic, geolocation
 - `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
 - `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling

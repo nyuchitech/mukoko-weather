@@ -27,5 +27,15 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Tests
+      - name: TypeScript tests
         run: npm test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Python tests
+        run: python -m pytest tests/py/ -v
