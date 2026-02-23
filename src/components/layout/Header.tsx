@@ -120,7 +120,7 @@ export function Header() {
           >
             <button
               onClick={openMyWeather}
-              aria-label="My Weather preferences"
+              aria-label="Open location preferences"
               className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
@@ -128,7 +128,7 @@ export function Header() {
             </button>
             <button
               onClick={openMyWeather}
-              aria-label="Search locations"
+              aria-label="Open location search"
               className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >

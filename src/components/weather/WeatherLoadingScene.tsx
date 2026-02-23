@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import {
   createWeatherScene,
@@ -15,6 +15,21 @@ interface Props {
   /** Override the status text shown during loading */
   statusText?: string;
 }
+
+// useSyncExternalStore subscriptions for client-only media queries.
+// Returns false on the server, then the real value on the client — no hydration mismatch.
+const emptySubscribe = () => () => {};
+const getUse3D = () => {
+  try {
+    return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch { return false; }
+};
+const getIsMobile = () => {
+  try {
+    return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  } catch { return false; }
+};
+const serverFalse = () => false;
 
 /**
  * Branded weather loading animation.
@@ -33,24 +48,10 @@ interface Props {
 export function WeatherLoadingScene({ slug, statusText }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Detect 3D capability and device type via lazy initializers (SSR-safe).
-  // Avoids setState in effects; matchMedia is sync and available on mount.
-  const [use3D] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    } catch {
-      return false;
-    }
-  });
-  const [isMobile] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.matchMedia("(hover: none), (pointer: coarse)").matches;
-    } catch {
-      return false;
-    }
-  });
+  // Hydration-safe client detection via useSyncExternalStore.
+  // Returns false on the server (serverFalse), real value on the client.
+  const use3D = useSyncExternalStore(emptySubscribe, getUse3D, serverFalse);
+  const isMobile = useSyncExternalStore(emptySubscribe, getIsMobile, serverFalse);
 
   // Extract slug from URL path as fallback if not passed as prop
   const pathname = usePathname();

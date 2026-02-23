@@ -7,6 +7,7 @@ import { SparklesIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore, isShamwariContextValid, type ShamwariContext } from "@/lib/store";
+import { getScrollBehavior } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown — prevents malformed markdown from
@@ -227,16 +228,6 @@ export function ExploreChatbot() {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  // Scroll behavior respecting prefers-reduced-motion (CSS media query doesn't
-  // affect JS scrollIntoView — must check via matchMedia)
-  const getScrollBehavior = useCallback(
-    (): ScrollBehavior =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-    [],
-  );
 
   // Auto-scroll to bottom when new messages arrive — but only if the user is
   // already near the bottom. If they scrolled up to re-read context, don't

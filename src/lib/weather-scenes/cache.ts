@@ -9,17 +9,29 @@ const MAX_ENTRIES = 50;
  * Scans localStorage for matching keys, sorts by timestamp, removes the oldest.
  */
 function evictOldest(): void {
-  const entries: { key: string; timestamp: number }[] = [];
+  // Snapshot all keys first — iterating localStorage while removing shifts indices.
+  const allKeys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key?.startsWith(KEY_PREFIX)) continue;
+    const k = localStorage.key(i);
+    if (k) allKeys.push(k);
+  }
+
+  const entries: { key: string; timestamp: number }[] = [];
+  const corrupt: string[] = [];
+
+  for (const key of allKeys) {
+    if (!key.startsWith(KEY_PREFIX)) continue;
     try {
       const hint: CachedWeatherHint = JSON.parse(localStorage.getItem(key)!);
       entries.push({ key, timestamp: hint.timestamp });
     } catch {
-      // Corrupt entry — remove it
-      localStorage.removeItem(key);
+      corrupt.push(key);
     }
+  }
+
+  // Remove corrupt entries after iteration completes
+  for (const key of corrupt) {
+    localStorage.removeItem(key);
   }
 
   if (entries.length <= MAX_ENTRIES) return;
@@ -38,6 +50,7 @@ function evictOldest(): void {
  * Caps storage at 50 entries (LRU eviction of oldest timestamps).
  */
 export function cacheWeatherHint(slug: string, hint: CachedWeatherHint): void {
+  if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(KEY_PREFIX + slug, JSON.stringify(hint));
     evictOldest();
@@ -51,6 +64,7 @@ export function cacheWeatherHint(slug: string, hint: CachedWeatherHint): void {
  * Returns null if no cache, expired (>2h), or localStorage unavailable.
  */
 export function getCachedWeatherHint(slug: string): CachedWeatherHint | null {
+  if (typeof localStorage === "undefined") return null;
   try {
     const raw = localStorage.getItem(KEY_PREFIX + slug);
     if (!raw) return null;

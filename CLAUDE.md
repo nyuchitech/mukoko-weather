@@ -302,6 +302,7 @@ mukoko-weather/
 │   │       ├── cache.ts             # Client-side weather hint cache (2h TTL per location, localStorage)
 │   │       ├── cache.test.ts        # Cache tests (set/get, TTL expiry, cleanup)
 │   │       ├── create-scene.ts      # Three.js scene factory — creates renderer, camera, lights, particle systems
+│   │       ├── create-scene.test.ts # Scene factory tests (exports, dispose, scene types, fallback, cleanup)
 │   │       ├── resolve-scene.ts     # Weather code → scene type mapping (WMO codes to visual conditions)
 │   │       ├── resolve-scene.test.ts # Resolution tests (code mapping, day/night, edge cases)
 │   │       └── scenes/              # 8 scene builder modules (clear, partly-cloudy, cloudy, rain, thunderstorm, fog, snow, windy)
@@ -1082,6 +1083,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/accessibility.test.ts` — accessibility helpers
 - `src/lib/seed-ai-prompts.test.ts` — AI prompt/rule uniqueness, LOCATION DISCOVERY guardrails presence, structural integrity
 - `src/lib/weather-scenes/cache.test.ts` — weather hint cache (set/get, 2h TTL expiry, localStorage cleanup)
+- `src/lib/weather-scenes/create-scene.test.ts` — scene factory (exports, dispose, scene types, fallback, cleanup)
 - `src/lib/weather-scenes/resolve-scene.test.ts` — weather code → scene type mapping (WMO codes, day/night, edge cases)
 
 *TypeScript API route tests (remaining):*

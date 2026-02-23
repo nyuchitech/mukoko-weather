@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { SparklesIcon, MapPinIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
+import { getScrollBehavior } from "@/lib/utils";
 import {
   generateSuggestedPrompts,
   fetchSuggestedRules,
@@ -137,23 +138,13 @@ export function AISummaryChat({ weather, location, initialSummary, season }: Pro
     });
   }, [weather, location, selectedActivities]);
 
-  // Scroll behavior respecting prefers-reduced-motion (CSS media query doesn't
-  // affect JS scrollIntoView — must check via matchMedia)
-  const getScrollBehavior = useCallback(
-    (): ScrollBehavior =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-    [],
-  );
 
   // Scroll to bottom when messages change
   useEffect(() => {
     if (expanded && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: getScrollBehavior() });
     }
-  }, [messages, expanded, getScrollBehavior]);
+  }, [messages, expanded]);
 
   // Cleanup on unmount
   useEffect(() => {
