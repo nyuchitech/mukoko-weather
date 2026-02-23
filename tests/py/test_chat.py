@@ -12,6 +12,7 @@ from py._chat import (
     _execute_search_locations,
     _execute_list_by_tag,
     _execute_get_weather,
+    _execute_get_activity_advice,
     _execute_tool,
     SLUG_RE,
     MAX_MESSAGE_LEN,
@@ -224,3 +225,135 @@ class TestExecuteTool:
         result = json.loads(_execute_tool("nonexistent_tool", {}, {}, {}))
         assert "error" in result
         assert "Unknown tool" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# Tool: get_activity_advice
+# ---------------------------------------------------------------------------
+
+
+class TestGetActivityAdvice:
+    def test_invalid_slug_returns_error(self):
+        result = _execute_get_activity_advice("INVALID!", ["running"], {}, {})
+        assert "error" in result
+
+    def test_no_insights_returns_message(self):
+        """When weather has no insights, returns a no-insights message."""
+        cache = {"harare": {"location": "harare", "current": {"temperature": 25}}}
+        result = _execute_get_activity_advice("harare", ["running"], cache, {})
+        assert "message" in result or "error" in result
+
+    @patch("py._chat.suitability_rules_collection")
+    @patch("py._chat.activities_collection")
+    def test_evaluates_suitability_with_insights(self, mock_act_coll, mock_rules_coll):
+        """Activity advice should evaluate rules against weather insights."""
+        mock_act_coll.return_value.find.return_value = [
+            {"id": "running", "label": "Running", "category": "sports"}
+        ]
+        mock_rules_coll.return_value.find.return_value = [
+            {
+                "key": "category:sports",
+                "conditions": [
+                    {"field": "heatStressIndex", "operator": "gt", "value": 40,
+                     "level": "poor", "label": "Dangerous heat", "detail": "Too hot"},
+                ],
+                "fallback": {"level": "good", "label": "Good conditions", "detail": ""},
+            }
+        ]
+        cache = {
+            "harare": {
+                "location": "harare",
+                "current": {"temperature": 25},
+                "insights": {"heatStressIndex": 50, "windSpeed": 10},
+            }
+        }
+        result = _execute_get_activity_advice("harare", ["running"], cache, {})
+        assert "ratings" in result
+        assert len(result["ratings"]) == 1
+        assert result["ratings"][0]["level"] == "poor"
+        assert result["ratings"][0]["label"] == "Dangerous heat"
+
+    @patch("py._chat.suitability_rules_collection")
+    @patch("py._chat.activities_collection")
+    def test_fallback_when_no_conditions_match(self, mock_act_coll, mock_rules_coll):
+        """Should return fallback rating when no conditions match."""
+        mock_act_coll.return_value.find.return_value = [
+            {"id": "running", "label": "Running", "category": "sports"}
+        ]
+        mock_rules_coll.return_value.find.return_value = [
+            {
+                "key": "category:sports",
+                "conditions": [
+                    {"field": "heatStressIndex", "operator": "gt", "value": 40,
+                     "level": "poor", "label": "Dangerous", "detail": "Too hot"},
+                ],
+                "fallback": {"level": "good", "label": "Good conditions", "detail": "All clear"},
+            }
+        ]
+        cache = {
+            "harare": {
+                "location": "harare",
+                "current": {"temperature": 20},
+                "insights": {"heatStressIndex": 20, "windSpeed": 5},
+            }
+        }
+        result = _execute_get_activity_advice("harare", ["running"], cache, {})
+        assert result["ratings"][0]["level"] == "good"
+        assert result["ratings"][0]["label"] == "Good conditions"
+
+    def test_unknown_activity_returns_error(self):
+        """Activities not in DB should get an error entry."""
+        cache = {
+            "harare": {
+                "location": "harare",
+                "current": {"temperature": 25},
+                "insights": {"heatStressIndex": 20},
+            }
+        }
+        # Mock activities_collection to return nothing
+        with patch("py._chat.activities_collection") as mock_act:
+            mock_act.return_value.find.return_value = []
+            result = _execute_get_activity_advice("harare", ["nonexistent"], cache, {})
+        assert "ratings" in result
+        assert result["ratings"][0]["error"] == "Unknown activity"
+
+
+# ---------------------------------------------------------------------------
+# Tool: list_locations_by_tag (cap test)
+# ---------------------------------------------------------------------------
+
+
+class TestListByTagCap:
+    @patch("py._chat.locations_collection")
+    def test_caps_results_at_20(self, mock_coll):
+        """list_locations_by_tag should return at most 20 results."""
+        locs = [{"slug": f"loc{i}", "name": f"Loc{i}", "province": "P"} for i in range(20)]
+        mock_coll.return_value.find.return_value.sort.return_value.limit.return_value = locs
+
+        result = _execute_list_by_tag("farming")
+        assert result["total"] == 20
+        assert result["note"] is not None
+        assert "20" in result["note"]
+
+
+# ---------------------------------------------------------------------------
+# Location count exception path
+# ---------------------------------------------------------------------------
+
+
+class TestLocationCountFallback:
+    @patch("py._chat._get_chat_prompt_template", return_value=None)
+    @patch("py._chat._get_activities_list", return_value=[])
+    @patch("py._chat.locations_collection")
+    def test_estimated_document_count_exception_returns_many(self, mock_coll, _mock_act, _mock_tmpl):
+        """If estimated_document_count() fails, location count should be 'many'."""
+        # Reset cache to force re-fetch
+        import py._chat as chat_mod
+        chat_mod._location_context = None
+        chat_mod._location_context_at = 0
+
+        mock_coll.return_value.find.return_value.sort.return_value.limit.return_value = []
+        mock_coll.return_value.estimated_document_count.side_effect = Exception("DB error")
+
+        prompt = _build_chat_system_prompt([])
+        assert "many" in prompt

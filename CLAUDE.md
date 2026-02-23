@@ -764,7 +764,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 **Collections:**
 - `ai_prompts` — system prompts keyed by `promptKey` (e.g., `system:weather_summary`, `system:history_analysis`, `system:explore_search`, `system:report_clarification`, `greeting:location`, `greeting:explore`, `greeting:history`). Each document has: `promptKey`, `template` (with `{variable}` placeholders), `model`, `maxTokens`, `active`, `updatedAt`
-- `ai_suggested_rules` — dynamic suggested prompt rules. Each rule has: `ruleKey`, `condition` (weather field + operator + threshold), `prompt` (template with `{location}` placeholders), `category` (weather/activity/general), `priority`, `active`
+- `ai_suggested_rules` — dynamic suggested prompt rules. Each rule has: `ruleKey`, `condition` (weather field + operator + threshold), `prompt` (template with `{location}` placeholders), `category` (weather/activity/general), `priority`, `active`. Condition operators: `gt`, `gte`, `lt`, `lte`, `eq`, `in`. The `in` operator checks if any user-selected activity matches an array of activity IDs (source: `"activities"`) or if a weather value falls within an array (source: `"weather"` or `"hourly"`)
 
 **Seed data:** `src/lib/seed-ai-prompts.ts` — seeded via `/api/db-init`
 
@@ -941,7 +941,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 **API:** `POST /api/py/chat` — Claude-powered chatbot with tool use. Rate-limited to 20 requests/hour/IP.
 - **Tools:** `search_locations`, `get_weather`, `get_activity_advice`, `list_locations_by_tag`
-- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated via `truncateHistoryContent` to 2000 chars), activities array (user's selected activities from Zustand store) capped at 10 items and injected into system prompt for personalised advice, location slugs validated via `SLUG_RE` (`/^[a-z0-9-]{1,80}$/`), tags validated against `KNOWN_TAGS` allowlist
+- **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated via `truncateHistoryContent` to 2000 chars), activities array (user's selected activities from Zustand store) capped at 20 items and injected into system prompt for personalised advice, location slugs validated via `SLUG_RE` (`/^[a-z0-9-]{1,80}$/`), tags validated against database-driven `get_known_tags()` allowlist
 - **Security:** IP required (rejects unknown), structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
 - **Resilience:** module-level singleton Anthropic client with key-rotation invalidation (`getAnthropicClient` — recreates client when API key changes), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`), `list_locations_by_tag` capped to 20 results with note to Claude
 - **Server-side caches:** location context (5-min TTL, bounded to 20 locations), activities (5-min TTL, used for dynamic system prompt activity list)

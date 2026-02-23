@@ -54,7 +54,9 @@ function isSafeHref(href: string | undefined): boolean {
   if (href.startsWith("/") || href.startsWith("#")) return true;
   try {
     const url = new URL(href);
-    return url.protocol === "https:" || url.protocol === "http:";
+    // Only allow https: — http: could enable link injection to plaintext targets.
+    // Relative paths and fragment anchors are handled above.
+    return url.protocol === "https:";
   } catch {
     return false;
   }
@@ -363,7 +365,7 @@ export function ExploreChatbot() {
         <ScrollArea viewportRef={viewportRef} className="h-full" forceBlock>
           <div className="px-4 py-4 space-y-5 overflow-x-hidden" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
-              <EmptyState onSuggestionClick={handleSuggestion} />
+              <EmptyState onSuggestionClick={handleSuggestion} loading={loading} />
             )}
             {messages.length > 0 && contextualPrompts && contextualPrompts.length > 0 && messages.length === 1 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -423,7 +425,7 @@ export function ExploreChatbot() {
                 // Submit on Enter (without Shift); Shift+Enter inserts a newline
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit(e);
+                  sendMessage(input);
                 }
               }}
               placeholder="Ask about weather, locations, activities..."
@@ -453,7 +455,7 @@ export function ExploreChatbot() {
 // Empty state with suggested prompts
 // ---------------------------------------------------------------------------
 
-function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) => void }) {
+function EmptyState({ onSuggestionClick, loading }: { onSuggestionClick: (query: string) => void; loading?: boolean }) {
   const prompts = DEFAULT_SUGGESTED_PROMPTS;
 
   return (
@@ -478,8 +480,9 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (query: string) 
             <button
               key={prompt.query}
               onClick={() => onSuggestionClick(prompt.query)}
-              className="flex items-center rounded-[var(--radius-card)] border border-border bg-surface-card px-3 py-3 text-left text-sm text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px]"
+              className="flex items-center rounded-[var(--radius-card)] border border-border bg-surface-card px-3 py-3 text-left text-sm text-text-secondary transition-colors hover:bg-surface-base hover:text-text-primary hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px] disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
+              disabled={loading}
             >
               {prompt.label}
             </button>

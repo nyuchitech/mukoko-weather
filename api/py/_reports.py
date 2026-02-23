@@ -162,6 +162,10 @@ async def submit_report(body: SubmitReportRequest, request: Request):
     if not rate["allowed"]:
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
+    # Validate description length server-side (client maxLength=300 can be bypassed)
+    if body.description and len(body.description) > 300:
+        raise HTTPException(status_code=400, detail="Description too long (max 300 characters)")
+
     # Validate report type
     if body.reportType not in REPORT_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid report type. Must be one of: {', '.join(sorted(REPORT_TYPES))}")

@@ -8,6 +8,7 @@ Uses the same MONGODB_URI and database as the Next.js app.
 from __future__ import annotations
 
 import os
+import time as _time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -117,8 +118,6 @@ def get_client_ip(request: Request) -> str | None:
 # ---------------------------------------------------------------------------
 # Tag cache — shared across chat, explore, etc.
 # ---------------------------------------------------------------------------
-
-import time as _time
 
 _known_tags: Optional[set[str]] = None
 _known_tags_at: float = 0

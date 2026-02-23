@@ -89,7 +89,8 @@ function isSafeHref(href: string | undefined): boolean {
   if (href.startsWith("/") || href.startsWith("#")) return true;
   try {
     const url = new URL(href);
-    return url.protocol === "https:" || url.protocol === "http:";
+    // Only allow https: — http: could enable link injection to plaintext targets.
+    return url.protocol === "https:";
   } catch {
     return false;
   }

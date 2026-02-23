@@ -33,7 +33,7 @@ export function WelcomeBanner({
       className="mb-6 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-4 sm:p-5"
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10" aria-hidden="true">
           <SparklesIcon size={16} className="text-primary" />
         </div>
         <div className="min-w-0 flex-1">

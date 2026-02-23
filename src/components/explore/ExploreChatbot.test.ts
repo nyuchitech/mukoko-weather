@@ -238,9 +238,10 @@ describe("markdown link sanitisation", () => {
     expect(source).toContain('href.startsWith("#")');
   });
 
-  it("allows https and http protocols via URL constructor", () => {
+  it("allows only https protocol via URL constructor", () => {
     expect(source).toContain('url.protocol === "https:"');
-    expect(source).toContain('url.protocol === "http:"');
+    // http: is intentionally not allowed — prevents link injection to plaintext targets
+    expect(source).not.toContain('url.protocol === "http:"');
   });
 
   it("renders unsafe links as plain <span> text", () => {
@@ -264,7 +265,7 @@ describe("isSafeHref behavioral tests", () => {
     if (href.startsWith("/") || href.startsWith("#")) return true;
     try {
       const url = new URL(href);
-      return url.protocol === "https:" || url.protocol === "http:";
+      return url.protocol === "https:";
     } catch {
       return false;
     }
@@ -286,8 +287,8 @@ describe("isSafeHref behavioral tests", () => {
     expect(isSafeHref("https://weather.mukoko.com/harare")).toBe(true);
   });
 
-  it("allows http URLs", () => {
-    expect(isSafeHref("http://example.com")).toBe(true);
+  it("blocks http URLs (only https allowed)", () => {
+    expect(isSafeHref("http://example.com")).toBe(false);
   });
 
   it("allows relative paths", () => {
