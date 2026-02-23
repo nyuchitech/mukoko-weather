@@ -64,9 +64,9 @@
   /* Touch & Interaction */
   --touch-target-min: 44px;
 
-  /* Typography — minimum sizes for mobile readability */
-  --text-body: 0.875rem;      /* 14px — minimum for body/footer text */
-  --text-body-leading: 1.5;
+  /* Typography — 18px base for readability */
+  --text-body: 1rem;           /* 18px — base body/footer text */
+  --text-body-leading: 1.6;
   /* 10px — matches iOS/Android native bottom nav label conventions.
      Below WCAG 12px minimum for body text, but intentional for nav chrome. */
   --text-nav-label: 0.625rem;
@@ -408,6 +408,7 @@
 }
 
 html {
+  font-size: 18px;
   overflow-x: hidden;
   scroll-behavior: smooth;
 }

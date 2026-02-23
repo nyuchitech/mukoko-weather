@@ -44,10 +44,10 @@ export function WelcomeBanner({
           <SparklesIcon size={16} className="text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-text-primary">
+          <p className="text-base font-medium text-text-primary">
             Welcome to mukoko weather
           </p>
-          <p className="mt-1.5 text-sm text-text-secondary leading-relaxed">
+          <p className="mt-1.5 text-base text-text-secondary leading-relaxed">
             You&apos;re viewing weather for <strong>{locationName}</strong>. Pick your own location and activities for personalised forecasts.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">

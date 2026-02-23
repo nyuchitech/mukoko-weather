@@ -102,7 +102,7 @@ export function MetricCard({
           </span>
           <p className="text-sm font-medium text-text-secondary">{label}</p>
         </div>
-        <p className={`mt-1 text-sm ${contextColor}`}>{context}</p>
+        <p className={`mt-1 text-base ${contextColor}`}>{context}</p>
       </div>
     </div>
   )

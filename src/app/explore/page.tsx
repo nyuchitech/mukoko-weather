@@ -134,7 +134,7 @@ export default async function ExplorePage() {
                       {count}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-text-secondary line-clamp-2">
+                  <p className="mt-2 text-base text-text-secondary line-clamp-2">
                     {meta.description}
                   </p>
                 </Link>

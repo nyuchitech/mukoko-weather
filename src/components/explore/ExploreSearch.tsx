@@ -109,7 +109,7 @@ export function ExploreSearch() {
         </h2>
       </div>
 
-      <p className="text-sm text-text-secondary">
+      <p className="text-base text-text-secondary">
         Search for locations using natural language — try &quot;farming areas
         with low frost risk&quot; or &quot;safari destinations with warm
         weather&quot;.
@@ -160,7 +160,7 @@ export function ExploreSearch() {
             size={14}
             className="mt-0.5 shrink-0 text-primary"
           />
-          <p className="text-sm text-text-secondary">{summary}</p>
+          <p className="text-base text-text-secondary">{summary}</p>
         </div>
       )}
 

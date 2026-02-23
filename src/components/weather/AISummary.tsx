@@ -149,7 +149,7 @@ export function AISummary({ weather, location, onSummaryLoaded }: Props) {
           )}
 
           {insight && !loading && (
-            <div className="animate-[fade-in_400ms_ease-out] prose prose-sm max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary">
+            <div className="animate-[fade-in_400ms_ease-out] prose prose-base max-w-none text-text-secondary prose-strong:text-text-primary prose-headings:text-text-primary prose-li:marker:text-text-tertiary">
               <ReactMarkdown>{insight}</ReactMarkdown>
             </div>
           )}
