@@ -492,7 +492,7 @@ class TestGetWeatherEndpoint:
     @patch("py._weather._set_cached_weather")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_cache_hit_returns_hit_header(self, mock_nearest, mock_get_cache, mock_set_cache, mock_record):
+    async def test_cache_hit_returns_hit_header(self, mock_nearest, mock_get_cache, mock_set_cache, mock_record):
         """Cache hit should return X-Cache: HIT."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_get_cache.return_value = {
@@ -500,8 +500,7 @@ class TestGetWeatherEndpoint:
             "provider": "tomorrow",
         }
 
-        import asyncio
-        response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+        response = await get_weather(-17.83, 31.05)
         assert response.headers.get("x-cache") == "HIT"
         assert response.headers.get("x-weather-provider") == "tomorrow"
 
@@ -513,7 +512,7 @@ class TestGetWeatherEndpoint:
     @patch("py._weather.tomorrow_breaker")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_tomorrow_success(self, mock_nearest, mock_cache, mock_breaker, mock_key, mock_fetch, mock_set, mock_record):
+    async def test_tomorrow_success(self, mock_nearest, mock_cache, mock_breaker, mock_key, mock_fetch, mock_set, mock_record):
         """When cache misses and Tomorrow.io succeeds."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_cache.return_value = None
@@ -521,8 +520,7 @@ class TestGetWeatherEndpoint:
         mock_key.return_value = "fake-key"
         mock_fetch.return_value = {"current": {"temperature_2m": 26}, "hourly": {}, "daily": {}, "insights": None}
 
-        import asyncio
-        response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+        response = await get_weather(-17.83, 31.05)
         assert response.headers.get("x-cache") == "MISS"
         assert response.headers.get("x-weather-provider") == "tomorrow"
         mock_breaker.record_success.assert_called_once()
@@ -537,8 +535,8 @@ class TestGetWeatherEndpoint:
     @patch("py._weather.tomorrow_breaker")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_open_meteo_fallback(self, mock_nearest, mock_cache, mock_tmrw_breaker, mock_key,
-                                  mock_fetch_tmrw, mock_om_breaker, mock_fetch_om, mock_set, mock_record):
+    async def test_open_meteo_fallback(self, mock_nearest, mock_cache, mock_tmrw_breaker, mock_key,
+                                        mock_fetch_tmrw, mock_om_breaker, mock_fetch_om, mock_set, mock_record):
         """When Tomorrow.io fails, falls back to Open-Meteo."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_cache.return_value = None
@@ -548,8 +546,7 @@ class TestGetWeatherEndpoint:
         mock_om_breaker.is_allowed = True
         mock_fetch_om.return_value = {"current": {"temperature_2m": 24}, "hourly": {}, "daily": {}, "insights": None}
 
-        import asyncio
-        response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+        response = await get_weather(-17.83, 31.05)
         assert response.headers.get("x-weather-provider") == "open-meteo"
 
     @pytest.mark.asyncio
@@ -561,8 +558,8 @@ class TestGetWeatherEndpoint:
     @patch("py._weather.tomorrow_breaker")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_seasonal_fallback(self, mock_nearest, mock_cache, mock_tmrw_breaker, mock_key,
-                                mock_fetch_tmrw, mock_om_breaker, mock_fetch_om, mock_fallback):
+    async def test_seasonal_fallback(self, mock_nearest, mock_cache, mock_tmrw_breaker, mock_key,
+                                      mock_fetch_tmrw, mock_om_breaker, mock_fetch_om, mock_fallback):
         """When all providers fail, use seasonal estimates."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_cache.return_value = None
@@ -578,8 +575,7 @@ class TestGetWeatherEndpoint:
             "insights": None,
         }
 
-        import asyncio
-        response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+        response = await get_weather(-17.83, 31.05)
         assert response.headers.get("x-weather-provider") == "fallback"
         mock_fallback.assert_called_once()
 
@@ -591,9 +587,9 @@ class TestGetWeatherEndpoint:
     @patch("py._weather.tomorrow_breaker")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_circuit_breaker_integration_tomorrow_closed(self, mock_nearest, mock_cache,
-                                                          mock_tmrw_breaker, mock_key,
-                                                          mock_om_breaker, mock_fetch_om, mock_fallback):
+    async def test_circuit_breaker_integration_tomorrow_closed(self, mock_nearest, mock_cache,
+                                                                mock_tmrw_breaker, mock_key,
+                                                                mock_om_breaker, mock_fetch_om, mock_fallback):
         """When Tomorrow.io circuit is open, skip directly to Open-Meteo."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_cache.return_value = None
@@ -601,8 +597,7 @@ class TestGetWeatherEndpoint:
         mock_om_breaker.is_allowed = True
         mock_fetch_om.return_value = {"current": {"temperature_2m": 24}, "hourly": {}, "daily": {}, "insights": None}
 
-        import asyncio
-        response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+        response = await get_weather(-17.83, 31.05)
         assert response.headers.get("x-weather-provider") == "open-meteo"
 
     @pytest.mark.asyncio
@@ -613,36 +608,32 @@ class TestGetWeatherEndpoint:
     @patch("py._weather.tomorrow_breaker")
     @patch("py._weather._get_cached_weather")
     @patch("py._weather._find_nearest_location")
-    def test_does_not_cache_fallback_data(self, mock_nearest, mock_cache, mock_tmrw_breaker,
-                                           mock_key, mock_fetch_tmrw, mock_set, mock_record):
+    async def test_does_not_cache_fallback_data(self, mock_nearest, mock_cache, mock_tmrw_breaker,
+                                                 mock_key, mock_fetch_tmrw, mock_set, mock_record):
         """Seasonal fallback data should not be cached."""
         mock_nearest.return_value = {"slug": "harare", "elevation": 1200}
         mock_cache.return_value = None
         mock_tmrw_breaker.is_allowed = False
 
-        # Mock open-meteo breaker too
         with patch("py._weather.open_meteo_breaker") as mock_om:
             mock_om.is_allowed = False
 
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+            await get_weather(-17.83, 31.05)
             mock_set.assert_not_called()
             mock_record.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("py._weather._find_nearest_location")
     @patch("py._weather._get_cached_weather")
-    def test_nearest_location_exception_handled(self, mock_cache, mock_nearest):
+    async def test_nearest_location_exception_handled(self, mock_cache, mock_nearest):
         """Exception in nearest location lookup should not crash the endpoint."""
         mock_nearest.side_effect = Exception("DB down")
         mock_cache.return_value = None
 
-        # Should still work via fallback chain
         with patch("py._weather.tomorrow_breaker") as mock_tb:
             mock_tb.is_allowed = False
             with patch("py._weather.open_meteo_breaker") as mock_ob:
                 mock_ob.is_allowed = False
 
-                import asyncio
-                response = asyncio.get_event_loop().run_until_complete(get_weather(-17.83, 31.05))
+                response = await get_weather(-17.83, 31.05)
                 assert response.headers.get("x-weather-provider") == "fallback"
