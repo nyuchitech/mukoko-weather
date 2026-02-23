@@ -16,6 +16,7 @@ import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
 import { type Activity, ACTIVITIES } from "@/lib/activities";
 import { InfoRow } from "@/components/ui/info-row";
+import { cacheWeatherHint } from "@/lib/weather-scenes";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
 // These use React.lazy() so their JS chunks (Chart.js, ReactMarkdown, etc.)
@@ -72,6 +73,18 @@ export function WeatherDashboard({
   useEffect(() => {
     setSelectedLocation(location.slug);
   }, [location.slug, setSelectedLocation]);
+
+  // Cache weather hint for the loading scene — enables weather-aware
+  // Three.js animation on subsequent visits to this location.
+  useEffect(() => {
+    cacheWeatherHint(location.slug, {
+      weatherCode: weather.current.weather_code,
+      isDay: weather.current.is_day === 1,
+      temperature: weather.current.temperature_2m,
+      windSpeed: weather.current.wind_speed_10m,
+      timestamp: Date.now(),
+    });
+  }, [location.slug, weather.current.weather_code, weather.current.is_day, weather.current.temperature_2m, weather.current.wind_speed_10m]);
 
   return (
     <>
