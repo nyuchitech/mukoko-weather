@@ -685,11 +685,11 @@ async def chat(body: ChatRequest, request: Request):
     if not rate["allowed"]:
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
-    # Truncate history
-    history = body.history[:MAX_HISTORY]
-    for msg in history:
-        if len(msg.content) > MAX_MESSAGE_LEN:
-            msg.content = msg.content[:MAX_MESSAGE_LEN]
+    # Truncate history — construct new objects to avoid mutating the request body
+    history = [
+        ChatMessage(role=m.role, content=m.content[:MAX_MESSAGE_LEN])
+        for m in body.history[:MAX_HISTORY]
+    ]
 
     # Cap activities
     user_activities = body.activities[:MAX_ACTIVITIES]

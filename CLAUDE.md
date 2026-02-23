@@ -932,7 +932,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - **Input validation:** message required (string, max 2000 chars), history capped at 10 messages (both user and assistant truncated via `truncateHistoryContent` to 2000 chars), activities array (user's selected activities from Zustand store) capped at 10 items and injected into system prompt for personalised advice, location slugs validated via `SLUG_RE` (`/^[a-z0-9-]{1,80}$/`), tags validated against `KNOWN_TAGS` allowlist
 - **Security:** IP required (rejects unknown), structured messages API (boundary markers have no special meaning — no regex needed), system prompt DATA GUARDRAILS, history length caps
 - **Resilience:** module-level singleton Anthropic client with key-rotation invalidation (`getAnthropicClient` — recreates client when API key changes), 15s per-tool timeout (`withToolTimeout`), in-request weather cache (`Map<string, WeatherResult>`), in-request suitability rules cache (`rulesCache`), reference deduplication preferring "location" type (`deduplicateReferences`), `list_locations_by_tag` capped to 20 results with note to Claude
-- **Server-side caches:** location context (5-min TTL, bounded to 50 locations), activities (5-min TTL, used for dynamic system prompt activity list)
+- **Server-side caches:** location context (5-min TTL, bounded to 20 locations), activities (5-min TTL, used for dynamic system prompt activity list)
 - **Response shape:** `{ response, references, error? }` — references include location slugs/names for quick-link rendering
 
 ### Explore (Browse + AI Search)

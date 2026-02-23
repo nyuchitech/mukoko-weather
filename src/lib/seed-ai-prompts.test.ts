@@ -36,9 +36,11 @@ describe("AI_PROMPTS uniqueness and structure", () => {
     expect(chatPrompt!.template).toContain("DATA GUARDRAILS");
   });
 
-  it("system:chat template uses {locationList} placeholder", () => {
+  it("system:chat template has all required placeholders", () => {
     const chatPrompt = AI_PROMPTS.find((p) => p.promptKey === "system:chat");
+    // These must stay in sync with _apply_template() in api/py/_chat.py
     expect(chatPrompt!.template).toContain("{locationList}");
+    expect(chatPrompt!.template).toContain("{locationCount}");
     expect(chatPrompt!.template).toContain("{activityList}");
     expect(chatPrompt!.template).toContain("{userActivitySection}");
   });
