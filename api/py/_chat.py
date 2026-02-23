@@ -585,8 +585,10 @@ def _build_chat_system_prompt(user_activities: list[str]) -> str:
     locations = _get_location_context()
     activities = _get_activities_list()
 
+    # Orientation sample only — the LOCATION DISCOVERY guardrails mandate
+    # search_locations for every query, so a smaller sample saves tokens.
     location_list = ", ".join(
-        f"{loc['name']} ({loc['slug']})" for loc in locations[:30]
+        f"{loc['name']} ({loc['slug']})" for loc in locations[:20]
     ) or "No sample locations available — use the search_locations tool to discover locations"
 
     # Approximate count for Claude's context (O(1) metadata read, no scan)
