@@ -114,7 +114,7 @@ Rules:
 - If no locations match, suggest alternatives"""
 
 
-def _build_system_prompt(query: str) -> str:
+def _build_search_system_prompt(query: str) -> str:
     """Build the search system prompt from database template."""
     prompt_doc = _get_search_prompt()
     template = (
@@ -365,7 +365,7 @@ async def explore_search(body: ExploreSearchRequest, request: Request):
     locations = _get_location_context()
     loc_list = ", ".join(f"{l['name']} ({l['slug']})" for l in locations[:50])
 
-    system_prompt = _build_system_prompt(query)
+    system_prompt = _build_search_system_prompt(query)
     system_prompt += f"\n\nAvailable locations include: {loc_list}"
 
     prompt_doc = _get_search_prompt()

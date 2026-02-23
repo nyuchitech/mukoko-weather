@@ -108,7 +108,7 @@ def _get_followup_prompt() -> dict | None:
         return _prompt_cache.get("system:followup")
 
 
-def _build_system_prompt(
+def _build_followup_system_prompt(
     location_name: str,
     location_slug: str,
     weather_summary: str,
@@ -196,7 +196,7 @@ async def followup_chat(body: FollowupRequest, request: Request):
     messages.append({"role": "user", "content": message})
 
     # Build system prompt from database
-    system_prompt = _build_system_prompt(
+    system_prompt = _build_followup_system_prompt(
         body.locationName,
         body.locationSlug,
         body.weatherSummary,

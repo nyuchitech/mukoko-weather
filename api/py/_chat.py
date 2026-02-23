@@ -57,8 +57,11 @@ MAX_ACTIVITIES_IN_PROMPT = 30  # cap activity list in system prompt
 RATE_LIMIT_MAX = 20
 RATE_LIMIT_WINDOW = 3600  # 1 hour
 
-# Thread pool for running sync tool functions with timeouts
-_tool_executor = ThreadPoolExecutor(max_workers=4)
+# Thread pool for running sync tool functions with timeouts.
+# max_workers=2: one for the Anthropic API call, one for tool execution.
+# In Vercel serverless, each function instance handles one request at a time,
+# so higher values waste threads and risk MongoDB connection pool exhaustion.
+_tool_executor = ThreadPoolExecutor(max_workers=2)
 
 # ---------------------------------------------------------------------------
 # Module-level caches (persist across warm Vercel invocations)
@@ -575,7 +578,7 @@ def _get_chat_prompt_template() -> dict | None:
         return None
 
 
-def _build_system_prompt(user_activities: list[str]) -> str:
+def _build_chat_system_prompt(user_activities: list[str]) -> str:
     """Build the Shamwari system prompt with dynamic context from the database."""
     locations = _get_location_context()
     activities = _get_activities_list()
@@ -692,7 +695,7 @@ async def chat(body: ChatRequest, request: Request):
 
     # Get Claude client
     client = _get_anthropic_client()
-    system_prompt = _build_system_prompt(user_activities)
+    system_prompt = _build_chat_system_prompt(user_activities)
 
     # Model config from database (with fallback)
     prompt_doc = _get_chat_prompt_template()

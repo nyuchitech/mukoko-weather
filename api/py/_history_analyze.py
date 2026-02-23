@@ -110,7 +110,7 @@ Rules:
 - If user activities are provided, tailor recommendations to them"""
 
 
-def _build_system_prompt(location_name: str, days: int) -> str:
+def _build_analysis_system_prompt(location_name: str, days: int) -> str:
     """Build the analysis system prompt from database template."""
     prompt_doc = _get_analysis_prompt()
     template = (
@@ -398,7 +398,7 @@ Statistical summary:
 {stats_summary}"""
 
     # Build system prompt from database
-    system_prompt = _build_system_prompt(location_name, body.days)
+    system_prompt = _build_analysis_system_prompt(location_name, body.days)
 
     # Get model config
     prompt_doc = _get_analysis_prompt()
