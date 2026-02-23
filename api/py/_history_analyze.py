@@ -46,7 +46,7 @@ CACHE_TTL = 3600  # 1 hour
 # ---------------------------------------------------------------------------
 
 _client: Optional[anthropic.Anthropic] = None
-_client_key_hash: Optional[str] = None
+_client_key_last: Optional[str] = None
 
 # Prompt cache (5-min TTL)
 _prompt_cache: dict[str, dict] = {}
@@ -55,7 +55,7 @@ _PROMPT_CACHE_TTL = 300
 
 
 def _get_client() -> anthropic.Anthropic:
-    global _client, _client_key_hash
+    global _client, _client_key_last
 
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
@@ -63,10 +63,9 @@ def _get_client() -> anthropic.Anthropic:
     if not key:
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
-    kh = str(hash(key))
-    if _client is None or _client_key_hash != kh:
+    if _client is None or _client_key_last != key:
         _client = anthropic.Anthropic(api_key=key)
-        _client_key_hash = kh
+        _client_key_last = key
 
     return _client
 

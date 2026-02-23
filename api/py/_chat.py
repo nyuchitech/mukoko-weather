@@ -68,7 +68,7 @@ _tool_executor = ThreadPoolExecutor(max_workers=2)
 # ---------------------------------------------------------------------------
 
 _anthropic_client: Optional[anthropic.Anthropic] = None
-_anthropic_key_hash: Optional[str] = None
+_anthropic_key_last: Optional[str] = None
 
 # Location context cache (5-min TTL)
 _location_context: Optional[list[dict]] = None
@@ -82,7 +82,7 @@ _activities_cache_at: float = 0
 
 def _get_anthropic_client() -> anthropic.Anthropic:
     """Get or create the Anthropic client. Recreates if key changes."""
-    global _anthropic_client, _anthropic_key_hash
+    global _anthropic_client, _anthropic_key_last
 
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
@@ -90,10 +90,9 @@ def _get_anthropic_client() -> anthropic.Anthropic:
     if not key:
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
-    key_hash = str(hash(key))
-    if _anthropic_client is None or _anthropic_key_hash != key_hash:
+    if _anthropic_client is None or _anthropic_key_last != key:
         _anthropic_client = anthropic.Anthropic(api_key=key)
-        _anthropic_key_hash = key_hash
+        _anthropic_key_last = key
 
     return _anthropic_client
 
@@ -107,6 +106,9 @@ def _get_location_context() -> list[dict]:
         return _location_context
 
     try:
+        # Sample cap — Claude uses this for orientation only.
+        # The LOCATION DISCOVERY guardrails mandate using search_locations
+        # for all queries, so Claude does not treat this as an exhaustive list.
         docs = list(
             locations_collection()
             .find({}, {"slug": 1, "name": 1, "province": 1, "tags": 1, "_id": 0})
@@ -536,7 +538,7 @@ Available activities: {activityList}
 {userActivitySection}
 
 LOCATION DISCOVERY — CRITICAL:
-- The location list above is only a SAMPLE — the database contains many more locations.
+- The location list above is only a SAMPLE — the database contains approximately {locationCount} locations.
 - When a user asks about ANY location, ALWAYS use search_locations first to check if it exists.
 - NEVER assume a location does not exist just because it is not in the sample list above.
 - If search_locations returns no results, tell the user the location is not yet in the system and suggest they add it via the location selector.
@@ -587,6 +589,12 @@ def _build_chat_system_prompt(user_activities: list[str]) -> str:
         f"{loc['name']} ({loc['slug']})" for loc in locations[:30]
     ) or "No sample locations available — use the search_locations tool to discover locations"
 
+    # Approximate count for Claude's context (O(1) metadata read, no scan)
+    try:
+        location_count = str(locations_collection().estimated_document_count())
+    except Exception:
+        location_count = "many"
+
     activity_list = ", ".join(
         f"{act['label']} ({act['id']})" for act in activities[:MAX_ACTIVITIES_IN_PROMPT]
     ) or "No activities loaded — ask users what activities interest them"
@@ -599,26 +607,22 @@ def _build_chat_system_prompt(user_activities: list[str]) -> str:
             "Use the get_activity_advice tool to get structured suitability ratings."
         )
 
+    def _apply_template(template: str) -> str:
+        return (
+            template
+            .replace("{locationList}", location_list)
+            .replace("{locationCount}", location_count)
+            .replace("{activityList}", activity_list)
+            .replace("{userActivitySection}", user_activity_section)
+        )
+
     # Try database-driven prompt template first
     prompt_doc = _get_chat_prompt_template()
     if prompt_doc and prompt_doc.get("template"):
-        template = prompt_doc["template"]
-        return template.replace(
-            "{locationList}", location_list
-        ).replace(
-            "{activityList}", activity_list
-        ).replace(
-            "{userActivitySection}", user_activity_section
-        )
+        return _apply_template(prompt_doc["template"])
 
     # Fallback to hardcoded template
-    return _FALLBACK_CHAT_PROMPT.replace(
-        "{locationList}", location_list
-    ).replace(
-        "{activityList}", activity_list
-    ).replace(
-        "{userActivitySection}", user_activity_section
-    )
+    return _apply_template(_FALLBACK_CHAT_PROMPT)
 
 
 # ---------------------------------------------------------------------------

@@ -48,7 +48,7 @@ def _get_ttl(slug: str, tags: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 _client: Optional[anthropic.Anthropic] = None
-_client_key_hash: Optional[str] = None
+_client_key_last: Optional[str] = None
 
 # Hardcoded fallback — only used if database prompt is unavailable
 _FALLBACK_SYSTEM_PROMPT = """You are Shamwari Weather, the AI assistant for mukoko weather — an AI-powered weather intelligence platform. You provide actionable, contextual weather advice grounded in local geography, agriculture, industry, and culture.
@@ -118,7 +118,7 @@ def _get_user_prompt_template() -> str | None:
 
 
 def _get_client() -> anthropic.Anthropic:
-    global _client, _client_key_hash
+    global _client, _client_key_last
 
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
@@ -126,10 +126,9 @@ def _get_client() -> anthropic.Anthropic:
     if not key:
         return None  # type: ignore[return-value]
 
-    kh = str(hash(key))
-    if _client is None or _client_key_hash != kh:
+    if _client is None or _client_key_last != key:
         _client = anthropic.Anthropic(api_key=key)
-        _client_key_hash = kh
+        _client_key_last = key
 
     return _client
 
