@@ -45,6 +45,7 @@ npm run lint       # ESLint
 npm test           # Run Vitest tests (single run)
 npm run test:watch # Run Vitest in watch mode
 npx tsc --noEmit   # Type check (no output)
+python -m pytest tests/py/ -v  # Run Python backend tests (pytest)
 ```
 
 ## Project Structure
@@ -326,8 +327,15 @@ mukoko-weather/
 │   └── workflows/
 │       ├── ci.yml                 # Tests, lint, type check on push/PR
 │       └── claude-review.yml      # Claude AI code review on PRs
+├── tests/
+│   └── py/                        # Python backend tests (pytest)
+│       ├── conftest.py            # Shared fixtures, sys.path/module mocking
+│       ├── test_circuit_breaker.py # Circuit breaker state machine tests
+│       ├── test_db_helpers.py     # get_client_ip, check_rate_limit tests
+│       └── test_chat.py           # System prompt building, tool helpers, validation
 ├── vercel.json                    # Rewrites /api/py/* to Python serverless functions
-├── requirements.txt               # Python dependencies (FastAPI, pymongo, anthropic, httpx)
+├── requirements.txt               # Python dependencies (FastAPI, pymongo, anthropic, httpx, pytest)
+├── pytest.ini                     # pytest configuration (testpaths, asyncio mode)
 ├── next.config.ts                 # CORS headers for /api/* and /embed/*
 ├── tsconfig.json                  # Strict, path alias @/* → ./src/*
 ├── vitest.config.ts               # Node env, glob src/**/*.test.ts
@@ -972,11 +980,17 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 
 ## Testing
 
-**Framework:** Vitest 4.0.18 (configured in `vitest.config.ts`)
+**TypeScript (Vitest 4.0.18)** — configured in `vitest.config.ts`
 - Environment: Node
 - Global test APIs enabled
 - Test glob: `src/**/*.test.ts`
 - Path alias: `@/*` → `./src/*`
+
+**Python (pytest 8.3)** — configured in `pytest.ini`
+- Test directory: `tests/py/`
+- Shared fixtures in `tests/py/conftest.py` (mock_request, pymongo/anthropic mocking)
+- `conftest.py` evicts the system `py` module and mocks `pymongo`/`anthropic` so tests run without MongoDB or Anthropic connectivity
+- Async support via `pytest-asyncio` (auto mode)
 
 **Test files:**
 
@@ -1006,7 +1020,12 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/app/api/og/og-route.test.ts` — OG image route (templates, brand tokens, rate limiting, metadata wiring in layout + location pages)
 - `src/app/api/db-init/db-init-route.test.ts` — DB init route
 
-*Note:* All other API routes have been migrated to Python (`api/py/`). Python backend tests should use pytest.
+*Note:* All other API routes have been migrated to Python (`api/py/`). Python backend tests should use pytest (see below).
+
+*Python backend tests (pytest):*
+- `tests/py/test_circuit_breaker.py` — circuit breaker state machine (closed→open→half_open), failure window pruning, async execute with timeout, singleton breaker configs
+- `tests/py/test_db_helpers.py` — `get_client_ip` (x-forwarded-for, x-real-ip, client.host, None), `check_rate_limit` (allow/deny/boundary/composite-key/None-result)
+- `tests/py/test_chat.py` — `_build_chat_system_prompt` (location list, count, activities, fallback vs DB template, 20-location cap), SLUG_RE, KNOWN_TAGS, tool helpers (search, list_by_tag, get_weather cache, tool dispatch)
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
@@ -1036,19 +1055,22 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/reports/RecentReports.test.ts` — report list, upvoting, report trigger, UI patterns
 
 **Conventions:**
-- Tests live next to the code they test (co-located)
-- Use `describe`/`it`/`expect` pattern
+- TypeScript tests live next to the code they test (co-located `.test.ts` files)
+- Python tests live in `tests/py/` (named `test_*.py`, classes `Test*`, functions `test_*`)
+- TypeScript: `describe`/`it`/`expect` pattern (Vitest)
+- Python: `class Test*` / `def test_*` pattern (pytest), `@patch` for mocking
 - Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests
 
 ## Pre-Commit Checklist (REQUIRED)
 
 Before every commit, you MUST complete ALL of these steps. Do not skip any.
 
-1. **Run tests** — `npm test` must pass with zero failures. If you changed behavior, add or update tests.
-2. **Run lint** — `npm run lint` must have zero errors (warnings are acceptable).
-3. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
-4. **Run build** — `npm run build` must compile and generate all pages successfully.
-5. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
+1. **Run TypeScript tests** — `npm test` must pass with zero failures. If you changed behavior, add or update tests.
+2. **Run Python tests** — `python -m pytest tests/py/ -v` must pass with zero failures. If you changed Python backend behavior, add or update tests.
+3. **Run lint** — `npm run lint` must have zero errors (warnings are acceptable).
+4. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
+5. **Run build** — `npm run build` must compile and generate all pages successfully.
+6. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
 6. **Update documentation** — If your change affects any of the following, update the corresponding docs:
    - Public API or routes → update README.md API section
    - Project structure (new files/directories) → update README.md project structure

@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from ._db import (
     check_rate_limit,
+    get_client_ip,
     get_api_key,
     locations_collection,
     weather_cache_collection,
@@ -341,8 +342,8 @@ async def explore_search(body: ExploreSearchRequest, request: Request):
     if not query:
         raise HTTPException(status_code=400, detail="Query is required")
 
-    # Rate limiting
-    ip = request.client.host if request.client else None
+    # Rate limiting — extract real IP behind Vercel's reverse proxy
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 

@@ -93,7 +93,7 @@ export function Header() {
               className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
               type="button"
             >
-              <MapPinIcon size={18} className="text-white" />
+              <MapPinIcon size={18} className="text-primary-foreground" />
             </button>
             <Link
               href="/history"
@@ -101,7 +101,7 @@ export function Header() {
               aria-label="Weather history"
               className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
             >
-              <ClockIcon size={18} className="text-white" />
+              <ClockIcon size={18} className="text-primary-foreground" />
             </Link>
             <button
               onClick={openMyWeather}
@@ -109,7 +109,7 @@ export function Header() {
               className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-background/10 hover:bg-background/20 transition-colors"
               type="button"
             >
-              <SearchIcon size={18} className="text-white" />
+              <SearchIcon size={18} className="text-primary-foreground" />
             </button>
           </div>
         </nav>

@@ -337,7 +337,7 @@ export function AISummaryChat({ weather, location, initialSummary, season }: Pro
                 <Link
                   href="/shamwari"
                   onClick={handleContinueInShamwari}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-[var(--radius-badge)] bg-tanzanite px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-tanzanite/90 min-h-[44px]"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-[var(--radius-badge)] bg-tanzanite px-4 py-2 text-sm font-medium text-mineral-tanzanite-fg transition-colors hover:bg-tanzanite/90 min-h-[44px]"
                 >
                   <SparklesIcon size={14} />
                   Continue in Shamwari

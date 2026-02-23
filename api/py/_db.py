@@ -8,9 +8,10 @@ Uses the same MONGODB_URI and database as the Next.js app.
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from pymongo import MongoClient
 from pymongo.database import Database
 
@@ -96,13 +97,28 @@ def get_api_key(provider: str) -> Optional[str]:
     return doc["key"] if doc else None
 
 
+def get_client_ip(request: Request) -> str | None:
+    """
+    Extract the real client IP, accounting for Vercel's reverse proxy.
+
+    In Vercel's serverless environment, request.client.host returns the
+    edge proxy IP — all users would share a single rate-limit bucket.
+    Instead, read x-forwarded-for (first entry) or x-real-ip.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else None
+
+
 def check_rate_limit(ip: str, action: str, max_requests: int, window_seconds: int) -> dict:
     """
     MongoDB-backed rate limiter using atomic findOneAndUpdate.
     Returns { "allowed": bool, "remaining": int }.
     """
-    from datetime import datetime, timezone, timedelta
-
     key = f"{action}:{ip}"
     now = datetime.now(timezone.utc)
     expires = now + timedelta(seconds=window_seconds)

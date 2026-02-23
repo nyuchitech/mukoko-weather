@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from ._db import (
     check_rate_limit,
+    get_client_ip,
     get_api_key,
     weather_reports_collection,
     weather_cache_collection,
@@ -152,7 +153,7 @@ class UpvoteRequest(BaseModel):
 @router.post("/api/py/reports")
 async def submit_report(body: SubmitReportRequest, request: Request):
     """Submit a community weather report."""
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 
@@ -303,7 +304,7 @@ async def list_reports(location: str, hours: int = 24):
 @router.post("/api/py/reports/upvote")
 async def upvote_report(body: UpvoteRequest, request: Request):
     """Upvote a report (IP-based dedup — one vote per IP per report)."""
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 
@@ -337,7 +338,7 @@ async def upvote_report(body: UpvoteRequest, request: Request):
 @router.post("/api/py/reports/clarify")
 async def clarify_report(body: ClarifyRequest, request: Request):
     """Get AI-generated follow-up questions for a weather report."""
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 

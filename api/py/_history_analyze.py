@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from ._db import (
     check_rate_limit,
+    get_client_ip,
     get_api_key,
     get_db,
     ai_prompts_collection,
@@ -313,8 +314,8 @@ async def analyze_history(body: AnalyzeRequest, request: Request):
     if not location_slug:
         raise HTTPException(status_code=400, detail="Missing location")
 
-    # Rate limiting
-    ip = request.client.host if request.client else None
+    # Rate limiting — extract real IP behind Vercel's reverse proxy
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 

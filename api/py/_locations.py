@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from ._db import (
     get_db,
+    get_client_ip,
     locations_collection,
     check_rate_limit,
 )
@@ -599,8 +600,8 @@ async def add_location(request: Request):
         if not _is_in_supported_region(lat, lon):
             raise HTTPException(status_code=400, detail="Coordinates are outside supported regions.")
 
-        # Rate limit
-        ip = request.client.host if request.client else "unknown"
+        # Rate limit — extract real IP behind Vercel's reverse proxy
+        ip = get_client_ip(request) or "unknown"
         rate = check_rate_limit(ip, "location-create", 5, 3600)
         if not rate["allowed"]:
             raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")

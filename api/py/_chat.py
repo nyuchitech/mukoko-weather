@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from ._db import (
     check_rate_limit,
+    get_client_ip,
     get_api_key,
     locations_collection,
     weather_cache_collection,
@@ -72,6 +73,7 @@ _anthropic_key_last: Optional[str] = None
 
 # Location context cache (5-min TTL)
 _location_context: Optional[list[dict]] = None
+_location_count: Optional[str] = None  # cached alongside locations
 _location_context_at: float = 0
 CONTEXT_TTL = 300  # 5 minutes
 
@@ -97,29 +99,34 @@ def _get_anthropic_client() -> anthropic.Anthropic:
     return _anthropic_client
 
 
-def _get_location_context() -> list[dict]:
-    """Cached list of locations for the system prompt."""
-    global _location_context, _location_context_at
+def _get_location_context() -> tuple[list[dict], str]:
+    """Cached list of locations + count for the system prompt."""
+    global _location_context, _location_count, _location_context_at
 
     now = time.time()
-    if _location_context and (now - _location_context_at) < CONTEXT_TTL:
-        return _location_context
+    if _location_context is not None and (now - _location_context_at) < CONTEXT_TTL:
+        return _location_context, _location_count or "many"
 
     try:
+        coll = locations_collection()
         # Sample cap — Claude uses this for orientation only.
         # The LOCATION DISCOVERY guardrails mandate using search_locations
         # for all queries, so Claude does not treat this as an exhaustive list.
         docs = list(
-            locations_collection()
-            .find({}, {"slug": 1, "name": 1, "province": 1, "tags": 1, "_id": 0})
+            coll.find({}, {"slug": 1, "name": 1, "province": 1, "tags": 1, "_id": 0})
             .sort([("source", -1), ("name", 1)])
             .limit(50)
         )
+        # Cache count alongside context (same TTL, same DB round-trip window)
+        try:
+            _location_count = str(coll.estimated_document_count())
+        except Exception:
+            _location_count = "many"
         _location_context = docs
         _location_context_at = now
-        return docs
+        return docs, _location_count
     except Exception:
-        return _location_context or []
+        return _location_context or [], _location_count or "many"
 
 
 def _get_activities_list() -> list[dict]:
@@ -582,7 +589,7 @@ def _get_chat_prompt_template() -> dict | None:
 
 def _build_chat_system_prompt(user_activities: list[str]) -> str:
     """Build the Shamwari system prompt with dynamic context from the database."""
-    locations = _get_location_context()
+    locations, location_count = _get_location_context()
     activities = _get_activities_list()
 
     # Orientation sample only — the LOCATION DISCOVERY guardrails mandate
@@ -590,12 +597,6 @@ def _build_chat_system_prompt(user_activities: list[str]) -> str:
     location_list = ", ".join(
         f"{loc['name']} ({loc['slug']})" for loc in locations[:20]
     ) or "No sample locations available — use the search_locations tool to discover locations"
-
-    # Approximate count for Claude's context (O(1) metadata read, no scan)
-    try:
-        location_count = str(locations_collection().estimated_document_count())
-    except Exception:
-        location_count = "many"
 
     activity_list = ", ".join(
         f"{act['label']} ({act['id']})" for act in activities[:MAX_ACTIVITIES_IN_PROMPT]
@@ -675,8 +676,8 @@ async def chat(body: ChatRequest, request: Request):
     if len(message) > MAX_MESSAGE_LEN:
         raise HTTPException(status_code=400, detail=f"Message too long (max {MAX_MESSAGE_LEN} characters)")
 
-    # Rate limiting
-    ip = request.client.host if request.client else None
+    # Rate limiting — extract real IP behind Vercel's reverse proxy
+    ip = get_client_ip(request)
     if not ip:
         raise HTTPException(status_code=400, detail="Could not determine IP")
 
