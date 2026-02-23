@@ -21,8 +21,10 @@ function evictOldest(): void {
 
   for (const key of allKeys) {
     if (!key.startsWith(KEY_PREFIX)) continue;
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
     try {
-      const hint: CachedWeatherHint = JSON.parse(localStorage.getItem(key)!);
+      const hint: CachedWeatherHint = JSON.parse(raw);
       entries.push({ key, timestamp: hint.timestamp });
     } catch {
       corrupt.push(key);

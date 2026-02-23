@@ -1,5 +1,5 @@
 import { WeatherLoadingScene } from "@/components/weather/WeatherLoadingScene";
 
 export default function Loading() {
-  return <WeatherLoadingScene statusText="Finding your location..." />;
+  return <WeatherLoadingScene />;
 }
