@@ -1040,6 +1040,22 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_circuit_breaker.py` — circuit breaker state machine (closed→open→half_open), failure window pruning, async execute with timeout, singleton breaker configs
 - `tests/py/test_db_helpers.py` — `get_client_ip` (x-forwarded-for, x-real-ip, client.host, None), `check_rate_limit` (allow/deny/boundary/composite-key/None-result)
 - `tests/py/test_chat.py` — `_build_chat_system_prompt` (location list, count, activities, fallback vs DB template, 20-location cap), SLUG_RE, KNOWN_TAGS, tool helpers (search, list_by_tag, get_weather cache, tool dispatch)
+- `tests/py/test_weather.py` — Weather proxy: Tomorrow.io/Open-Meteo fallback chain, seasonal estimates, cache operations, normalization, circuit breaker integration
+- `tests/py/test_locations.py` — Location CRUD: slug generation, geocoding, deduplication, region validation, search/filter, geo lookup, add location
+- `tests/py/test_ai.py` — AI summaries: tiered TTL, client singleton, season lookup, staleness detection, caching, system prompt, generate endpoint with fallback
+- `tests/py/test_reports.py` — Community reports: cross-validation, IP hashing, fallback questions, submit/list/upvote/clarify endpoints, rate limiting
+- `tests/py/test_history.py` — Historical weather data: validation, location verification, datetime serialization, query shape
+- `tests/py/test_history_analyze.py` — History analysis: stats aggregation (temps, precip, trends, insights), system prompt building, caching, rate limiting, AI fallback
+- `tests/py/test_ai_followup.py` — Follow-up chat: system prompt building, message truncation, history capping, rate limiting, circuit breaker, AI error handling
+- `tests/py/test_devices.py` — Device sync: validation (theme, slug, activities), CRUD endpoints, DuplicateKeyError handling, partial updates
+- `tests/py/test_explore_search.py` — AI search: tool execution (search/weather), text search fallback, system prompt building, rate limiting, circuit breaker
+- `tests/py/test_suitability.py` — Suitability rules: key regex validation, single/all rules, cache headers, error fallback
+- `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
+- `tests/py/test_ai_prompts.py` — AI prompts: single/all prompts, suggested rules, module-level caching, DB error graceful degradation
+- `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 15 routers mounted
+- `tests/py/test_tiles.py` — Map tiles: layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers
+- `tests/py/test_status.py` — System health: MongoDB/Tomorrow.io/Open-Meteo/Anthropic/cache checks, overall status aggregation
+- `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
