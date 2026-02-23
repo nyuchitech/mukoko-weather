@@ -46,8 +46,10 @@ npm run lint          # ESLint
 npm test              # Run Vitest tests (single run)
 npm run test:watch    # Run Vitest in watch mode
 npm run test:coverage # Run Vitest with v8 coverage reporting
+npm run test:python   # Run Python backend tests (pytest)
+npm run test:all      # Run both TypeScript and Python tests
 npx tsc --noEmit      # Type check (no output)
-python -m pytest tests/py/ -v  # Run Python backend tests (pytest)
+python -m pytest tests/py/ -v  # Run Python backend tests (pytest, direct)
 ```
 
 ## Project Structure

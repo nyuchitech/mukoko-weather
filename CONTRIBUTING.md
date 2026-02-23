@@ -51,7 +51,9 @@ refactor: replace custom modal with shadcn Dialog
 npm test              # Run TypeScript tests (single run)
 npm run test:watch    # Run TypeScript tests in watch mode
 npm run test:coverage # Run TypeScript tests with v8 coverage reporting
-python -m pytest tests/py/ -v  # Run Python backend tests
+npm run test:python   # Run Python backend tests (pytest)
+npm run test:all      # Run both TypeScript and Python tests
+python -m pytest tests/py/ -v  # Run Python backend tests (direct)
 ```
 
 Write tests for:

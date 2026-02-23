@@ -85,9 +85,11 @@ npm start             # Start production server
 npm test              # Run Vitest tests (single run)
 npm run test:watch    # Run Vitest in watch mode
 npm run test:coverage # Run Vitest with v8 coverage reporting
+npm run test:python   # Run Python backend tests (pytest)
+npm run test:all      # Run both TypeScript and Python tests
 npm run lint          # ESLint
 npx tsc --noEmit      # Type check
-python -m pytest tests/py/ -v  # Run Python backend tests
+python -m pytest tests/py/ -v  # Run Python backend tests (direct)
 ```
 
 The home page (`/`) uses smart redirect: returning users go to their saved location, new users get geolocation detection with a 3-second timeout, and the fallback is `/harare`.
