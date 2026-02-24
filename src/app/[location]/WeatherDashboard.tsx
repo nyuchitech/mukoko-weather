@@ -16,6 +16,7 @@ import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
 import { type Activity, ACTIVITIES } from "@/lib/activities";
 import { InfoRow } from "@/components/ui/info-row";
+import { SupportBanner } from "@/components/weather/SupportBanner";
 import { cacheWeatherHint } from "@/lib/weather-scenes";
 
 // ── Code-split heavy components ─────────────────────────────────────────────
@@ -199,6 +200,10 @@ export function WeatherDashboard({
                   <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
+            </LazySection>
+
+            <LazySection label="support-banner">
+              <SupportBanner />
             </LazySection>
 
             {/* Location info card */}

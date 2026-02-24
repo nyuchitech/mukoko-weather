@@ -41,6 +41,10 @@
   --color-map-overlay: rgba(0, 71, 171, 0.08);
   --color-map-attribution: rgba(20, 20, 19, 0.7);
 
+  /* Buy Me a Coffee — brand yellow */
+  --color-bmc: #FFDD00;
+  --color-bmc-fg: #1A1A1A;
+
   /* Surfaces */
   --color-surface-base: #FAF9F5;
   --color-surface-card: #FFFFFF;
@@ -177,6 +181,10 @@
   --color-map-overlay: rgba(0, 176, 255, 0.08);
   --color-map-attribution: rgba(245, 245, 244, 0.7);
 
+  /* Buy Me a Coffee — brand yellow (same in dark; high contrast on dark surfaces) */
+  --color-bmc: #FFDD00;
+  --color-bmc-fg: #1A1A1A;
+
   /* Surfaces */
   --color-surface-base: #0A0A0A;
   --color-surface-card: #141414;
@@ -306,6 +314,8 @@
   --color-severity-cold: var(--color-severity-cold);
   --color-map-overlay: var(--color-map-overlay);
   --color-map-attribution: var(--color-map-attribution);
+  --color-bmc: var(--color-bmc);
+  --color-bmc-fg: var(--color-bmc-fg);
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Noto Serif", Georgia, serif;
   --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
