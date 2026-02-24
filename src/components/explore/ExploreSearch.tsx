@@ -199,7 +199,7 @@ export function ExploreSearch() {
                     {loc.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-[var(--radius-badge)] bg-surface-dim px-2 py-0.5 text-[10px] text-text-tertiary"
+                        className="rounded-[var(--radius-badge)] bg-surface-dim px-2 py-0.5 text-base text-text-tertiary"
                       >
                         {tag}
                       </span>

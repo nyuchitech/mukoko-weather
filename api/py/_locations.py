@@ -336,10 +336,18 @@ def _infer_tags(geocoded: dict) -> list[str]:
 
 
 def _is_in_supported_region(lat: float, lon: float) -> bool:
-    """Check if coordinates are within a supported region from MongoDB."""
+    """Check if coordinates are within a supported region from MongoDB.
+
+    Note: The MongoDB bounding-box query does NOT match the Pacific Islands region
+    (west: 130, east: -176) because that region crosses the antimeridian. The
+    standard query ``"east": {"$gte": lon - 1}`` fails for positive longitudes east
+    of 175°E since -176 < 175. The hardcoded fallback below handles this correctly.
+    """
     try:
         db = get_db()
-        # Regions are stored with flat top-level fields: south, north, west, east
+        # Regions are stored with flat top-level fields: south, north, west, east.
+        # The Pacific Islands region (antimeridian-crossing) will never match this
+        # query — it always falls through to _hardcoded_region_check below.
         region = db["regions"].find_one({
             "active": True,
             "south": {"$lte": lat + 1},
@@ -350,7 +358,8 @@ def _is_in_supported_region(lat: float, lon: float) -> bool:
         if region is not None:
             return True
         # Fallback: hardcoded region check when DB returns no match.
-        # Covers all developing-country regions defined in seed-regions.ts.
+        # Covers all developing-country regions defined in seed-regions.ts,
+        # and is the authoritative check for the Pacific Islands antimeridian region.
         return _hardcoded_region_check(lat, lon)
     except Exception:
         # Fallback on DB error
@@ -358,7 +367,11 @@ def _is_in_supported_region(lat: float, lon: float) -> bool:
 
 
 def _hardcoded_region_check(lat: float, lon: float) -> bool:
-    """Hardcoded fallback for supported regions — mirrors seed-regions.ts bounds (+1° padding)."""
+    """Hardcoded fallback for supported regions — mirrors seed-regions.ts bounds (+1° padding).
+
+    All bounds include +1° padding to match the MongoDB query padding above.
+    Pacific Islands is always evaluated here (DB query cannot handle antimeridian).
+    """
     # Africa (full continent, including North Africa)
     if -36 <= lat <= 39 and -19 <= lon <= 53:
         return True
@@ -380,8 +393,9 @@ def _hardcoded_region_check(lat: float, lon: float) -> bool:
     # Central America, Mexico & Caribbean
     if 6 <= lat <= 34 and -123 <= lon <= -58:
         return True
-    # Pacific Islands (bounding box crosses antimeridian: 130°E to 176°W)
-    if -26 <= lat <= 21 and (lon >= 129 or lon <= -174):
+    # Pacific Islands (bounding box crosses antimeridian: 130°E to 176°W).
+    # DB seed bounds: west=130, east=-176. With +1° padding: west-1=129, east+1=-175.
+    if -26 <= lat <= 21 and (lon >= 129 or lon <= -175):
         return True
     return False
 

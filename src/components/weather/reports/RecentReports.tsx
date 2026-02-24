@@ -170,11 +170,11 @@ export function RecentReports({ locationSlug }: { locationSlug: string }) {
                   <span className="text-base font-medium text-text-primary">
                     {REPORT_LABELS[report.reportType] || report.reportType}
                   </span>
-                  <span className={`rounded-[var(--radius-badge)] px-1.5 py-0.5 text-[10px] font-bold uppercase ${SEVERITY_CLASSES[report.severity] || ""}`}>
+                  <span className={`rounded-[var(--radius-badge)] px-1.5 py-0.5 text-base font-bold uppercase ${SEVERITY_CLASSES[report.severity] || ""}`}>
                     {report.severity}
                   </span>
                   {report.verified && (
-                    <span className="rounded-[var(--radius-badge)] bg-severity-low/10 px-1.5 py-0.5 text-[10px] font-bold text-severity-low" title="Verified against API data">
+                    <span className="rounded-[var(--radius-badge)] bg-severity-low/10 px-1.5 py-0.5 text-base font-bold text-severity-low" title="Verified against API data">
                       Verified
                     </span>
                   )}
@@ -182,7 +182,7 @@ export function RecentReports({ locationSlug }: { locationSlug: string }) {
                 {report.description && (
                   <p className="mt-0.5 text-base text-text-secondary line-clamp-1">{report.description}</p>
                 )}
-                <p className="mt-0.5 text-[10px] text-text-tertiary">{timeAgo(report.reportedAt)}</p>
+                <p className="mt-0.5 text-base text-text-tertiary">{timeAgo(report.reportedAt)}</p>
               </div>
               <button
                 type="button"

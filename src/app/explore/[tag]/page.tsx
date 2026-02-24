@@ -136,7 +136,7 @@ export default async function ExploreTagPage({ params }: Props) {
                         .map((t) => (
                           <span
                             key={t}
-                            className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                            className="rounded-full bg-primary/10 px-2 py-0.5 text-base font-medium text-primary"
                           >
                             {t}
                           </span>
