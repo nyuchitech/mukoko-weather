@@ -112,27 +112,35 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Action pill — location + search */}
+          {/* Action pill — explore, shamwari, my weather */}
           <div
             className="flex shrink-0 items-center gap-1 rounded-full bg-primary p-1"
             role="toolbar"
             aria-label="Quick actions"
           >
+            <Link
+              href="/explore"
+              prefetch={false}
+              aria-label="Explore locations"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+            >
+              <SearchIcon size={18} className="text-primary-foreground" />
+            </Link>
+            <Link
+              href="/shamwari"
+              prefetch={false}
+              aria-label="Shamwari AI assistant"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+            >
+              <SparklesIcon size={18} className="text-primary-foreground" />
+            </Link>
             <button
               onClick={openMyWeather}
-              aria-label="Open location preferences"
+              aria-label="Open My Weather preferences"
               className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
               <MapPinIcon size={18} className="text-primary-foreground" />
-            </button>
-            <button
-              onClick={openMyWeather}
-              aria-label="Open location search"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
-              type="button"
-            >
-              <SearchIcon size={18} className="text-primary-foreground" />
             </button>
           </div>
         </nav>
