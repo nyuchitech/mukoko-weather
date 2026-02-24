@@ -402,13 +402,19 @@ html {
 
 /* Disable entrance animations for users who prefer reduced motion.
    Three.js loading scene already skips 3D entirely — this covers the
-   CSS animations used on LazySection, WelcomeBanner, WeatherDashboard, etc. */
+   CSS animations used on LazySection, WelcomeBanner, WeatherDashboard, etc.
+   Scoped to our own animation classes to avoid breaking Radix UI dialog
+   overlays, accordion animations, and other third-party components that
+   have their own reduced-motion handling. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  [class*="animate-fade-in"],
+  [class*="animate-scale-in"],
+  [class*="animate-nav-indicator"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+  .card-interactive,
+  .press-scale {
     transition-duration: 0.01ms !important;
   }
 }

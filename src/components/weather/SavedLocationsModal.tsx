@@ -161,31 +161,30 @@ function CurrentLocationButton({
 
   return (
     <div className="space-y-1">
-      <button
-        onClick={handleGeolocate}
-        disabled={geoLoading}
-        className="flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-card)] border border-primary/25 bg-primary/5 px-4 py-3 text-left transition-all hover:bg-primary/10 active:scale-[0.98]"
-        type="button"
-      >
-        {geoLoading ? (
-          <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-        ) : (
-          <NavigationIcon size={18} className="shrink-0 text-primary" />
-        )}
-        <div className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-primary">
-            {geoLoading ? "Detecting..." : "Current Location"}
-          </span>
-          <span className="block text-xs text-text-tertiary">
-            {geoState?.location ? geoState.location.name : "Tap to detect your location"}
-          </span>
-        </div>
+      <div className="flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-card)] border border-primary/25 bg-primary/5 px-4 py-3 transition-all hover:bg-primary/10">
+        <button
+          onClick={handleGeolocate}
+          disabled={geoLoading}
+          className="flex flex-1 items-center gap-3 text-left active:scale-[0.98]"
+          type="button"
+        >
+          {geoLoading ? (
+            <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          ) : (
+            <NavigationIcon size={18} className="shrink-0 text-primary" />
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-primary">
+              {geoLoading ? "Detecting..." : "Current Location"}
+            </span>
+            <span className="block text-xs text-text-tertiary">
+              {geoState?.location ? geoState.location.name : "Tap to detect your location"}
+            </span>
+          </div>
+        </button>
         {detectedSlug && !isSaved(detectedSlug) && !atCap && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSave(detectedSlug);
-            }}
+            onClick={() => onSave(detectedSlug)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             aria-label="Save detected location"
             type="button"
@@ -193,7 +192,7 @@ function CurrentLocationButton({
             <PlusIcon size={14} />
           </button>
         )}
-      </button>
+      </div>
       {geoState?.status === "denied" && (
         <p className="px-1 text-xs text-text-tertiary">
           Location access denied. Enable it in your browser settings.
@@ -249,7 +248,7 @@ function SavedLocationsList({
   }, [slugs]);
 
   return (
-    <ul role="listbox" aria-label="Saved locations" className="pb-2">
+    <ul aria-label="Saved locations" className="pb-2">
       {slugs.map((slug) => {
         const loc = locationMap[slug];
         const isActive = slug === currentSlug;
@@ -259,7 +258,7 @@ function SavedLocationsList({
           : "";
 
         return (
-          <li key={slug} role="option" aria-selected={isActive}>
+          <li key={slug}>
             <div className="flex items-center gap-1 px-1">
               <button
                 onClick={() => onSelect(slug)}
@@ -319,7 +318,8 @@ function AddLocationSearch({
   const debouncedQuery = useDebounce(query, 250);
 
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50);
+    const id = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, []);
 
   useEffect(() => {
@@ -397,14 +397,14 @@ function AddLocationSearch({
       )}
 
       {filteredResults.length > 0 && (
-        <ul className="space-y-0.5" role="listbox" aria-label="Search results">
+        <ul className="space-y-0.5" aria-label="Search results">
           {filteredResults.map((loc) => {
             const countryCode = ((loc.country as string) ?? "ZW").toUpperCase();
             const contextLabel = countryCode !== "ZW"
               ? `${loc.province}, ${countryCode}`
               : loc.province;
             return (
-              <li key={loc.slug} role="option" aria-selected={false}>
+              <li key={loc.slug}>
                 <button
                   onClick={() => onAdd(loc.slug)}
                   className="flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-sm transition-all hover:bg-surface-base text-text-primary"

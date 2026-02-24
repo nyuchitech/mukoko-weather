@@ -62,14 +62,14 @@ describe("SavedLocationsModal — icons", () => {
 });
 
 describe("SavedLocationsModal — saved locations list", () => {
-  it("renders a listbox for saved locations", () => {
-    expect(source).toContain('role="listbox"');
+  it("renders a labeled list for saved locations", () => {
     expect(source).toContain('aria-label="Saved locations"');
   });
 
-  it("shows each saved location as an option", () => {
-    expect(source).toContain('role="option"');
-    expect(source).toContain("aria-selected");
+  it("uses plain ul/li (no listbox role with nested buttons)", () => {
+    // Listbox role is invalid with multiple interactive children per option
+    expect(source).not.toContain('role="listbox"');
+    expect(source).not.toContain('role="option"');
   });
 
   it("has a remove button for each location", () => {
@@ -132,7 +132,7 @@ describe("SavedLocationsModal — add location search", () => {
     expect(source).toContain("No results for");
   });
 
-  it("renders search results as a listbox", () => {
+  it("renders search results as a labeled list", () => {
     expect(source).toContain('aria-label="Search results"');
   });
 });
@@ -184,6 +184,23 @@ describe("SavedLocationsModal — navigation", () => {
 
   it("has a Done button", () => {
     expect(source).toContain("Done");
+  });
+});
+
+describe("SavedLocationsModal — HTML validity", () => {
+  it("does not nest buttons (CurrentLocationButton uses sibling elements)", () => {
+    // Detect the pattern: geolocation button and save button should be siblings
+    // inside a flex container, not parent-child
+    const buttonMatches = source.match(/<button[\s\S]*?<\/button>/g) || [];
+    // No button's innerHTML should contain another <button>
+    for (const match of buttonMatches) {
+      const innerButtons = (match.match(/<button/g) || []).length;
+      expect(innerButtons).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("cleans up setTimeout in AddLocationSearch focus effect", () => {
+    expect(source).toContain("clearTimeout");
   });
 });
 

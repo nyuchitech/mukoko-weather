@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useSyncExternalStore } from "react";
+import { useRef, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   createWeatherScene,
@@ -16,29 +16,12 @@ interface Props {
   statusText?: string;
 }
 
-// useSyncExternalStore subscriptions for client-only media queries.
-// Returns false on the server, then the real value on the client — no hydration mismatch.
-//
-// INTENTIONAL PATTERN: emptySubscribe never notifies React of changes. This is outside
-// the standard use of useSyncExternalStore (which expects the subscription to fire when
-// the external store changes). It works here because:
-//   1. This is a short-lived loading screen (unmounts within seconds)
-//   2. Media query values (prefers-reduced-motion, hover capability) don't change mid-load
-//   3. If React re-renders for unrelated reasons, getSnapshot re-reads the current value
-// In React 19+ concurrent mode, this could theoretically produce tearing if the component
-// suspends mid-render, but the practical risk is negligible for a loading overlay.
-const emptySubscribe = () => () => {};
-const getUse3D = () => {
-  try {
-    return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch { return false; }
-};
-const getIsMobile = () => {
-  try {
-    return window.matchMedia("(hover: none), (pointer: coarse)").matches;
-  } catch { return false; }
-};
-const serverFalse = () => false;
+/** Known app routes that are NOT location slugs — prevents misinterpreting
+ *  /explore, /shamwari, etc. as weather locations when extracting from pathname. */
+const KNOWN_ROUTES = new Set([
+  "explore", "shamwari", "history", "about", "help",
+  "privacy", "terms", "status", "embed",
+]);
 
 /**
  * Branded weather loading animation.
@@ -57,15 +40,27 @@ const serverFalse = () => false;
 export function WeatherLoadingScene({ slug, statusText }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Hydration-safe client detection via useSyncExternalStore.
-  // Returns false on the server (serverFalse), real value on the client.
-  const use3D = useSyncExternalStore(emptySubscribe, getUse3D, serverFalse);
-  const isMobile = useSyncExternalStore(emptySubscribe, getIsMobile, serverFalse);
+  // Client-only media query detection via useState + useEffect.
+  // Both default to false (matching SSR output), then set to the real value
+  // on mount. The extra re-render is negligible for a short-lived loading screen.
+  // Deferred via rAF to satisfy the lint rule against synchronous setState in effects.
+  const [use3D, setUse3D] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      try {
+        setUse3D(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        setIsMobile(window.matchMedia("(hover: none), (pointer: coarse)").matches);
+      } catch {
+        // matchMedia not available — keep defaults (false)
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // Extract slug from URL path as fallback if not passed as prop.
   // Guard against known app routes — only use pathname-derived slug when it
   // looks like a location slug (not a known non-location route like /explore).
-  const KNOWN_ROUTES = new Set(["explore", "shamwari", "history", "about", "help", "privacy", "terms", "status", "embed"]);
   const pathname = usePathname();
   const pathnameSlug = pathname ? pathname.split("/").filter(Boolean)[0] : undefined;
   const resolvedSlug = slug ?? (pathnameSlug && !KNOWN_ROUTES.has(pathnameSlug) ? pathnameSlug : undefined);
