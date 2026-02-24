@@ -68,9 +68,8 @@
   --text-body: 1rem;           /* 16px — base body/footer text */
   --text-body-lg: 1.125rem;    /* 18px — larger body text variant */
   --text-body-leading: 1.6;
-  /* 10px — matches iOS/Android native bottom nav label conventions.
-     Below WCAG 12px minimum for body text, but intentional for nav chrome. */
-  --text-nav-label: 0.625rem;
+  /* 1rem (16px) — minimum font size per app-wide hard rule. */
+  --text-nav-label: 1rem;
 
   /* Radii */
   --radius-button: 12px;

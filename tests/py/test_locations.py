@@ -176,11 +176,25 @@ class TestIsInSupportedRegion:
         assert _is_in_supported_region(-17.83, 31.05) is True
 
     @patch("py._locations.get_db")
-    def test_db_lookup_no_region(self, mock_db):
+    def test_db_lookup_no_region_falls_back_to_hardcoded(self, mock_db):
+        """When DB returns no region match, fall back to hardcoded bounds.
+        Zimbabwe (-17.83, 31.05) is within the Africa hardcoded fallback range,
+        so it should still return True (supported), not False."""
         mock_db.return_value.__getitem__ = MagicMock(
             return_value=MagicMock(find_one=MagicMock(return_value=None))
         )
-        assert _is_in_supported_region(-17.83, 31.05) is False
+        # Zimbabwe is in Africa fallback bounds: -23≤lat≤38, -18≤lon≤52
+        assert _is_in_supported_region(-17.83, 31.05) is True
+
+    @patch("py._locations.get_db")
+    def test_db_lookup_no_region_outside_fallback_rejected(self, mock_db):
+        """When DB returns no region match and coords are outside all fallback bounds,
+        return False."""
+        mock_db.return_value.__getitem__ = MagicMock(
+            return_value=MagicMock(find_one=MagicMock(return_value=None))
+        )
+        # New York — outside Africa and ASEAN fallback bounds
+        assert _is_in_supported_region(40.71, -74.01) is False
 
     @patch("py._locations.get_db")
     def test_fallback_africa_accepted(self, mock_db):

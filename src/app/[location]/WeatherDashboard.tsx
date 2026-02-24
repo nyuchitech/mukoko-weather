@@ -92,7 +92,7 @@ export function WeatherDashboard({
 
       {/* Breadcrumb navigation for SEO and accessibility */}
       <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-5 sm:px-6 md:px-8">
-        <ol className="flex flex-wrap items-center gap-1.5 text-xs text-text-tertiary">
+        <ol className="flex flex-wrap items-center gap-1.5 text-base text-text-tertiary">
           <li>
             <a href={BASE_URL} className="hover:text-text-secondary transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:rounded">
               Home
@@ -208,13 +208,13 @@ export function WeatherDashboard({
                   <h2 id={`about-${location.slug}`} className="text-lg font-semibold text-text-primary font-heading">
                     About {location.name}
                   </h2>
-                  <dl className="mt-5 space-y-3.5 text-sm">
+                  <dl className="mt-5 space-y-3.5 text-base">
                     <InfoRow label="Province" value={location.province} />
                     <InfoRow label="Elevation" value={`${location.elevation}m`} />
                     <InfoRow
                       label="Coordinates"
                       value={
-                        <span className="font-mono text-xs">
+                        <span className="font-mono text-base">
                           {location.lat.toFixed(2)}, {location.lon.toFixed(2)}
                         </span>
                       }
