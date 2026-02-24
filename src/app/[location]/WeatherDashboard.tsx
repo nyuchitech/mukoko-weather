@@ -229,7 +229,7 @@ export function WeatherDashboard({
           {/* Left-bottom: AI + activities + atmospheric (lazy-loaded detail sections)
               On mobile: shows THIRD (after the right column)
               On lg: stacks below left-top in cols 1-2 */}
-          <div className="min-w-0 space-y-8 order-3 md:col-span-1 lg:col-span-2">
+          <div className="min-w-0 space-y-8 order-3 md:col-span-2 lg:col-span-2">
             <LazySection label="ai-summary">
               <ChartErrorBoundary name="AI summary">
                 <Suspense fallback={<SectionSkeleton />}>

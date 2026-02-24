@@ -192,9 +192,7 @@ export function LazySection({
           {children}
         </div>
       ) : (
-        <div className="transition-opacity duration-200">
-          {fallback}
-        </div>
+        fallback
       )}
     </div>
   );
