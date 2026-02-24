@@ -6,10 +6,19 @@ const MAX_ENTRIES = 50;
 
 /**
  * Evict oldest weather hint entries when the cache exceeds MAX_ENTRIES.
- * Scans localStorage for matching keys, sorts by timestamp, removes the oldest.
+ * Does a quick prefix-count first to avoid the expensive full parse/sort
+ * scan on every write (eviction is rare with MAX_ENTRIES = 50).
  */
 function evictOldest(): void {
-  // Snapshot all keys first — iterating localStorage while removing shifts indices.
+  // Quick count of hint keys — skip the expensive full scan when under cap
+  let hintCount = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i)?.startsWith(KEY_PREFIX)) hintCount++;
+  }
+  if (hintCount <= MAX_ENTRIES) return;
+
+  // Over cap — snapshot all keys and parse timestamps for LRU eviction.
+  // Snapshot first because iterating localStorage while removing shifts indices.
   const allKeys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);

@@ -68,6 +68,13 @@ describe("HomeRedirect — redirect logic", () => {
     expect(source).toContain("selectedLocation");
   });
 
+  it("reads fallback from store at decision time (not stale closure)", () => {
+    // Fallback should be read inside .then()/.catch() callbacks via
+    // useAppStore.getState() so device sync changes are reflected
+    expect(source).toContain("useAppStore.getState()");
+    expect(source).toContain("savedLocations[0] || selectedLocation || FALLBACK_LOCATION");
+  });
+
   it("uses savedLocations as fallback chain", () => {
     expect(source).toContain("savedLocations");
   });

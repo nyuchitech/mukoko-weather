@@ -127,7 +127,7 @@ export const useAppStore = create<AppState>()(
       saveLocation: (slug) =>
         set((state) => {
           if (state.savedLocations.includes(slug) || state.savedLocations.length >= MAX_SAVED_LOCATIONS) {
-            return state;
+            return {};
           }
           const next = [...state.savedLocations, slug];
           queueSync({ savedLocations: next });

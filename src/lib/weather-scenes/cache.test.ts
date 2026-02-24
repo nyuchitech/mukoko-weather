@@ -134,4 +134,16 @@ describe("weather hint cache", () => {
     // Unrelated key should not be touched
     expect(localStorageMock.getItem("unrelated-key")).toBe("some-data");
   });
+
+  it("skips full eviction scan when under MAX_ENTRIES (early exit)", () => {
+    // Write 5 entries — well under 50 cap
+    for (let i = 0; i < 5; i++) {
+      cacheWeatherHint(`fast-${i}`, hint);
+    }
+    // Spy on removeItem — should not be called for eviction
+    const removeSpy = vi.spyOn(localStorageMock, "removeItem");
+    cacheWeatherHint("fast-trigger", hint);
+    expect(removeSpy).not.toHaveBeenCalled();
+    removeSpy.mockRestore();
+  });
 });

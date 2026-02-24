@@ -27,8 +27,6 @@ const FALLBACK_LOCATION = "harare";
 export function HomeRedirect() {
   const router = useRouter();
   const hasRedirected = useRef(false);
-  const selectedLocation = useAppStore((s) => s.selectedLocation);
-  const savedLocations = useAppStore((s) => s.savedLocations);
 
   // Track Zustand rehydration — hasStoreHydrated() is not reactive,
   // so we poll via rAF until hydration completes (retries on slow devices).
@@ -59,9 +57,6 @@ export function HomeRedirect() {
   useEffect(() => {
     if (hasRedirected.current || !hydrated) return;
 
-    // Best fallback location: first saved location, then selected, then Harare
-    const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
-
     // Always attempt geolocation first — current location is the default
     let cancelled = false;
 
@@ -83,20 +78,26 @@ export function HomeRedirect() {
         ) {
           router.replace(`/${result.location.slug}`);
         } else {
-          // Geolocation denied, timed out, or outside supported region
+          // Read fallback at decision time so device sync (which may have
+          // restored savedLocations from the server during the geo wait)
+          // is reflected in the redirect target.
+          const { savedLocations, selectedLocation } = useAppStore.getState();
+          const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
           router.replace(`/${fallback}`);
         }
       })
       .catch(() => {
         if (cancelled || hasRedirected.current) return;
         hasRedirected.current = true;
+        const { savedLocations, selectedLocation } = useAppStore.getState();
+        const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
         router.replace(`/${fallback}`);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [router, selectedLocation, savedLocations, hydrated]);
+  }, [router, hydrated]);
 
   return <WeatherLoadingScene statusText="Finding your location..." />;
 }

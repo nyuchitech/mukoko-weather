@@ -216,6 +216,7 @@ mukoko-weather/
 │   │   │   ├── SavedLocationsModal.tsx # Saved locations manager (browse, add, remove, geolocation)
 │   │   │   ├── SavedLocationsModal.test.ts
 │   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
+│   │   │   ├── WeatherLoadingScene.test.ts # KNOWN_ROUTES guard, reduced-motion, Three.js integration, accessibility
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
 │   │   │   ├── ActivityCard.test.ts     # Suitability integration (levels, priority, fallbacks)
@@ -288,6 +289,8 @@ mukoko-weather/
 │   │   ├── map-layers.test.ts
 │   │   ├── error-retry.ts         # Error retry logic with sessionStorage tracking (max 3 retries)
 │   │   ├── error-retry.test.ts
+│   │   ├── use-debounce.ts         # Shared useDebounce hook (generic, reusable across components)
+│   │   ├── use-debounce.test.ts
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   ├── utils.test.ts
 │   │   ├── accessibility.test.ts  # Accessibility helpers tests
@@ -895,7 +898,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 The pill is deliberately focused on contextual actions (location management, preferences) and does not duplicate the desktop nav links.
 
-The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true).
+The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true). `SavedLocationsModal` is additionally wrapped in `ChartErrorBoundary` so a crash in the modal never takes down the header.
 
 The header takes no props — location context comes from the URL path.
 
@@ -919,8 +922,8 @@ The header takes no props — location context comes from the URL path.
 
 **Features:**
 - **Current location detection** — geolocation button with 3-state feedback (detecting, denied, outside-supported), option to save detected location
-- **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal
-- **Add location search** — debounced search input calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
+- **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal. Shows loading skeleton while fetching location details; falls back to title-cased slug display if API lookup fails
+- **Add location search** — debounced search input (via shared `useDebounce` hook from `@/lib/use-debounce`) calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
 - **Capacity management** — displays count (e.g., "5/10"), disables add button when cap is reached
 
 **Interaction flow:** Tap layers icon in header pill → modal opens showing saved locations or empty state → tap location to navigate and close → tap trash to remove → tap + to search and add new locations → tap current location button for GPS detection.
@@ -960,7 +963,8 @@ The header takes no props — location context comes from the URL path.
 This geo-first approach mirrors Apple Weather / Google Weather behavior — the home page always tries to show your current physical location.
 
 **Key implementation details:**
-- Waits for Zustand `persist` rehydration before reading state (uses `hasStoreHydrated()` from `store.ts`) to avoid acting on default values before localStorage loads
+- Waits for Zustand `persist` rehydration before reading state (uses `hasStoreHydrated()` from `store.ts`) to avoid acting on default values before localStorage loads. A 4s max-wait timeout (`HYDRATION_TIMEOUT_MS`) prevents infinite polling if Zustand persist middleware never fires (e.g., corrupt localStorage)
+- Fallback location is read at decision time (inside `.then()`/`.catch()` callbacks via `useAppStore.getState()`) so device sync changes during the 3s geo wait are reflected
 - Uses `router.replace()` so the home page doesn't appear in browser history
 - `hasRedirected` ref prevents duplicate redirects
 - Effect cleanup cancels in-flight geolocation on unmount
@@ -1109,7 +1113,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/suitability.test.ts` — suitability rule evaluation, condition matching, metric template resolution
 - `src/lib/countries.test.ts` — country/province data, flag emoji, province slug generation
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
-- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback, ShamwariContext set/clear/expiry
+- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback, ShamwariContext set/clear/expiry, savedLocations CRUD/cap/persistence, savedLocationsOpen toggle
 - `src/lib/suggested-prompts.test.ts` — suggested prompt generation, weather condition matching, max 3 cap
 - `src/lib/device-sync.test.ts` — device sync CRUD, debounced sync, migration, beforeunload
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
@@ -1123,7 +1127,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
 - `src/lib/seed-ai-prompts.test.ts` — AI prompt/rule uniqueness, LOCATION DISCOVERY guardrails presence, structural integrity
-- `src/lib/weather-scenes/cache.test.ts` — weather hint cache (set/get, 2h TTL expiry, localStorage cleanup)
+- `src/lib/use-debounce.test.ts` — useDebounce hook structure, exports, generic typing
+- `src/lib/weather-scenes/cache.test.ts` — weather hint cache (set/get, 2h TTL expiry, LRU eviction early-exit, localStorage cleanup)
 - `src/lib/weather-scenes/create-scene.test.ts` — scene factory (exports, dispose, scene types, fallback, cleanup)
 - `src/lib/weather-scenes/resolve-scene.test.ts` — weather code → scene type mapping (WMO codes, day/night, edge cases)
 
@@ -1156,11 +1161,11 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
-- `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard, redirect logic, geolocation
+- `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard (max-wait timeout), deferred fallback, redirect logic, geolocation
 - `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
 - `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
-- `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
+- `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests, cacheWeatherHint integration
 - `src/app/history/HistoryDashboard.test.ts` — history dashboard tests
 - `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary, contextual navigation
 - `src/components/explore/ExploreSearch.test.ts` — AI search structure, search flow, results rendering, Shamwari context
@@ -1179,7 +1184,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/WelcomeBanner.test.ts` — welcome banner rendering, onboarding state, accessibility
 - `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
 - `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
-- `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, capacity management, accessibility
+- `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, loading skeleton, capacity management, accessibility
+- `src/components/weather/WeatherLoadingScene.test.ts` — KNOWN_ROUTES guard, reduced-motion support, Three.js integration, slug display, accessibility
 - `src/components/weather/reports/WeatherReportModal.test.ts` — 3-step wizard, report types, severity, accessibility
 - `src/components/weather/reports/RecentReports.test.ts` — report list, upvoting, report trigger, UI patterns
 
