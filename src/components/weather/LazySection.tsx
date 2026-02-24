@@ -129,7 +129,9 @@ export function LazySection({
 
   // Track if the section has ever been mounted (for unload observer)
   const hasRendered = useRef(false);
-  // Whether to play entrance animation (true only on first mount, not remounts)
+  // Whether to play entrance animation — true only on the initial mount.
+  // Bidirectional remounts (section scrolled off-screen then back) skip the
+  // animation to avoid a visual stutter when content reappears.
   const [animate, setAnimate] = useState(false);
 
   // ── Load observer: mount when entering viewport ───────────────────────

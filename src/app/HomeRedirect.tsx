@@ -7,6 +7,7 @@ import { detectUserLocation } from "@/lib/geolocation";
 import { WeatherLoadingScene } from "@/components/weather/WeatherLoadingScene";
 
 const GEO_TIMEOUT_MS = 3000;
+const HYDRATION_TIMEOUT_MS = 4000;
 const FALLBACK_LOCATION = "harare";
 
 /**
@@ -31,6 +32,8 @@ export function HomeRedirect() {
 
   // Track Zustand rehydration — hasStoreHydrated() is not reactive,
   // so we poll via rAF until hydration completes (retries on slow devices).
+  // A max-wait timeout (4s) ensures we proceed with defaults if Zustand
+  // persist middleware never fires (e.g., corrupt localStorage).
   const [hydrated, setHydrated] = useState(hasStoreHydrated);
   useEffect(() => {
     if (hydrated) return;
@@ -43,7 +46,14 @@ export function HomeRedirect() {
       }
     };
     id = requestAnimationFrame(check);
-    return () => cancelAnimationFrame(id);
+    const timeout = setTimeout(() => {
+      cancelAnimationFrame(id);
+      setHydrated(true);
+    }, HYDRATION_TIMEOUT_MS);
+    return () => {
+      cancelAnimationFrame(id);
+      clearTimeout(timeout);
+    };
   }, [hydrated]);
 
   useEffect(() => {

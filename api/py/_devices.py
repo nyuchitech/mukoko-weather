@@ -77,6 +77,14 @@ def _validate_activities(activities: list[str]) -> list[str]:
 
 
 def _validate_saved_locations(locations: list[str]) -> list[str]:
+    """Validate saved locations — format and cap only.
+
+    We intentionally skip a DB existence check here because this runs on
+    every preference sync (PATCH, debounced 1.5s). Adding a DB round-trip
+    per sync would be expensive. Invalid slugs are handled gracefully on
+    the client — SavedLocationsList falls back to title-cased slug display
+    when a location isn't found in the DB.
+    """
     if len(locations) > MAX_SAVED_LOCATIONS:
         raise HTTPException(status_code=400, detail=f"Too many saved locations (max {MAX_SAVED_LOCATIONS})")
     for slug in locations:

@@ -3,22 +3,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore, MAX_SAVED_LOCATIONS } from "@/lib/store";
+import { useDebounce } from "@/lib/use-debounce";
 import { MapPinIcon, SearchIcon, TrashIcon, PlusIcon, NavigationIcon } from "@/lib/weather-icons";
 import type { WeatherLocation } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-/** Debounce hook */
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 export function SavedLocationsModal() {
   const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
@@ -222,9 +213,14 @@ function SavedLocationsList({
 }) {
   // Resolve slugs to location details
   const [locationMap, setLocationMap] = useState<Record<string, WeatherLocation>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (slugs.length === 0) return;
+    if (slugs.length === 0) {
+      // Defer to avoid synchronous setState in effect body
+      const id = requestAnimationFrame(() => setLoading(false));
+      return () => cancelAnimationFrame(id);
+    }
 
     // Fetch location details for saved slugs
     const controller = new AbortController();
@@ -242,10 +238,28 @@ function SavedLocationsList({
       const map: Record<string, WeatherLocation> = {};
       for (const [s, loc] of entries) map[s] = loc;
       setLocationMap(map);
+      setLoading(false);
     });
 
     return () => controller.abort();
   }, [slugs]);
+
+  if (loading) {
+    return (
+      <div className="space-y-1 pb-2" role="status" aria-label="Loading saved locations">
+        {slugs.map((slug) => (
+          <div key={slug} className="flex items-center gap-3 px-4 py-2">
+            <div className="h-4 w-4 animate-pulse rounded-full bg-surface-base" />
+            <div className="flex-1 space-y-1">
+              <div className="h-4 w-24 animate-pulse rounded bg-surface-base" />
+              <div className="h-3 w-16 animate-pulse rounded bg-surface-base" />
+            </div>
+          </div>
+        ))}
+        <span className="sr-only">Loading saved locations</span>
+      </div>
+    );
+  }
 
   return (
     <ul aria-label="Saved locations" className="pb-2">

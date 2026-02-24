@@ -4,7 +4,8 @@ import { lazy, Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MukokoLogo } from "@/components/brand/MukokoLogo";
-import { MapPinIcon, ClockIcon, SearchIcon, SparklesIcon } from "@/lib/weather-icons";
+import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
+import { MapPinIcon, ClockIcon, SparklesIcon } from "@/lib/weather-icons";
 import { useAppStore } from "@/lib/store";
 
 /** Layers/stack icon for location switching */
@@ -233,9 +234,11 @@ export function Header() {
       )}
 
       {savedLocationsOpen && (
-        <Suspense>
-          <SavedLocationsModal />
-        </Suspense>
+        <ChartErrorBoundary name="saved locations">
+          <Suspense>
+            <SavedLocationsModal />
+          </Suspense>
+        </ChartErrorBoundary>
       )}
 
       {reportModalOpen && (

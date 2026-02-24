@@ -53,6 +53,13 @@ describe("HomeRedirect — Zustand rehydration guard", () => {
     // Should retry via recursive rAF, not a single poll
     expect(source).toContain("requestAnimationFrame(check)");
   });
+
+  it("has a max-wait timeout for hydration polling", () => {
+    // Prevents infinite polling if Zustand persist never fires
+    expect(source).toContain("HYDRATION_TIMEOUT_MS");
+    expect(source).toContain("4000");
+    expect(source).toContain("clearTimeout");
+  });
 });
 
 describe("HomeRedirect — redirect logic", () => {

@@ -85,6 +85,16 @@ describe("SavedLocationsModal — saved locations list", () => {
     expect(source).toContain("savedLocations.length");
     expect(source).toContain("MAX_SAVED_LOCATIONS");
   });
+
+  it("shows loading skeleton while fetching location details", () => {
+    expect(source).toContain('aria-label="Loading saved locations"');
+    expect(source).toContain("animate-pulse");
+  });
+
+  it("tracks loading state for location detail fetch", () => {
+    expect(source).toContain("setLoading");
+    expect(source).toMatch(/const \[loading, setLoading\]/);
+  });
 });
 
 describe("SavedLocationsModal — add location search", () => {
@@ -105,8 +115,9 @@ describe("SavedLocationsModal — add location search", () => {
     expect(source).toContain("Search locations to add");
   });
 
-  it("debounces search input", () => {
+  it("imports useDebounce from shared hook", () => {
     expect(source).toContain("useDebounce");
+    expect(source).toContain('from "@/lib/use-debounce"');
   });
 
   it("fetches results from the search API", () => {
