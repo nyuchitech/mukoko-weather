@@ -7,6 +7,17 @@ import { MukokoLogo } from "@/components/brand/MukokoLogo";
 import { MapPinIcon, ClockIcon, SearchIcon, SparklesIcon } from "@/lib/weather-icons";
 import { useAppStore } from "@/lib/store";
 
+/** Layers/stack icon for location switching */
+function LayersIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+      <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+      <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+    </svg>
+  );
+}
+
 // Code-split: MyWeatherModal imports LOCATIONS (154 items), ACTIVITIES (20 items),
 // geolocation, router, etc. Lazy-loading prevents this from bloating the initial
 // JS bundle, which is critical for iOS PWA memory limits.
@@ -19,6 +30,12 @@ const MyWeatherModal = lazy(() =>
 const WeatherReportModal = lazy(() =>
   import("@/components/weather/reports/WeatherReportModal").then((m) => ({
     default: m.WeatherReportModal,
+  })),
+);
+
+const SavedLocationsModal = lazy(() =>
+  import("@/components/weather/SavedLocationsModal").then((m) => ({
+    default: m.SavedLocationsModal,
   })),
 );
 
@@ -43,6 +60,8 @@ function CompassIcon({ size = 20 }: { size?: number }) {
 export function Header() {
   const openMyWeather = useAppStore((s) => s.openMyWeather);
   const myWeatherOpen = useAppStore((s) => s.myWeatherOpen);
+  const openSavedLocations = useAppStore((s) => s.openSavedLocations);
+  const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
   const reportModalOpen = useAppStore((s) => s.reportModalOpen);
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -126,14 +145,14 @@ export function Header() {
             >
               <SearchIcon size={18} className="text-primary-foreground" />
             </Link>
-            <Link
-              href="/shamwari"
-              prefetch={false}
-              aria-label="Shamwari AI assistant"
+            <button
+              onClick={openSavedLocations}
+              aria-label="Saved locations"
               className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              type="button"
             >
-              <SparklesIcon size={18} className="text-primary-foreground" />
-            </Link>
+              <LayersIcon size={18} className="text-primary-foreground" />
+            </button>
             <button
               onClick={openMyWeather}
               aria-label="Open My Weather preferences"
@@ -218,6 +237,12 @@ export function Header() {
       {myWeatherOpen && (
         <Suspense>
           <MyWeatherModal />
+        </Suspense>
+      )}
+
+      {savedLocationsOpen && (
+        <Suspense>
+          <SavedLocationsModal />
         </Suspense>
       )}
 

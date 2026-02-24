@@ -1,0 +1,459 @@
+"use client";
+
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAppStore, MAX_SAVED_LOCATIONS } from "@/lib/store";
+import { MapPinIcon, SearchIcon } from "@/lib/weather-icons";
+import type { WeatherLocation } from "@/lib/locations";
+import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+/** Debounce hook */
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+/** Trash icon for removing saved locations */
+function TrashIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+/** Plus icon for adding locations */
+function PlusIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
+  );
+}
+
+/** Navigation/crosshairs icon for current location */
+function NavigationIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+    </svg>
+  );
+}
+
+export function SavedLocationsModal() {
+  const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
+  const closeSavedLocations = useAppStore((s) => s.closeSavedLocations);
+  const savedLocations = useAppStore((s) => s.savedLocations);
+  const saveLocation = useAppStore((s) => s.saveLocation);
+  const removeLocation = useAppStore((s) => s.removeLocation);
+  const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
+  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const currentSlug = pathname?.split("/").filter(Boolean)[0] || "harare";
+  const [showSearch, setShowSearch] = useState(false);
+
+  const handleSelectLocation = useCallback((slug: string) => {
+    completeOnboarding();
+    setSelectedLocation(slug);
+    closeSavedLocations();
+    if (slug !== currentSlug) {
+      router.push(`/${slug}`);
+    }
+  }, [completeOnboarding, setSelectedLocation, closeSavedLocations, currentSlug, router]);
+
+  const handleRemoveLocation = useCallback((slug: string) => {
+    removeLocation(slug);
+  }, [removeLocation]);
+
+  const handleAddLocation = useCallback((slug: string) => {
+    saveLocation(slug);
+    setShowSearch(false);
+  }, [saveLocation]);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      closeSavedLocations();
+      setShowSearch(false);
+    }
+  };
+
+  const atCap = savedLocations.length >= MAX_SAVED_LOCATIONS;
+
+  return (
+    <Dialog open={savedLocationsOpen} onOpenChange={handleOpenChange}>
+      <DialogContent aria-describedby={undefined} className="flex h-[100dvh] flex-col p-0 sm:h-auto sm:max-h-[85vh]">
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+          <DialogTitle>Locations</DialogTitle>
+          <Button size="sm" onClick={() => handleOpenChange(false)}>
+            Done
+          </Button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {/* Current location button */}
+          <div className="px-4 pt-3 pb-1">
+            <CurrentLocationButton
+              onResolved={handleSelectLocation}
+              onSave={saveLocation}
+              isSaved={(slug) => savedLocations.includes(slug)}
+              atCap={atCap}
+            />
+          </div>
+
+          {/* Saved locations list */}
+          <div className="px-2 pt-2">
+            <h3 className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+              Saved locations ({savedLocations.length}/{MAX_SAVED_LOCATIONS})
+            </h3>
+            {savedLocations.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm text-text-tertiary">
+                No saved locations yet. Tap + to add locations.
+              </p>
+            ) : (
+              <SavedLocationsList
+                slugs={savedLocations}
+                currentSlug={currentSlug}
+                onSelect={handleSelectLocation}
+                onRemove={handleRemoveLocation}
+              />
+            )}
+          </div>
+
+          {/* Add location section */}
+          <div className="mt-auto border-t border-border px-4 pt-3 pb-4">
+            {!showSearch ? (
+              <Button
+                variant="ghost"
+                className="flex w-full min-h-[44px] items-center justify-center gap-2 text-primary"
+                onClick={() => setShowSearch(true)}
+                disabled={atCap}
+              >
+                <PlusIcon size={16} />
+                <span className="font-medium">
+                  {atCap ? `Limit reached (${MAX_SAVED_LOCATIONS})` : "Add location"}
+                </span>
+              </Button>
+            ) : (
+              <AddLocationSearch
+                savedSlugs={savedLocations}
+                onAdd={handleAddLocation}
+                onCancel={() => setShowSearch(false)}
+              />
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Current Location Button ─────────────────────────────────────────────────
+
+function CurrentLocationButton({
+  onResolved,
+  onSave,
+  isSaved,
+  atCap,
+}: {
+  onResolved: (slug: string) => void;
+  onSave: (slug: string) => void;
+  isSaved: (slug: string) => boolean;
+  atCap: boolean;
+}) {
+  const [geoState, setGeoState] = useState<GeoResult | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+
+  const handleGeolocate = useCallback(async () => {
+    setGeoLoading(true);
+    const result = await detectUserLocation();
+    setGeoState(result);
+    setGeoLoading(false);
+
+    if ((result.status === "success" || result.status === "created") && result.location) {
+      onResolved(result.location.slug);
+    }
+  }, [onResolved]);
+
+  const detectedSlug = geoState?.location?.slug;
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={handleGeolocate}
+        disabled={geoLoading}
+        className="flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-card)] border border-primary/25 bg-primary/5 px-4 py-3 text-left transition-all hover:bg-primary/10 active:scale-[0.98]"
+        type="button"
+      >
+        {geoLoading ? (
+          <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+        ) : (
+          <NavigationIcon size={18} className="shrink-0 text-primary" />
+        )}
+        <div className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-primary">
+            {geoLoading ? "Detecting..." : "Current Location"}
+          </span>
+          <span className="block text-xs text-text-tertiary">
+            {geoState?.location ? geoState.location.name : "Tap to detect your location"}
+          </span>
+        </div>
+        {detectedSlug && !isSaved(detectedSlug) && !atCap && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSave(detectedSlug);
+            }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            aria-label="Save detected location"
+            type="button"
+          >
+            <PlusIcon size={14} />
+          </button>
+        )}
+      </button>
+      {geoState?.status === "denied" && (
+        <p className="px-1 text-xs text-text-tertiary">
+          Location access denied. Enable it in your browser settings.
+        </p>
+      )}
+      {geoState?.status === "outside-supported" && (
+        <p className="px-1 text-xs text-text-tertiary">
+          Your area isn&apos;t supported yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Saved Locations List ────────────────────────────────────────────────────
+
+function SavedLocationsList({
+  slugs,
+  currentSlug,
+  onSelect,
+  onRemove,
+}: {
+  slugs: string[];
+  currentSlug: string;
+  onSelect: (slug: string) => void;
+  onRemove: (slug: string) => void;
+}) {
+  // Resolve slugs to location details
+  const [locationMap, setLocationMap] = useState<Record<string, WeatherLocation>>({});
+
+  useEffect(() => {
+    if (slugs.length === 0) return;
+
+    // Fetch location details for saved slugs
+    const controller = new AbortController();
+    Promise.all(
+      slugs.map((slug) =>
+        fetch(`/api/py/locations?slug=${encodeURIComponent(slug)}`, { signal: controller.signal })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.locations?.[0]) return [slug, data.locations[0]] as const;
+            return [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const;
+          })
+          .catch(() => [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const),
+      ),
+    ).then((entries) => {
+      const map: Record<string, WeatherLocation> = {};
+      for (const [s, loc] of entries) map[s] = loc;
+      setLocationMap(map);
+    });
+
+    return () => controller.abort();
+  }, [slugs]);
+
+  return (
+    <ul role="listbox" aria-label="Saved locations" className="pb-2">
+      {slugs.map((slug) => {
+        const loc = locationMap[slug];
+        const isActive = slug === currentSlug;
+        const countryCode = ((loc?.country as string) ?? "ZW").toUpperCase();
+        const contextLabel = loc?.province
+          ? countryCode !== "ZW" ? `${loc.province}, ${countryCode}` : loc.province
+          : "";
+
+        return (
+          <li key={slug} role="option" aria-selected={isActive}>
+            <div className="flex items-center gap-1 px-1">
+              <button
+                onClick={() => onSelect(slug)}
+                className={`flex min-h-[44px] flex-1 items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-sm transition-all hover:bg-surface-base ${
+                  isActive ? "bg-primary/10 text-primary font-semibold" : "text-text-primary"
+                }`}
+                type="button"
+              >
+                <MapPinIcon size={14} className={isActive ? "text-primary" : "text-text-tertiary"} />
+                <div className="min-w-0 flex-1 text-left">
+                  <span className="block truncate">{loc?.name ?? slug}</span>
+                  {contextLabel && (
+                    <span className="block text-xs text-text-tertiary truncate">{contextLabel}</span>
+                  )}
+                </div>
+                {isActive && (
+                  <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary" aria-hidden="true">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" className="stroke-primary-foreground" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => onRemove(slug)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-tertiary hover:text-severity-severe hover:bg-severity-severe/10 transition-colors"
+                aria-label={`Remove ${loc?.name ?? slug}`}
+                type="button"
+              >
+                <TrashIcon size={16} />
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ── Add Location Search ─────────────────────────────────────────────────────
+
+function AddLocationSearch({
+  savedSlugs,
+  onAdd,
+  onCancel,
+}: {
+  savedSlugs: string[];
+  onAdd: (slug: string) => void;
+  onCancel: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<WeatherLocation[]>([]);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const searchGenRef = useRef(0);
+
+  const debouncedQuery = useDebounce(query, 250);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      // Defer to avoid synchronous setState in effect body
+      const id = requestAnimationFrame(() => setResults([]));
+      return () => cancelAnimationFrame(id);
+    }
+
+    const gen = ++searchGenRef.current;
+    const controller = new AbortController();
+    const loadId = requestAnimationFrame(() => {
+      if (searchGenRef.current === gen) setLoading(true);
+    });
+
+    fetch(`/api/py/search?q=${encodeURIComponent(q)}&limit=10`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (searchGenRef.current === gen) {
+          setResults(data?.locations ?? []);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted && searchGenRef.current === gen) {
+          setResults([]);
+          setLoading(false);
+        }
+      });
+
+    return () => { controller.abort(); cancelAnimationFrame(loadId); };
+  }, [debouncedQuery]);
+
+  // Filter out already-saved locations
+  const filteredResults = useMemo(
+    () => results.filter((loc) => !savedSlugs.includes(loc.slug)),
+    [results, savedSlugs],
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search locations to add..."
+            className="pl-9"
+            aria-label="Search locations to add"
+          />
+          <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+        </div>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+
+      {loading && query.trim() && (
+        <div className="space-y-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded-[var(--radius-input)] bg-surface-base" role="status" aria-label="Loading">
+              <span className="sr-only">Loading</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && filteredResults.length === 0 && query.trim() && (
+        <p className="py-3 text-center text-sm text-text-tertiary">
+          No results for &ldquo;{query}&rdquo;
+        </p>
+      )}
+
+      {filteredResults.length > 0 && (
+        <ul className="space-y-0.5" role="listbox" aria-label="Search results">
+          {filteredResults.map((loc) => {
+            const countryCode = ((loc.country as string) ?? "ZW").toUpperCase();
+            const contextLabel = countryCode !== "ZW"
+              ? `${loc.province}, ${countryCode}`
+              : loc.province;
+            return (
+              <li key={loc.slug} role="option" aria-selected={false}>
+                <button
+                  onClick={() => onAdd(loc.slug)}
+                  className="flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-sm transition-all hover:bg-surface-base text-text-primary"
+                  type="button"
+                >
+                  <MapPinIcon size={14} className="text-text-tertiary" />
+                  <div className="min-w-0 flex-1 text-left">
+                    <span className="block truncate">{loc.name}</span>
+                    <span className="block text-xs text-text-tertiary truncate">{contextLabel}</span>
+                  </div>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+                    <PlusIcon size={14} />
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

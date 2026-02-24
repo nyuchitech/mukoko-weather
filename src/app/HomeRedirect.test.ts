@@ -56,9 +56,13 @@ describe("HomeRedirect — Zustand rehydration guard", () => {
 });
 
 describe("HomeRedirect — redirect logic", () => {
-  it("redirects returning users to their saved location", () => {
-    expect(source).toContain("hasOnboarded");
+  it("always attempts geolocation first (current location default)", () => {
+    expect(source).toContain("detectUserLocation");
     expect(source).toContain("selectedLocation");
+  });
+
+  it("uses savedLocations as fallback chain", () => {
+    expect(source).toContain("savedLocations");
   });
 
   it("has a geolocation timeout of 3 seconds", () => {

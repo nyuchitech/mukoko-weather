@@ -10,11 +10,13 @@ const GEO_TIMEOUT_MS = 3000;
 const FALLBACK_LOCATION = "harare";
 
 /**
- * Smart home page redirect.
+ * Smart home page redirect — like Apple Weather / Google Weather.
  *
- * Returning users → instantly redirect to their saved location.
- * New users → auto-detect location via geolocation (3s timeout) → redirect.
- * Fallback → redirect to Harare.
+ * 1. Always attempt geolocation first (3s timeout)
+ * 2. If geolocation succeeds → redirect to detected location
+ * 3. If geolocation fails → fall back to first saved location
+ * 4. If no saved locations → fall back to selected location
+ * 5. Ultimate fallback → Harare
  *
  * Waits for Zustand rehydration before reading persisted state to avoid
  * acting on default values before localStorage is loaded.
@@ -25,7 +27,7 @@ export function HomeRedirect() {
   const router = useRouter();
   const hasRedirected = useRef(false);
   const selectedLocation = useAppStore((s) => s.selectedLocation);
-  const hasOnboarded = useAppStore((s) => s.hasOnboarded);
+  const savedLocations = useAppStore((s) => s.savedLocations);
 
   // Track Zustand rehydration — hasStoreHydrated() is not reactive,
   // so we poll via rAF until hydration completes (retries on slow devices).
@@ -47,14 +49,10 @@ export function HomeRedirect() {
   useEffect(() => {
     if (hasRedirected.current || !hydrated) return;
 
-    // Returning user — go straight to their saved location (including Harare)
-    if (hasOnboarded) {
-      hasRedirected.current = true;
-      router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
-      return;
-    }
+    // Best fallback location: first saved location, then selected, then Harare
+    const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
 
-    // New user — attempt geolocation with timeout
+    // Always attempt geolocation first — current location is the default
     let cancelled = false;
 
     const geoPromise = detectUserLocation();
@@ -76,19 +74,19 @@ export function HomeRedirect() {
           router.replace(`/${result.location.slug}`);
         } else {
           // Geolocation denied, timed out, or outside supported region
-          router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
+          router.replace(`/${fallback}`);
         }
       })
       .catch(() => {
         if (cancelled || hasRedirected.current) return;
         hasRedirected.current = true;
-        router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
+        router.replace(`/${fallback}`);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [router, selectedLocation, hasOnboarded, hydrated]);
+  }, [router, selectedLocation, savedLocations, hydrated]);
 
   return <WeatherLoadingScene statusText="Finding your location..." />;
 }

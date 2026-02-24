@@ -11,10 +11,12 @@ from fastapi import HTTPException
 from py._devices import (
     VALID_THEMES,
     MAX_ACTIVITIES,
+    MAX_SAVED_LOCATIONS,
     SLUG_RE,
     _validate_theme,
     _validate_slug,
     _validate_activities,
+    _validate_saved_locations,
     _doc_to_response,
     create_device,
     get_device,
@@ -116,6 +118,32 @@ class TestValidateActivities:
             _validate_activities(activities)
         assert exc_info.value.status_code == 400
         assert "Too many activities" in exc_info.value.detail
+
+
+class TestValidateSavedLocations:
+    def test_empty_list_passes(self):
+        assert _validate_saved_locations([]) == []
+
+    def test_valid_slugs_pass(self):
+        locs = ["harare", "bulawayo", "singapore-sg"]
+        assert _validate_saved_locations(locs) == locs
+
+    def test_at_max_passes(self):
+        locs = [f"loc-{i}" for i in range(MAX_SAVED_LOCATIONS)]
+        assert _validate_saved_locations(locs) == locs
+
+    def test_over_max_raises_400(self):
+        locs = [f"loc-{i}" for i in range(MAX_SAVED_LOCATIONS + 1)]
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_saved_locations(locs)
+        assert exc_info.value.status_code == 400
+        assert "Too many saved locations" in exc_info.value.detail
+
+    def test_invalid_slug_raises_400(self):
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_saved_locations(["INVALID SLUG"])
+        assert exc_info.value.status_code == 400
+        assert "Invalid location slug" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +439,35 @@ class TestUpdatePreferences:
     async def test_too_many_activities_raises_400(self, mock_coll):
         body = UpdatePreferencesRequest(
             selectedActivities=[f"act-{i}" for i in range(MAX_ACTIVITIES + 1)]
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await update_preferences("abc-123", body)
+        assert exc_info.value.status_code == 400
+
+    @patch("py._devices.device_profiles_collection")
+    @pytest.mark.asyncio
+    async def test_saved_locations_update(self, mock_coll):
+        now = datetime.now(timezone.utc)
+        mock_coll.return_value.find_one_and_update.return_value = {
+            "deviceId": "abc-123",
+            "preferences": {
+                "theme": "system",
+                "selectedLocation": "harare",
+                "savedLocations": ["bulawayo", "mutare"],
+                "selectedActivities": [],
+            },
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        body = UpdatePreferencesRequest(savedLocations=["bulawayo", "mutare"])
+        result = await update_preferences("abc-123", body)
+        assert result.preferences.savedLocations == ["bulawayo", "mutare"]
+
+    @patch("py._devices.device_profiles_collection")
+    @pytest.mark.asyncio
+    async def test_too_many_saved_locations_raises_400(self, mock_coll):
+        body = UpdatePreferencesRequest(
+            savedLocations=[f"loc-{i}" for i in range(MAX_SAVED_LOCATIONS + 1)]
         )
         with pytest.raises(HTTPException) as exc_info:
             await update_preferences("abc-123", body)
