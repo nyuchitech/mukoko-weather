@@ -213,6 +213,8 @@ mukoko-weather/
 │   │   │   ├── WelcomeBanner.tsx      # Inline welcome banner for first-time visitors (replaces auto-modal)
 │   │   │   ├── WelcomeBanner.test.ts
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
+│   │   │   ├── SavedLocationsModal.tsx # Saved locations manager (browse, add, remove, geolocation)
+│   │   │   ├── SavedLocationsModal.test.ts
 │   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
@@ -476,7 +478,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
-- `/` — smart redirect via `HomeRedirect`: returning users → saved location, new users → geolocation (3s timeout), fallback → `/harare`
+- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/harare`
 - `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
@@ -676,8 +678,13 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `setSelectedLocation(slug)` — updates location, queues device sync
 - `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage, synced to server
 - `toggleActivity(id)` — adds/removes an activity selection, queues device sync
+- `savedLocations: string[]` — saved location slugs (up to `MAX_SAVED_LOCATIONS = 10`), persisted to localStorage, synced to server
+- `saveLocation(slug)` — adds a location to saved list (no-op if already saved or at cap), queues device sync
+- `removeLocation(slug)` — removes a location from saved list, queues device sync
 - `myWeatherOpen: boolean` — controls My Weather modal visibility (not persisted)
 - `openMyWeather()` / `closeMyWeather()` — toggle the modal
+- `savedLocationsOpen: boolean` — controls Saved Locations modal visibility (not persisted)
+- `openSavedLocations()` / `closeSavedLocations()` — toggle the modal
 - `hasOnboarded: boolean` — tracks whether user has completed onboarding (persisted to localStorage, synced to server)
 - `completeOnboarding()` — sets `hasOnboarded: true`, queues device sync
 - `shamwariContext: ShamwariContext | null` — carries weather/location/summary data between pages (not persisted)
@@ -692,8 +699,8 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `timestamp: number` — context expires after 10 minutes (`isShamwariContextValid()`)
 
 **Persistence:**
-- Uses Zustand `persist` middleware with `partialize` — `theme`, `selectedLocation`, `selectedActivities`, and `hasOnboarded` are saved to localStorage under key `mukoko-weather-prefs`
-- `myWeatherOpen`, `shamwariContext`, and `reportModalOpen` are transient (reset on page load)
+- Uses Zustand `persist` middleware with `partialize` — `theme`, `selectedLocation`, `savedLocations`, `selectedActivities`, and `hasOnboarded` are saved to localStorage under key `mukoko-weather-prefs`
+- `myWeatherOpen`, `savedLocationsOpen`, `shamwariContext`, and `reportModalOpen` are transient (reset on page load)
 - `onRehydrateStorage` callback applies the persisted theme to the DOM on load
 
 **Device Sync:**
@@ -703,7 +710,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - On first visit: generates a device UUID, reads any existing localStorage prefs, creates a server profile
 - On returning visit: fetches server profile; if local state looks like defaults but server has real data, restores from server (e.g., user cleared localStorage or new browser)
 - `flushSync()` fires via `beforeunload` listener (with duplicate registration guard) to persist pending changes before page unload using `navigator.sendBeacon`
-- **Merge strategy:** Last-write-wins (not CRDT). If a user has multiple devices, whichever syncs last determines the server value for array fields like `selectedActivities`. A per-field timestamp merge is a future enhancement
+- **Merge strategy:** Last-write-wins (not CRDT). If a user has multiple devices, whichever syncs last determines the server value for array fields like `selectedActivities` and `savedLocations`. A per-field timestamp merge is a future enhancement
 - `initializeDeviceSync()` is called once on client-side app load after Zustand rehydrates
 
 **Theme system:**
@@ -738,6 +745,19 @@ For weather alerts, status indicators, and severity levels, use the semantic sev
 
 Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
 Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
+
+**Typography tokens:**
+- `--text-body: 1rem` (16px) — base body/footer text
+- `--text-body-lg: 1.125rem` (18px) — larger body text variant
+- `--text-body-leading: 1.6` — body text line height
+- `--text-nav-label: 0.625rem` (10px) — mobile bottom nav labels (matches iOS/Android native nav conventions)
+
+**Animation system:**
+- `.stagger-children` — CSS class for staggered child entrance animations (fade-in-up with 50ms delay per child, up to 8 children)
+- `--animate-fade-in`, `--animate-fade-in-up`, `--animate-fade-in-down`, `--animate-scale-in` — entrance animation tokens registered in `@theme` block
+- `.card-interactive` — hover shadow + active scale effect for clickable cards
+- `.press-scale` — active scale-down effect for tappable buttons
+- All entrance animations and stagger delays are wrapped in `@media (prefers-reduced-motion: no-preference)` and a global `@media (prefers-reduced-motion: reduce)` rule disables all animations/transitions for users who prefer reduced motion
 
 **Skeleton Primitives:**
 Reusable skeleton components in `src/components/ui/skeleton.tsx`:
@@ -865,12 +885,17 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 ### Header & My Weather Modal
 
-**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary` with three 40px circular icon buttons:
-1. **Map pin** — opens the My Weather modal (location tab)
-2. **Clock** — links to `/history`
-3. **Search** — opens the My Weather modal (location tab)
+**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left, desktop nav links in the center, and a pill-shaped icon group on the right.
 
-The header also renders `WeatherReportModal` (lazy-loaded, only mounts when `reportModalOpen` is true).
+**Desktop nav links** (hidden on mobile, `sm:flex`): Explore | Shamwari | History — text links with active state highlighting.
+
+**Action pill** (`bg-primary`, two 44px circular icon buttons):
+1. **Layers icon** — opens the Saved Locations modal
+2. **Map pin** — opens the My Weather modal
+
+The pill is deliberately focused on contextual actions (location management, preferences) and does not duplicate the desktop nav links.
+
+The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true).
 
 The header takes no props — location context comes from the URL path.
 
@@ -890,6 +915,18 @@ The header takes no props — location context comes from the URL path.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
+**Saved Locations Modal** (`src/components/weather/SavedLocationsModal.tsx`): A full-screen dialog (100dvh on mobile, auto-sized on desktop) for browsing, managing, and adding saved locations — up to `MAX_SAVED_LOCATIONS` (10).
+
+**Features:**
+- **Current location detection** — geolocation button with 3-state feedback (detecting, denied, outside-supported), option to save detected location
+- **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal
+- **Add location search** — debounced search input calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
+- **Capacity management** — displays count (e.g., "5/10"), disables add button when cap is reached
+
+**Interaction flow:** Tap layers icon in header pill → modal opens showing saved locations or empty state → tap location to navigate and close → tap trash to remove → tap + to search and add new locations → tap current location button for GPS detection.
+
+**Icons:** Uses `MapPinIcon`, `SearchIcon`, `TrashIcon`, `PlusIcon`, `NavigationIcon` from `@/lib/weather-icons`.
+
 ### Weather Loading Scenes (Three.js)
 
 `src/lib/weather-scenes/` — weather-aware Three.js particle animation system for loading screens.
@@ -905,6 +942,8 @@ The header takes no props — location context comes from the URL path.
 - `src/app/HomeRedirect.tsx` — home page redirect (shows "Finding your location...")
 - `src/app/[location]/loading.tsx` — location page loading (shows location-aware weather animation)
 
+**Route slug detection:** The component extracts a location slug from the URL pathname as a fallback (for `loading.tsx` files). A `KNOWN_ROUTES` set (`explore`, `shamwari`, `history`, `about`, `help`, `privacy`, `terms`, `status`, `embed`) guards against misinterpreting non-location route names as location slugs.
+
 **Accessibility:** Respects `prefers-reduced-motion` — skips Three.js entirely, shows text-only loading with animated dots. Three.js failures are caught and degraded gracefully (CSS-only fallback).
 
 **Note:** Three.js WebGL requires raw hex colors — CSS custom properties don't work in WebGL shaders. Hardcoded hex values in `scenes/*.ts` are a documented exception to the "no hardcoded styles" rule.
@@ -914,9 +953,11 @@ The header takes no props — location context comes from the URL path.
 `src/app/HomeRedirect.tsx` — client component that replaces the simple `/` → `/harare` redirect with location-aware routing.
 
 **Redirect logic (priority order):**
-1. **Returning user** — if `hasOnboarded && selectedLocation !== "harare"` → instant redirect to saved location
-2. **New user** — attempt browser geolocation via `detectUserLocation()` with 3s timeout → redirect to detected location
-3. **Fallback** — redirect to `/harare`
+1. **Always attempt geolocation** — browser GPS via `detectUserLocation()` with 3s timeout
+2. **If geolocation succeeds** → redirect to detected location
+3. **If geolocation fails** → fall back to first saved location, then selected location, then `/harare`
+
+This geo-first approach mirrors Apple Weather / Google Weather behavior — the home page always tries to show your current physical location.
 
 **Key implementation details:**
 - Waits for Zustand `persist` rehydration before reading state (uses `hasStoreHydrated()` from `store.ts`) to avoid acting on default values before localStorage loads
@@ -1103,7 +1144,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_history.py` — Historical weather data: validation, location verification, datetime serialization, query shape
 - `tests/py/test_history_analyze.py` — History analysis: stats aggregation (temps, precip, trends, insights), system prompt building, caching, rate limiting, AI fallback
 - `tests/py/test_ai_followup.py` — Follow-up chat: system prompt building, message truncation, history capping, rate limiting, circuit breaker, AI error handling
-- `tests/py/test_devices.py` — Device sync: validation (theme, slug, activities), CRUD endpoints, DuplicateKeyError handling, partial updates
+- `tests/py/test_devices.py` — Device sync: validation (theme, slug, savedLocations, activities), CRUD endpoints, DuplicateKeyError handling, partial updates
 - `tests/py/test_explore_search.py` — AI search: tool execution (search/weather), text search fallback, system prompt building, rate limiting, circuit breaker
 - `tests/py/test_suitability.py` — Suitability rules: key regex validation, single/all rules, cache headers, error fallback
 - `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
@@ -1138,6 +1179,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/WelcomeBanner.test.ts` — welcome banner rendering, onboarding state, accessibility
 - `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
 - `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
+- `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, capacity management, accessibility
 - `src/components/weather/reports/WeatherReportModal.test.ts` — 3-step wizard, report types, severity, accessibility
 - `src/components/weather/reports/RecentReports.test.ts` — report list, upvoting, report trigger, UI patterns
 

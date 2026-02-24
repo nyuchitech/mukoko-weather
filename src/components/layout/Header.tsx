@@ -131,20 +131,12 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Action pill — explore, shamwari, my weather */}
+          {/* Action pill — contextual actions only (no duplication of desktop nav links) */}
           <div
             className="flex shrink-0 items-center gap-1 rounded-full bg-primary p-1"
             role="toolbar"
             aria-label="Quick actions"
           >
-            <Link
-              href="/explore"
-              prefetch={false}
-              aria-label="Explore locations"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
-            >
-              <SearchIcon size={18} className="text-primary-foreground" />
-            </Link>
             <button
               onClick={openSavedLocations}
               aria-label="Saved locations"

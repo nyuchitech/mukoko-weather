@@ -64,8 +64,9 @@
   /* Touch & Interaction */
   --touch-target-min: 44px;
 
-  /* Typography — 18px base for readability */
-  --text-body: 1rem;           /* 18px — base body/footer text */
+  /* Typography — 16px base, 18px larger variant */
+  --text-body: 1rem;           /* 16px — base body/footer text */
+  --text-body-lg: 1.125rem;    /* 18px — larger body text variant */
   --text-body-leading: 1.6;
   /* 10px — matches iOS/Android native bottom nav label conventions.
      Below WCAG 12px minimum for body text, but intentional for nav chrome. */
@@ -390,13 +391,25 @@
 }
 
 html {
-  font-size: 112.5%;
   overflow-x: hidden;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Disable entrance animations for users who prefer reduced motion.
+   Three.js loading scene already skips 3D entirely — this covers the
+   CSS animations used on LazySection, WelcomeBanner, WeatherDashboard, etc. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -564,15 +577,18 @@ body {
   transform: scale(0.97);
 }
 
-/* Staggered children entrance — each child fades in with delay */
-.stagger-children > * {
-  animation: fade-in-up 400ms ease-out both;
+/* Staggered children entrance — each child fades in with delay.
+   Only applied when the user has not requested reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .stagger-children > * {
+    animation: fade-in-up 400ms ease-out both;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 350ms; }

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore, MAX_SAVED_LOCATIONS } from "@/lib/store";
-import { MapPinIcon, SearchIcon } from "@/lib/weather-icons";
+import { MapPinIcon, SearchIcon, TrashIcon, PlusIcon, NavigationIcon } from "@/lib/weather-icons";
 import type { WeatherLocation } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -18,36 +18,6 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debounced;
-}
-
-/** Trash icon for removing saved locations */
-function TrashIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h18" />
-      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-    </svg>
-  );
-}
-
-/** Plus icon for adding locations */
-function PlusIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
-}
-
-/** Navigation/crosshairs icon for current location */
-function NavigationIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="3 11 22 2 13 21 11 13 3 11" />
-    </svg>
-  );
 }
 
 export function SavedLocationsModal() {

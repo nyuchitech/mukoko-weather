@@ -18,9 +18,15 @@ interface Props {
 
 // useSyncExternalStore subscriptions for client-only media queries.
 // Returns false on the server, then the real value on the client — no hydration mismatch.
-// emptySubscribe never notifies React of changes — intentional for this short-lived loading
-// screen. If prefers-reduced-motion changes mid-load, the component won't re-render, which
-// is acceptable since the loading screen unmounts within seconds.
+//
+// INTENTIONAL PATTERN: emptySubscribe never notifies React of changes. This is outside
+// the standard use of useSyncExternalStore (which expects the subscription to fire when
+// the external store changes). It works here because:
+//   1. This is a short-lived loading screen (unmounts within seconds)
+//   2. Media query values (prefers-reduced-motion, hover capability) don't change mid-load
+//   3. If React re-renders for unrelated reasons, getSnapshot re-reads the current value
+// In React 19+ concurrent mode, this could theoretically produce tearing if the component
+// suspends mid-render, but the practical risk is negligible for a loading overlay.
 const emptySubscribe = () => () => {};
 const getUse3D = () => {
   try {
@@ -56,9 +62,13 @@ export function WeatherLoadingScene({ slug, statusText }: Props) {
   const use3D = useSyncExternalStore(emptySubscribe, getUse3D, serverFalse);
   const isMobile = useSyncExternalStore(emptySubscribe, getIsMobile, serverFalse);
 
-  // Extract slug from URL path as fallback if not passed as prop
+  // Extract slug from URL path as fallback if not passed as prop.
+  // Guard against known app routes — only use pathname-derived slug when it
+  // looks like a location slug (not a known non-location route like /explore).
+  const KNOWN_ROUTES = new Set(["explore", "shamwari", "history", "about", "help", "privacy", "terms", "status", "embed"]);
   const pathname = usePathname();
-  const resolvedSlug = slug ?? (pathname ? pathname.split("/").filter(Boolean)[0] : undefined);
+  const pathnameSlug = pathname ? pathname.split("/").filter(Boolean)[0] : undefined;
+  const resolvedSlug = slug ?? (pathnameSlug && !KNOWN_ROUTES.has(pathnameSlug) ? pathnameSlug : undefined);
 
   // Format slug for display: "bulawayo" → "Bulawayo"
   const locationDisplay = resolvedSlug
