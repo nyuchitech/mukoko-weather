@@ -203,7 +203,9 @@ export function WeatherDashboard({
             </LazySection>
 
             <LazySection label="support-banner">
-              <SupportBanner />
+              <ChartErrorBoundary name="support banner">
+                <SupportBanner />
+              </ChartErrorBoundary>
             </LazySection>
 
             {/* Location info card */}
