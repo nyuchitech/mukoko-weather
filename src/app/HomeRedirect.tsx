@@ -47,10 +47,10 @@ export function HomeRedirect() {
   useEffect(() => {
     if (hasRedirected.current || !hydrated) return;
 
-    // Returning user with a saved location — go straight there
-    if (hasOnboarded && selectedLocation && selectedLocation !== FALLBACK_LOCATION) {
+    // Returning user — go straight to their saved location (including Harare)
+    if (hasOnboarded) {
       hasRedirected.current = true;
-      router.replace(`/${selectedLocation}`);
+      router.replace(`/${selectedLocation || FALLBACK_LOCATION}`);
       return;
     }
 

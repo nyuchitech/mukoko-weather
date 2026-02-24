@@ -18,6 +18,9 @@ interface Props {
 
 // useSyncExternalStore subscriptions for client-only media queries.
 // Returns false on the server, then the real value on the client — no hydration mismatch.
+// emptySubscribe never notifies React of changes — intentional for this short-lived loading
+// screen. If prefers-reduced-motion changes mid-load, the component won't re-render, which
+// is acceptable since the loading screen unmounts within seconds.
 const emptySubscribe = () => () => {};
 const getUse3D = () => {
   try {

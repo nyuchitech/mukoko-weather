@@ -392,7 +392,12 @@
 html {
   font-size: 112.5%;
   overflow-x: hidden;
-  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
