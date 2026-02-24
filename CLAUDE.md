@@ -31,21 +31,25 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations; Atlas Search for fuzzy queries, Vector Search infrastructure for semantic search)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
-- **Testing:** Vitest 4.0.18
-- **CI/CD:** GitHub Actions (tests + lint + typecheck on push/PR, CodeQL default setup, Claude AI review on PRs)
+- **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
+- **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
+- **CI/CD:** GitHub Actions (TypeScript + Python tests, lint, typecheck on push/PR; Claude AI review on PRs; post-deploy DB init)
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
 
 ## Key Commands
 
 ```bash
-npm run dev        # Start dev server
-npm run build      # Production build
-npm run lint       # ESLint
-npm test           # Run Vitest tests (single run)
-npm run test:watch # Run Vitest in watch mode
-npx tsc --noEmit   # Type check (no output)
-python -m pytest tests/py/ -v  # Run Python backend tests (pytest)
+npm run dev           # Start dev server
+npm run build         # Production build
+npm run lint          # ESLint
+npm test              # Run Vitest tests (single run)
+npm run test:watch    # Run Vitest in watch mode
+npm run test:coverage # Run Vitest with v8 coverage reporting
+npm run test:python   # Run Python backend tests (pytest)
+npm run test:all      # Run both TypeScript and Python tests
+npx tsc --noEmit      # Type check (no output)
+python -m pytest tests/py/ -v  # Run Python backend tests (pytest, direct)
 ```
 
 ## Project Structure
@@ -55,7 +59,9 @@ mukoko-weather/
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── layout.tsx                # Root layout, metadata, JSON-LD schemas
-│   │   ├── page.tsx                  # Home — redirects to /harare
+│   │   ├── page.tsx                  # Home — smart redirect (saved location / geolocation / harare)
+│   │   ├── HomeRedirect.tsx          # Client: smart redirect with Zustand rehydration guard + geolocation
+│   │   ├── HomeRedirect.test.ts      # HomeRedirect tests (structure, rehydration, redirect logic)
 │   │   ├── globals.css               # Brand System v6 CSS custom properties
 │   │   ├── loading.tsx               # Root loading skeleton
 │   │   ├── error.tsx                 # Global error boundary (client component)
@@ -207,7 +213,10 @@ mukoko-weather/
 │   │   │   ├── WelcomeBanner.tsx      # Inline welcome banner for first-time visitors (replaces auto-modal)
 │   │   │   ├── WelcomeBanner.test.ts
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
-│   │   │   ├── WeatherLoadingScene.tsx # Three.js weather loading animation (desktop only)
+│   │   │   ├── SavedLocationsModal.tsx # Saved locations manager (browse, add, remove, geolocation)
+│   │   │   ├── SavedLocationsModal.test.ts
+│   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
+│   │   │   ├── WeatherLoadingScene.test.ts # KNOWN_ROUTES guard, reduced-motion, Three.js integration, accessibility
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
 │   │   │   ├── ActivityCard.test.ts     # Suitability integration (levels, priority, fallbacks)
@@ -280,6 +289,8 @@ mukoko-weather/
 │   │   ├── map-layers.test.ts
 │   │   ├── error-retry.ts         # Error retry logic with sessionStorage tracking (max 3 retries)
 │   │   ├── error-retry.test.ts
+│   │   ├── use-debounce.ts         # Shared useDebounce hook (generic, reusable across components)
+│   │   ├── use-debounce.test.ts
 │   │   ├── utils.ts               # Tailwind class merging helper (cn)
 │   │   ├── utils.test.ts
 │   │   ├── accessibility.test.ts  # Accessibility helpers tests
@@ -289,7 +300,17 @@ mukoko-weather/
 │   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
 │   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
-│   │   └── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
+│   │   ├── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
+│   │   └── weather-scenes/        # Weather-aware Three.js particle animations for loading screens
+│   │       ├── index.ts             # Module exports (createWeatherScene, resolveScene, cache helpers)
+│   │       ├── types.ts             # WeatherSceneType, WeatherSceneConfig, CachedWeatherHint, SceneBuilder
+│   │       ├── cache.ts             # Client-side weather hint cache (2h TTL per location, localStorage)
+│   │       ├── cache.test.ts        # Cache tests (set/get, TTL expiry, cleanup)
+│   │       ├── create-scene.ts      # Three.js scene factory — creates renderer, camera, lights, particle systems
+│   │       ├── create-scene.test.ts # Scene factory tests (exports, dispose, scene types, fallback, cleanup)
+│   │       ├── resolve-scene.ts     # Weather code → scene type mapping (WMO codes to visual conditions)
+│   │       ├── resolve-scene.test.ts # Resolution tests (code mapping, day/night, edge cases)
+│   │       └── scenes/              # 8 scene builder modules (clear, partly-cloudy, cloudy, rain, thunderstorm, fog, snow, windy)
 ├── api/
 │   └── py/                        # Python FastAPI backend (Vercel serverless functions)
 │       ├── index.py               # FastAPI app, router mounting, CORS, error handlers
@@ -326,20 +347,20 @@ mukoko-weather/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/            # Bug report and feature request templates
 │   └── workflows/
-│       ├── ci.yml                 # Tests, lint, type check on push/PR
-│       └── claude-review.yml      # Claude AI code review on PRs
+│       ├── ci.yml                 # TypeScript + Python tests, lint, type check on push/PR
+│       ├── claude-code-review.yml # Claude AI code review on PRs
+│       ├── claude.yml             # Claude Code for @claude mentions in issues/PRs
+│       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
 ├── tests/
-│   └── py/                        # Python backend tests (pytest)
+│   └── py/                        # Python backend tests (pytest, 19 files, 559 tests)
 │       ├── conftest.py            # Shared fixtures, sys.path/module mocking
-│       ├── test_circuit_breaker.py # Circuit breaker state machine tests
-│       ├── test_db_helpers.py     # get_client_ip, check_rate_limit tests
-│       └── test_chat.py           # System prompt building, tool helpers, validation
+│       └── test_*.py              # 19 test files covering all Python endpoints + circuit breaker
 ├── vercel.json                    # Rewrites /api/py/* to Python serverless functions
 ├── requirements.txt               # Python dependencies (FastAPI, pymongo, anthropic, httpx, pytest)
-├── pytest.ini                     # pytest configuration (testpaths, asyncio mode)
+├── pytest.ini                     # pytest configuration (testpaths=tests/py, asyncio mode)
 ├── next.config.ts                 # CORS headers for /api/* and /embed/*
 ├── tsconfig.json                  # Strict, path alias @/* → ./src/*
-├── vitest.config.ts               # Node env, glob src/**/*.test.ts
+├── vitest.config.ts               # Node env, glob src/**/*.test.ts, v8 coverage config
 ├── eslint.config.mjs              # Next.js core-web-vitals + TypeScript
 ├── postcss.config.mjs             # Tailwind CSS 4 plugin
 ├── components.json                # shadcn/ui configuration (new-york style)
@@ -460,7 +481,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
-- `/` redirects to `/harare`
+- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/harare`
 - `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
@@ -660,8 +681,13 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `setSelectedLocation(slug)` — updates location, queues device sync
 - `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage, synced to server
 - `toggleActivity(id)` — adds/removes an activity selection, queues device sync
+- `savedLocations: string[]` — saved location slugs (up to `MAX_SAVED_LOCATIONS = 10`), persisted to localStorage, synced to server
+- `saveLocation(slug)` — adds a location to saved list (no-op if already saved or at cap), queues device sync
+- `removeLocation(slug)` — removes a location from saved list, queues device sync
 - `myWeatherOpen: boolean` — controls My Weather modal visibility (not persisted)
 - `openMyWeather()` / `closeMyWeather()` — toggle the modal
+- `savedLocationsOpen: boolean` — controls Saved Locations modal visibility (not persisted)
+- `openSavedLocations()` / `closeSavedLocations()` — toggle the modal
 - `hasOnboarded: boolean` — tracks whether user has completed onboarding (persisted to localStorage, synced to server)
 - `completeOnboarding()` — sets `hasOnboarded: true`, queues device sync
 - `shamwariContext: ShamwariContext | null` — carries weather/location/summary data between pages (not persisted)
@@ -676,8 +702,8 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `timestamp: number` — context expires after 10 minutes (`isShamwariContextValid()`)
 
 **Persistence:**
-- Uses Zustand `persist` middleware with `partialize` — `theme`, `selectedLocation`, `selectedActivities`, and `hasOnboarded` are saved to localStorage under key `mukoko-weather-prefs`
-- `myWeatherOpen`, `shamwariContext`, and `reportModalOpen` are transient (reset on page load)
+- Uses Zustand `persist` middleware with `partialize` — `theme`, `selectedLocation`, `savedLocations`, `selectedActivities`, and `hasOnboarded` are saved to localStorage under key `mukoko-weather-prefs`
+- `myWeatherOpen`, `savedLocationsOpen`, `shamwariContext`, and `reportModalOpen` are transient (reset on page load)
 - `onRehydrateStorage` callback applies the persisted theme to the DOM on load
 
 **Device Sync:**
@@ -687,7 +713,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - On first visit: generates a device UUID, reads any existing localStorage prefs, creates a server profile
 - On returning visit: fetches server profile; if local state looks like defaults but server has real data, restores from server (e.g., user cleared localStorage or new browser)
 - `flushSync()` fires via `beforeunload` listener (with duplicate registration guard) to persist pending changes before page unload using `navigator.sendBeacon`
-- **Merge strategy:** Last-write-wins (not CRDT). If a user has multiple devices, whichever syncs last determines the server value for array fields like `selectedActivities`. A per-field timestamp merge is a future enhancement
+- **Merge strategy:** Last-write-wins (not CRDT). If a user has multiple devices, whichever syncs last determines the server value for array fields like `selectedActivities` and `savedLocations`. A per-field timestamp merge is a future enhancement
 - `initializeDeviceSync()` is called once on client-side app load after Zustand rehydrates
 
 **Theme system:**
@@ -723,6 +749,19 @@ For weather alerts, status indicators, and severity levels, use the semantic sev
 Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
 Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
 
+**Typography tokens:**
+- `--text-body: 1rem` (16px) — base body/footer text
+- `--text-body-lg: 1.125rem` (18px) — larger body text variant
+- `--text-body-leading: 1.6` — body text line height
+- `--text-nav-label: 0.625rem` (10px) — mobile bottom nav labels (matches iOS/Android native nav conventions)
+
+**Animation system:**
+- `.stagger-children` — CSS class for staggered child entrance animations (fade-in-up with 50ms delay per child, up to 8 children)
+- `--animate-fade-in`, `--animate-fade-in-up`, `--animate-fade-in-down`, `--animate-scale-in` — entrance animation tokens registered in `@theme` block
+- `.card-interactive` — hover shadow + active scale effect for clickable cards
+- `.press-scale` — active scale-down effect for tappable buttons
+- All entrance animations and stagger delays are wrapped in `@media (prefers-reduced-motion: no-preference)` and a global `@media (prefers-reduced-motion: reduce)` rule disables all animations/transitions for users who prefer reduced motion
+
 **Skeleton Primitives:**
 Reusable skeleton components in `src/components/ui/skeleton.tsx`:
 - `Skeleton` — generic pulsing block (base building block)
@@ -740,6 +779,7 @@ All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` tex
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
 - **Exception: `src/app/api/og/route.tsx`** — The OG image route uses `next/og` (Satori) which renders via a canvas, not the browser DOM. CSS custom properties and Tailwind are not supported. All styles in this file MUST use inline `style={{}}` with hex values from the `brand` token object at the top of the file. Keep these values in sync with `globals.css` brand tokens. The OG image renders a mineral accent stripe (tanzanite → cobalt → malachite → gold → terracotta) matching the app's `MineralsStripe` component. Avoid `width: "fit-content"` and other CSS properties not supported by Satori
+- **Exception: `src/lib/weather-scenes/scenes/*.ts`** — Three.js WebGL requires raw hex colors (`0xRRGGBB`) for materials, lights, and fog. CSS custom properties don't work in WebGL shaders/materials. Hardcoded hex values in scene builder files are a documented exception to the "no hardcoded styles" rule
 - All new color tokens must be added to globals.css (both `:root` and `[data-theme="dark"]`) and registered in the `@theme` block
 - Use `CATEGORY_STYLES` from `src/lib/activities.ts` for category-specific styling — do not construct dynamic Tailwind class names
 - The embed widget (`src/components/embed/`) uses a CSS module for self-contained styling — never use inline styles there
@@ -848,12 +888,17 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 ### Header & My Weather Modal
 
-**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left and a pill-shaped icon group on the right. The pill uses `bg-primary` with three 40px circular icon buttons:
-1. **Map pin** — opens the My Weather modal (location tab)
-2. **Clock** — links to `/history`
-3. **Search** — opens the My Weather modal (location tab)
+**Header** (`src/components/layout/Header.tsx`): Sticky header with the Mukoko logo on the left, desktop nav links in the center, and a pill-shaped icon group on the right.
 
-The header also renders `WeatherReportModal` (lazy-loaded, only mounts when `reportModalOpen` is true).
+**Desktop nav links** (hidden on mobile, `sm:flex`): Explore | Shamwari | History — text links with active state highlighting.
+
+**Action pill** (`bg-primary`, two 44px circular icon buttons):
+1. **Layers icon** — opens the Saved Locations modal
+2. **Map pin** — opens the My Weather modal
+
+The pill is deliberately focused on contextual actions (location management, preferences) and does not duplicate the desktop nav links.
+
+The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true). `SavedLocationsModal` is additionally wrapped in `ChartErrorBoundary` so a crash in the modal never takes down the header.
 
 The header takes no props — location context comes from the URL path.
 
@@ -872,6 +917,57 @@ The header takes no props — location context comes from the URL path.
 **Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 44px min-height touch targets.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
+
+**Saved Locations Modal** (`src/components/weather/SavedLocationsModal.tsx`): A full-screen dialog (100dvh on mobile, auto-sized on desktop) for browsing, managing, and adding saved locations — up to `MAX_SAVED_LOCATIONS` (10).
+
+**Features:**
+- **Current location detection** — geolocation button with 3-state feedback (detecting, denied, outside-supported), option to save detected location
+- **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal. Shows loading skeleton while fetching location details; falls back to title-cased slug display if API lookup fails
+- **Add location search** — debounced search input (via shared `useDebounce` hook from `@/lib/use-debounce`) calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
+- **Capacity management** — displays count (e.g., "5/10"), disables add button when cap is reached
+
+**Interaction flow:** Tap layers icon in header pill → modal opens showing saved locations or empty state → tap location to navigate and close → tap trash to remove → tap + to search and add new locations → tap current location button for GPS detection.
+
+**Icons:** Uses `MapPinIcon`, `SearchIcon`, `TrashIcon`, `PlusIcon`, `NavigationIcon` from `@/lib/weather-icons`.
+
+### Weather Loading Scenes (Three.js)
+
+`src/lib/weather-scenes/` — weather-aware Three.js particle animation system for loading screens.
+
+**Architecture:**
+- `types.ts` — `WeatherSceneType` (8 types: clear, partly-cloudy, cloudy, rain, thunderstorm, fog, snow, windy), `WeatherSceneConfig`, `CachedWeatherHint`, `SceneBuilder`
+- `create-scene.ts` — Three.js scene factory: creates renderer, camera, ambient/directional lights, calls the appropriate scene builder, returns an animation loop + cleanup
+- `resolve-scene.ts` — maps WMO weather codes to `WeatherSceneType` (supports day/night variants)
+- `cache.ts` — client-side `localStorage` cache for weather hints (2h TTL per location slug). First visit shows default partly-cloudy scene; subsequent visits show last-known weather condition
+- `scenes/` — 8 builder modules, each adding particle systems to the Three.js scene (sun orbs, cloud particles, rain drops, lightning flashes, fog wisps, snow flakes, wind streaks)
+
+**Integration:** `src/components/weather/WeatherLoadingScene.tsx` — branded loading overlay used by:
+- `src/app/HomeRedirect.tsx` — home page redirect (shows "Finding your location...")
+- `src/app/[location]/loading.tsx` — location page loading (shows location-aware weather animation)
+
+**Route slug detection:** The component extracts a location slug from the URL pathname as a fallback (for `loading.tsx` files). A `KNOWN_ROUTES` set (`explore`, `shamwari`, `history`, `about`, `help`, `privacy`, `terms`, `status`, `embed`) guards against misinterpreting non-location route names as location slugs.
+
+**Accessibility:** Respects `prefers-reduced-motion` — skips Three.js entirely, shows text-only loading with animated dots. Three.js failures are caught and degraded gracefully (CSS-only fallback).
+
+**Note:** Three.js WebGL requires raw hex colors — CSS custom properties don't work in WebGL shaders. Hardcoded hex values in `scenes/*.ts` are a documented exception to the "no hardcoded styles" rule.
+
+### HomeRedirect (Smart Home Page)
+
+`src/app/HomeRedirect.tsx` — client component that replaces the simple `/` → `/harare` redirect with location-aware routing.
+
+**Redirect logic (priority order):**
+1. **Always attempt geolocation** — browser GPS via `detectUserLocation()` with 3s timeout
+2. **If geolocation succeeds** → redirect to detected location
+3. **If geolocation fails** → fall back to first saved location, then selected location, then `/harare`
+
+This geo-first approach mirrors Apple Weather / Google Weather behavior — the home page always tries to show your current physical location.
+
+**Key implementation details:**
+- Waits for Zustand `persist` rehydration before reading state (uses `hasStoreHydrated()` from `store.ts`) to avoid acting on default values before localStorage loads. A 4s max-wait timeout (`HYDRATION_TIMEOUT_MS`) prevents infinite polling if Zustand persist middleware never fires (e.g., corrupt localStorage)
+- Fallback location is read at decision time (inside `.then()`/`.catch()` callbacks via `useAppStore.getState()`) so device sync changes during the 3s geo wait are reflected
+- Uses `router.replace()` so the home page doesn't appear in browser history
+- `hasRedirected` ref prevents duplicate redirects
+- Effect cleanup cancels in-flight geolocation on unmount
 
 ### Lazy Loading & Mobile Performance (TikTok-Style)
 
@@ -998,6 +1094,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - Global test APIs enabled
 - Test glob: `src/**/*.test.ts`
 - Path alias: `@/*` → `./src/*`
+- Coverage: `@vitest/coverage-v8` provider, reporters: `text` + `lcov`
+- Coverage command: `npm run test:coverage`
 
 **Python (pytest 8.3)** — configured in `pytest.ini`
 - Test directory: `tests/py/`
@@ -1015,7 +1113,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/suitability.test.ts` — suitability rule evaluation, condition matching, metric template resolution
 - `src/lib/countries.test.ts` — country/province data, flag emoji, province slug generation
 - `src/lib/tomorrow.test.ts` — Tomorrow.io weather code mapping, response normalization, insights extraction
-- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback, ShamwariContext set/clear/expiry
+- `src/lib/store.test.ts` — theme resolution (light/dark/system), SSR fallback, ShamwariContext set/clear/expiry, savedLocations CRUD/cap/persistence, savedLocationsOpen toggle
 - `src/lib/suggested-prompts.test.ts` — suggested prompt generation, weather condition matching, max 3 cap
 - `src/lib/device-sync.test.ts` — device sync CRUD, debounced sync, migration, beforeunload
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
@@ -1029,6 +1127,10 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
 - `src/lib/seed-ai-prompts.test.ts` — AI prompt/rule uniqueness, LOCATION DISCOVERY guardrails presence, structural integrity
+- `src/lib/use-debounce.test.ts` — useDebounce hook structure, exports, generic typing
+- `src/lib/weather-scenes/cache.test.ts` — weather hint cache (set/get, 2h TTL expiry, LRU eviction early-exit, localStorage cleanup)
+- `src/lib/weather-scenes/create-scene.test.ts` — scene factory (exports, dispose, scene types, fallback, cleanup)
+- `src/lib/weather-scenes/resolve-scene.test.ts` — weather code → scene type mapping (WMO codes, day/night, edge cases)
 
 *TypeScript API route tests (remaining):*
 - `src/app/api/og/og-route.test.ts` — OG image route (templates, brand tokens, rate limiting, metadata wiring in layout + location pages)
@@ -1040,13 +1142,30 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_circuit_breaker.py` — circuit breaker state machine (closed→open→half_open), failure window pruning, async execute with timeout, singleton breaker configs
 - `tests/py/test_db_helpers.py` — `get_client_ip` (x-forwarded-for, x-real-ip, client.host, None), `check_rate_limit` (allow/deny/boundary/composite-key/None-result)
 - `tests/py/test_chat.py` — `_build_chat_system_prompt` (location list, count, activities, fallback vs DB template, 20-location cap), SLUG_RE, KNOWN_TAGS, tool helpers (search, list_by_tag, get_weather cache, tool dispatch)
+- `tests/py/test_weather.py` — Weather proxy: Tomorrow.io/Open-Meteo fallback chain, seasonal estimates, cache operations, normalization, circuit breaker integration
+- `tests/py/test_locations.py` — Location CRUD: slug generation, geocoding, deduplication, region validation, search/filter, geo lookup, add location
+- `tests/py/test_ai.py` — AI summaries: tiered TTL, client singleton, season lookup, staleness detection, caching, system prompt, generate endpoint with fallback
+- `tests/py/test_reports.py` — Community reports: cross-validation, IP hashing, fallback questions, submit/list/upvote/clarify endpoints, rate limiting
+- `tests/py/test_history.py` — Historical weather data: validation, location verification, datetime serialization, query shape
+- `tests/py/test_history_analyze.py` — History analysis: stats aggregation (temps, precip, trends, insights), system prompt building, caching, rate limiting, AI fallback
+- `tests/py/test_ai_followup.py` — Follow-up chat: system prompt building, message truncation, history capping, rate limiting, circuit breaker, AI error handling
+- `tests/py/test_devices.py` — Device sync: validation (theme, slug, savedLocations, activities), CRUD endpoints, DuplicateKeyError handling, partial updates
+- `tests/py/test_explore_search.py` — AI search: tool execution (search/weather), text search fallback, system prompt building, rate limiting, circuit breaker
+- `tests/py/test_suitability.py` — Suitability rules: key regex validation, single/all rules, cache headers, error fallback
+- `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
+- `tests/py/test_ai_prompts.py` — AI prompts: single/all prompts, suggested rules, module-level caching, DB error graceful degradation
+- `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 16 routers mounted
+- `tests/py/test_tiles.py` — Map tiles: layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers
+- `tests/py/test_status.py` — System health: MongoDB/Tomorrow.io/Open-Meteo/Anthropic/cache checks, overall status aggregation
+- `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
 *Page/component tests:*
 - `src/app/seo.test.ts` — metadata generation, schema validation
+- `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard (max-wait timeout), deferred fallback, redirect logic, geolocation
 - `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
 - `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton
 - `src/app/[location]/FrostAlertBanner.test.ts` — banner rendering, severity styling
-- `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests
+- `src/app/[location]/WeatherDashboard.test.ts` — weather dashboard tests, cacheWeatherHint integration
 - `src/app/history/HistoryDashboard.test.ts` — history dashboard tests
 - `src/components/explore/ExploreChatbot.test.ts` — chatbot component tests, MarkdownErrorBoundary, contextual navigation
 - `src/components/explore/ExploreSearch.test.ts` — AI search structure, search flow, results rendering, Shamwari context
@@ -1065,6 +1184,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/WelcomeBanner.test.ts` — welcome banner rendering, onboarding state, accessibility
 - `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
 - `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
+- `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, loading skeleton, capacity management, accessibility
+- `src/components/weather/WeatherLoadingScene.test.ts` — KNOWN_ROUTES guard, reduced-motion support, Three.js integration, slug display, accessibility
 - `src/components/weather/reports/WeatherReportModal.test.ts` — 3-step wizard, report types, severity, accessibility
 - `src/components/weather/reports/RecentReports.test.ts` — report list, upvoting, report trigger, UI patterns
 
