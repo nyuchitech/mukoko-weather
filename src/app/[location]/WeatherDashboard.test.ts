@@ -170,35 +170,25 @@ describe("WeatherDashboard — props and integration", () => {
   });
 });
 
-describe("WeatherDashboard — welcome banner (first-time UX)", () => {
-  it("imports WelcomeBanner component", () => {
-    expect(source).toContain("WelcomeBanner");
-    expect(source).toContain("@/components/weather/WelcomeBanner");
+describe("WeatherDashboard — auto-onboarding (Apple/Google Weather pattern)", () => {
+  it("does not render WelcomeBanner (no forced personalization step)", () => {
+    // Top-tier weather apps don't interrupt the first weather view with an
+    // onboarding prompt — seeing your forecast IS the onboarding.
+    expect(source).not.toContain("<WelcomeBanner");
+    expect(source).not.toContain("@/components/weather/WelcomeBanner");
   });
 
-  it("renders WelcomeBanner before the main grid", () => {
-    const bannerPos = source.indexOf("<WelcomeBanner");
-    const gridPos = source.indexOf("Main grid");
-    expect(bannerPos).toBeGreaterThan(-1);
-    expect(gridPos).toBeGreaterThan(-1);
-    expect(bannerPos).toBeLessThan(gridPos);
+  it("auto-completes onboarding via useEffect", () => {
+    expect(source).toContain("hasOnboarded");
+    expect(source).toContain("completeOnboarding");
   });
 
-  it("renders WelcomeBanner after frost alert banner", () => {
-    const bannerPos = source.indexOf("<WelcomeBanner");
-    const frostJsx = source.indexOf("<FrostAlertBanner");
-    expect(frostJsx).toBeGreaterThan(-1);
-    expect(bannerPos).toBeGreaterThan(-1);
-    expect(frostJsx).toBeLessThan(bannerPos);
+  it("reads hasOnboarded and completeOnboarding from store", () => {
+    expect(source).toContain("s.hasOnboarded");
+    expect(source).toContain("s.completeOnboarding");
   });
 
-  it("passes location name and openMyWeather to WelcomeBanner", () => {
-    expect(source).toContain("locationName={location.name}");
-    expect(source).toContain("onChangeLocation={openMyWeather}");
-  });
-
-  it("does not auto-open modal for first-time visitors (inline approach)", () => {
-    // The dashboard should NOT contain any setTimeout-based modal auto-opening
+  it("does not auto-open modal for first-time visitors", () => {
     expect(source).not.toContain("setTimeout(openMyWeather");
   });
 });

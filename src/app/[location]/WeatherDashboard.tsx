@@ -10,7 +10,6 @@ import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
 import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
-import { WelcomeBanner } from "@/components/weather/WelcomeBanner";
 import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
@@ -54,8 +53,9 @@ export function WeatherDashboard({
   countryName,
 }: WeatherDashboardProps) {
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation);
-  const openMyWeather = useAppStore((s) => s.openMyWeather);
   const selectedActivities = useAppStore((s) => s.selectedActivities);
+  const hasOnboarded = useAppStore((s) => s.hasOnboarded);
+  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // Seed with static ACTIVITIES for instant rendering, then upgrade from MongoDB.
@@ -74,6 +74,14 @@ export function WeatherDashboard({
   useEffect(() => {
     setSelectedLocation(location.slug);
   }, [location.slug, setSelectedLocation]);
+
+  // Auto-complete onboarding — seeing your forecast IS the onboarding.
+  // No forced personalization step. Matches Apple/Google Weather pattern:
+  // detect location → show weather → done. Users who want to personalize
+  // can tap the map pin icon in the header at any time.
+  useEffect(() => {
+    if (!hasOnboarded) completeOnboarding();
+  }, [hasOnboarded, completeOnboarding]);
 
   // Cache weather hint for the loading scene — enables weather-aware
   // Three.js animation on subsequent visits to this location.
@@ -144,9 +152,6 @@ export function WeatherDashboard({
 
         {/* Frost alert banner */}
         {frostAlert && <FrostAlertBanner alert={frostAlert} />}
-
-        {/* Welcome banner for first-time visitors — inline, non-blocking */}
-        <WelcomeBanner locationName={location.name} onChangeLocation={openMyWeather} />
 
         {/* Main grid — 3 children with CSS order for mobile reordering.
             Mobile: top→right→bottom (Daily right after Hourly)
