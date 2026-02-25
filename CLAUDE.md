@@ -33,7 +33,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
 - **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
-- **CI/CD:** GitHub Actions (single `ci` job: lint → typecheck → TypeScript tests → Python tests, all steps visible in one check on push/PR; Claude AI review on PRs; post-deploy DB init)
+- **CI/CD:** GitHub Actions (single `ci` job: lint → typecheck → TypeScript tests → Python tests, all steps visible in one check on push/PR; CodeQL security scanning for JS/TS, Python, and Actions; Claude AI review on PRs; post-deploy DB init). All workflows use `concurrency` groups with `cancel-in-progress: true` to prevent zombie runs from rapid pushes
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
 
@@ -347,9 +347,10 @@ mukoko-weather/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/            # Bug report and feature request templates
 │   └── workflows/
-│       ├── ci.yml                 # Single job: lint → typecheck → TypeScript tests → Python tests (push/PR to main)
-│       ├── claude-code-review.yml # Claude AI code review on PRs
+│       ├── ci.yml                 # Single job: lint → typecheck → TypeScript tests → Python tests (concurrency-grouped)
+│       ├── claude-code-review.yml # Claude AI code review on PRs (token-guarded, concurrency-grouped)
 │       ├── claude.yml             # Claude Code for @claude mentions in issues/PRs
+│       ├── codeql.yml             # CodeQL security scanning (JS/TS, Python, Actions; concurrency-grouped)
 │       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
 ├── tests/
 │   └── py/                        # Python backend tests (pytest, 19 files, 559 tests)
@@ -402,7 +403,7 @@ Not every component needs every layer. Requirements scale with component weight:
 | **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
 
 **Every component MUST have (at minimum):**
-1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 44px minimum touch targets
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 44px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
 2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
 3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
 
@@ -1233,13 +1234,23 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Tailwind classes** — always use Tailwind utility classes backed by CSS custom properties
 - **Canvas chart colors** — resolved at render time via `resolveColor()` from `src/components/ui/chart.tsx`
 
+### Accessibility
+- **Skip-to-content link** — `<a href="#main-content" className="sr-only focus:not-sr-only ...">` in root `layout.tsx`, targets `<main id="main-content">` on each page
+- **ARIA landmarks** — Header uses `role="banner"`, navigation uses `role="navigation"` with descriptive `aria-label` (e.g., "Main navigation", "Mobile navigation", "Page navigation"), Footer uses `role="contentinfo"`
+- **Active nav state** — `aria-current="page"` on currently active navigation links (both desktop and mobile)
+- **Focus management** — 3px `focus-visible` outlines with theme-aware `--color-focus-ring` (cobalt in light, sky in dark); `focus:not(:focus-visible)` removes outlines for mouse users; `forced-colors` mode uses `Highlight` system color
+- **Screen reader utilities** — `.sr-only` CSS class in `globals.css` for visually hidden but screen reader accessible text
+- **Reduced motion** — all entrance animations, stagger delays, and transitions gated by `@media (prefers-reduced-motion: no-preference)`; `prefers-reduced-motion: reduce` disables all animations/transitions globally
+- **High contrast** — `prefers-contrast: more` overrides for maximum contrast; `forced-colors: active` support for Windows High Contrast mode
+- **Touch targets** — all interactive elements have 44px minimum touch targets
+- **Headings** — all sections use `aria-labelledby` with heading IDs
+- **Decorative elements** — icons marked `aria-hidden="true"`
+- **Skeletons** — all loading states include `role="status"`, `aria-label="Loading"`, and `sr-only` text
+
 ### General
 - Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `explore/`, `embed/`)
 - Client components use `"use client"` directive
 - Server components are the default (no directive needed)
-- All interactive elements have 44px minimum touch targets
-- All sections use `aria-labelledby` with heading IDs
-- Icons are marked `aria-hidden="true"`
 - The app is mobile-first — all layouts start from small screens
 - TypeScript path alias: `@/*` maps to `./src/*` (e.g., `import { t } from "@/lib/i18n"`)
 - CORS is configured in `next.config.ts` for `/api/*` and `/embed/*` routes
