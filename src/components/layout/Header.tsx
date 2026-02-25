@@ -174,7 +174,7 @@ export function Header() {
           >
             <HomeIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Weather</span>
-            {isHome && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
+            {isHome && <span className="absolute bottom-1.5 h-1 w-6 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/explore"
@@ -187,7 +187,7 @@ export function Header() {
           >
             <CompassIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Explore</span>
-            {isExplore && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
+            {isExplore && <span className="absolute bottom-1.5 h-1 w-6 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/shamwari"
@@ -200,7 +200,7 @@ export function Header() {
           >
             <SparklesIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">Shamwari</span>
-            {isShamwari && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
+            {isShamwari && <span className="absolute bottom-1.5 h-1 w-6 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <Link
             href="/history"
@@ -213,7 +213,7 @@ export function Header() {
           >
             <ClockIcon size={22} />
             <span className="text-[length:var(--text-nav-label)] font-medium">History</span>
-            {isHistory && <span className="absolute bottom-1.5 h-1 w-4 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
+            {isHistory && <span className="absolute bottom-1.5 h-1 w-6 rounded-full bg-primary animate-[nav-indicator-in_300ms_ease-out]" aria-hidden="true" />}
           </Link>
           <button
             onClick={openMyWeather}

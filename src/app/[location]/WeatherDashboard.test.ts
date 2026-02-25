@@ -137,6 +137,11 @@ describe("WeatherDashboard — accessibility", () => {
   it("aria-current=\"page\" on the current location breadcrumb", () => {
     expect(source).toContain('aria-current="page"');
   });
+
+  it("has an aria-live region for loading→loaded screen reader announcement", () => {
+    expect(source).toContain('aria-live="polite"');
+    expect(source).toContain("Weather loaded for");
+  });
 });
 
 describe("WeatherDashboard — props and integration", () => {

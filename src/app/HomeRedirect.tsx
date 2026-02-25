@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAppStore, hasStoreHydrated } from "@/lib/store";
 import { detectUserLocation } from "@/lib/geolocation";
 import { WeatherLoadingScene } from "@/components/weather/WeatherLoadingScene";
+import Link from "next/link";
 
 const GEO_TIMEOUT_MS = 3000;
 const HYDRATION_TIMEOUT_MS = 4000;
+const SKIP_DELAY_MS = 1500;
 const FALLBACK_LOCATION = "harare";
 
 /**
@@ -27,6 +29,15 @@ const FALLBACK_LOCATION = "harare";
 export function HomeRedirect() {
   const router = useRouter();
   const hasRedirected = useRef(false);
+  const [showSkip, setShowSkip] = useState(false);
+
+  // Show a "Choose a city" fallback link after a short delay so users
+  // aren't stuck staring at an unresponsive loading screen if geolocation
+  // is slow or denied.
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSkip(true), SKIP_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Track Zustand rehydration — hasStoreHydrated() is not reactive,
   // so we poll via rAF until hydration completes (retries on slow devices).
@@ -99,5 +110,19 @@ export function HomeRedirect() {
     };
   }, [router, hydrated]);
 
-  return <WeatherLoadingScene statusText="Finding your location..." />;
+  return (
+    <WeatherLoadingScene
+      statusText="Finding your location..."
+      action={
+        showSkip ? (
+          <Link
+            href="/explore"
+            className="animate-fade-in-up rounded-[var(--radius-button)] bg-surface-card px-5 py-3 text-base font-medium text-text-secondary shadow-md transition-colors hover:text-primary hover:bg-surface-dim min-h-[44px] inline-flex items-center"
+          >
+            Choose a city instead
+          </Link>
+        ) : null
+      }
+    />
+  );
 }

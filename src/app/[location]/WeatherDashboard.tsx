@@ -129,6 +129,11 @@ export function WeatherDashboard({
         {/* H1 for SEO — visually integrated but semantically correct */}
         <h1 className="sr-only">{location.name} Weather Forecast — Current Conditions and 7-Day Outlook</h1>
 
+        {/* Screen reader announcement for loading→loaded transition (WCAG) */}
+        <div aria-live="polite" className="sr-only">
+          Weather loaded for {location.name}
+        </div>
+
         {/* Season indicator */}
         <div className="mb-5">
           <SeasonBadge season={season} />

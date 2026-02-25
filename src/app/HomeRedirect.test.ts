@@ -107,3 +107,33 @@ describe("HomeRedirect — redirect logic", () => {
     expect(source).toContain(".catch(");
   });
 });
+
+describe("HomeRedirect — location fallback link", () => {
+  it("shows a fallback city link after a short delay", () => {
+    expect(source).toContain("showSkip");
+    expect(source).toContain("setShowSkip");
+    expect(source).toContain("SKIP_DELAY_MS");
+  });
+
+  it("delays fallback link appearance with setTimeout", () => {
+    // The skip link should appear after a timeout, not immediately
+    expect(source).toContain("setTimeout(() => setShowSkip(true)");
+  });
+
+  it("links to /explore as the fallback destination", () => {
+    expect(source).toContain('href="/explore"');
+  });
+
+  it("renders the fallback as an action prop in WeatherLoadingScene", () => {
+    expect(source).toContain("action=");
+    expect(source).toContain("Choose a city instead");
+  });
+
+  it("uses animate-fade-in-up for smooth appearance", () => {
+    expect(source).toContain("animate-fade-in-up");
+  });
+
+  it("has proper min touch target on the fallback link", () => {
+    expect(source).toContain("min-h-[44px]");
+  });
+});
