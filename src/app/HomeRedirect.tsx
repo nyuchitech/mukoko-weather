@@ -7,19 +7,27 @@ import { detectUserLocation } from "@/lib/geolocation";
 import { WeatherLoadingScene } from "@/components/weather/WeatherLoadingScene";
 import Link from "next/link";
 
-const GEO_TIMEOUT_MS = 3000;
 const HYDRATION_TIMEOUT_MS = 4000;
 const SKIP_DELAY_MS = 1500;
+const SAFETY_TIMEOUT_MS = 15000;
 const FALLBACK_LOCATION = "harare";
 
 /**
  * Smart home page redirect — like Apple Weather / Google Weather.
  *
- * 1. Always attempt geolocation first (3s timeout)
- * 2. If geolocation succeeds → redirect to detected location
- * 3. If geolocation fails → fall back to first saved location
- * 4. If no saved locations → fall back to selected location
- * 5. Ultimate fallback → Harare
+ * Waits for geolocation to actually resolve (success, denied, error, or
+ * outside-supported) rather than racing against a short timeout. This ensures
+ * first-time users who need to interact with the browser permission prompt
+ * aren't prematurely redirected to the default location.
+ *
+ * Escape hatches:
+ * - "Choose a city instead" link appears after 1.5s
+ * - 15s safety timeout as ultimate fallback if everything hangs
+ *
+ * Fallback chain (when geo fails):
+ * 1. First saved location
+ * 2. Selected location (default: harare)
+ * 3. Harare
  *
  * Waits for Zustand rehydration before reading persisted state to avoid
  * acting on default values before localStorage is loaded.
@@ -68,45 +76,53 @@ export function HomeRedirect() {
   useEffect(() => {
     if (hasRedirected.current || !hydrated) return;
 
-    // Always attempt geolocation first — current location is the default
     let cancelled = false;
 
-    const geoPromise = detectUserLocation();
-    const timeoutPromise = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), GEO_TIMEOUT_MS),
-    );
+    /** Redirect to the fallback location (saved → selected → harare). */
+    const redirectToFallback = () => {
+      if (cancelled || hasRedirected.current) return;
+      hasRedirected.current = true;
+      // Read fallback at decision time so device sync (which may have
+      // restored savedLocations from the server during the geo wait)
+      // is reflected in the redirect target.
+      const { savedLocations, selectedLocation } = useAppStore.getState();
+      const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
+      router.replace(`/${fallback}`);
+    };
 
-    Promise.race([geoPromise, timeoutPromise])
+    // Safety net — if geolocation hangs completely (browser prompt left
+    // open, API unreachable, etc.), redirect to fallback after 15s.
+    const safetyTimer = setTimeout(redirectToFallback, SAFETY_TIMEOUT_MS);
+
+    // Wait for geolocation to resolve naturally — no artificial timeout race.
+    // The browser's getCurrentPosition has its own 10s timeout. When the user
+    // denies permission or GPS fails, detectUserLocation resolves immediately
+    // with an error status, so there's no unnecessary waiting.
+    detectUserLocation()
       .then((result) => {
+        clearTimeout(safetyTimer);
         if (cancelled || hasRedirected.current) return;
         hasRedirected.current = true;
 
         if (
-          result &&
-          "status" in result &&
           (result.status === "success" || result.status === "created") &&
           result.location
         ) {
           router.replace(`/${result.location.slug}`);
         } else {
-          // Read fallback at decision time so device sync (which may have
-          // restored savedLocations from the server during the geo wait)
-          // is reflected in the redirect target.
-          const { savedLocations, selectedLocation } = useAppStore.getState();
-          const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
-          router.replace(`/${fallback}`);
+          // Geo explicitly failed (denied, error, outside-supported, unavailable)
+          // → redirect to fallback immediately, no waiting
+          redirectToFallback();
         }
       })
       .catch(() => {
-        if (cancelled || hasRedirected.current) return;
-        hasRedirected.current = true;
-        const { savedLocations, selectedLocation } = useAppStore.getState();
-        const fallback = savedLocations[0] || selectedLocation || FALLBACK_LOCATION;
-        router.replace(`/${fallback}`);
+        clearTimeout(safetyTimer);
+        redirectToFallback();
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(safetyTimer);
     };
   }, [router, hydrated]);
 

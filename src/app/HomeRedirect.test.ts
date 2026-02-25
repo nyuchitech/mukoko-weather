@@ -79,9 +79,16 @@ describe("HomeRedirect — redirect logic", () => {
     expect(source).toContain("savedLocations");
   });
 
-  it("has a geolocation timeout of 3 seconds", () => {
-    expect(source).toContain("GEO_TIMEOUT_MS");
-    expect(source).toContain("3000");
+  it("waits for geolocation to resolve naturally (no aggressive timeout race)", () => {
+    // Should NOT have a short GEO_TIMEOUT_MS that races against the browser
+    // permission prompt — the old 3s timeout caused premature Harare redirects
+    expect(source).not.toContain("GEO_TIMEOUT_MS");
+    expect(source).not.toContain("Promise.race");
+  });
+
+  it("has a 15-second safety timeout as last resort", () => {
+    expect(source).toContain("SAFETY_TIMEOUT_MS");
+    expect(source).toContain("15000");
   });
 
   it("falls back to harare when geolocation fails", () => {
@@ -100,6 +107,10 @@ describe("HomeRedirect — redirect logic", () => {
 
   it("cancels geolocation on unmount", () => {
     expect(source).toContain("cancelled = true");
+  });
+
+  it("clears safety timer on unmount", () => {
+    expect(source).toContain("clearTimeout(safetyTimer)");
   });
 
   it("handles geolocation promise rejection", () => {
