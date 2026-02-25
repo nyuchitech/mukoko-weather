@@ -33,7 +33,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
 - **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
 - **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
-- **CI/CD:** GitHub Actions (TypeScript + Python tests, lint, typecheck on push/PR; Claude AI review on PRs; post-deploy DB init)
+- **CI/CD:** GitHub Actions (single `ci` job: lint → typecheck → TypeScript tests → Python tests, all steps visible in one check on push/PR; Claude AI review on PRs; post-deploy DB init)
 - **Deployment:** Vercel (with `@vercel/functions` for MongoDB connection pooling)
 - **Edge layer (optional):** Cloudflare Workers with Hono (`worker/` directory)
 
@@ -347,7 +347,7 @@ mukoko-weather/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/            # Bug report and feature request templates
 │   └── workflows/
-│       ├── ci.yml                 # TypeScript + Python tests, lint, type check on push/PR
+│       ├── ci.yml                 # Single job: lint → typecheck → TypeScript tests → Python tests (push/PR to main)
 │       ├── claude-code-review.yml # Claude AI code review on PRs
 │       ├── claude.yml             # Claude Code for @claude mentions in issues/PRs
 │       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
