@@ -6,6 +6,7 @@ import { SearchIcon, MapPinIcon, SparklesIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { weatherCodeToInfo } from "@/lib/weather";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +69,7 @@ export function ExploreSearch() {
         const data: SearchResponse = await res.json();
         setResults(data.locations || []);
         setSummary(data.summary || null);
+        trackEvent("explore_search", { query: trimmed, resultCount: (data.locations || []).length });
       } catch (err) {
         setError(
           err instanceof Error

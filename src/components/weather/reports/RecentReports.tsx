@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,12 +100,13 @@ export function RecentReports({ locationSlug }: { locationSlug: string }) {
               r.id === reportId ? { ...r, upvotes: r.upvotes + 1 } : r
             )
           );
+          trackEvent("report_upvoted", { reportId, location: locationSlug });
         }
       }
     } catch {
       // Silently fail — upvoting is non-critical
     }
-  }, []);
+  }, [locationSlug]);
 
   // Don't render section if no reports and not loading
   if (!loading && reports.length === 0) {

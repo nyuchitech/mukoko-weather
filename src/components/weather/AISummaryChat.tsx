@@ -14,6 +14,7 @@ import {
 } from "@/lib/suggested-prompts";
 import type { WeatherData } from "@/lib/weather";
 import type { ZimbabweLocation } from "@/lib/locations";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown
@@ -165,6 +166,7 @@ export function AISummaryChat({ weather, location, initialSummary, season }: Pro
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+    trackEvent("ai_chat_sent", { source: "inline", location: location.slug });
 
     // Reset textarea height
     if (inputRef.current) {

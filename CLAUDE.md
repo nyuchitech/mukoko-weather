@@ -281,6 +281,10 @@ mukoko-weather/
 │   │   ├── db.test.ts
 │   │   ├── observability.ts       # Structured error logging + GA4 error reporting
 │   │   ├── observability.test.ts
+│   │   ├── analytics.ts           # Centralized event tracking (GA4 + Vercel Analytics)
+│   │   ├── analytics.test.ts
+│   │   ├── feature-flags.ts       # Client-side feature flag system (type-safe, localStorage overrides)
+│   │   ├── feature-flags.test.ts
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper (supports auto-creation)
 │   │   ├── geolocation.test.ts
 │   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
@@ -877,8 +881,42 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 - Loaded via `next/script` with `afterInteractive` strategy in `src/components/analytics/GoogleAnalytics.tsx`
 - Included in the root layout (`src/app/layout.tsx`) so it runs on all pages
 - **Vercel Web Analytics** — `@vercel/analytics` ^1.6.1, imported as `<Analytics />` from `@vercel/analytics/next` in root layout. Server-side Web Vitals collection and real-time performance monitoring in Vercel dashboards
-- Privacy policy (`/privacy`) updated to disclose GA4 usage, cookie information, and opt-out instructions
-- No personally identifiable information is collected — only anonymised page views, visitor counts, and navigation patterns
+- Privacy policy (`/privacy`) updated to disclose GA4 + Vercel Analytics usage, cookie information, opt-out instructions, and custom event tracking
+- No personally identifiable information is collected — only anonymised page views, visitor counts, navigation patterns, and interaction events
+
+**Custom event tracking:** `src/lib/analytics.ts` — centralized utility that fires events to both GA4 and Vercel Analytics via a single `trackEvent(name, properties)` call. Type-safe event names and property shapes. No-ops on server, silently swallows errors so tracking never breaks the app.
+
+**Tracked events:**
+| Event | Trigger | Properties |
+|-------|---------|------------|
+| `report_submitted` | Weather report wizard complete | type, severity, location |
+| `report_upvoted` | Community report upvote | reportId, location |
+| `location_changed` | User navigates to different location | from, to, method |
+| `location_saved` | Location added to saved list | slug |
+| `location_removed` | Location removed from saved list | slug |
+| `activity_toggled` | Activity enabled/disabled | activityId, enabled |
+| `theme_changed` | Theme preference changed | theme |
+| `ai_summary_loaded` | AI summary fetched for location | location |
+| `ai_chat_sent` | Message sent in AI chat | source, location? |
+| `explore_search` | Explore search performed | query, resultCount |
+| `history_analysis` | Historical analysis triggered | location, days |
+| `geolocation_result` | Home page geolocation resolved | status, location? |
+| `map_layer_changed` | Weather map layer switched | layer, location |
+| `onboarding_completed` | Welcome banner action taken | method |
+| `modal_opened` | Modal opened | modal |
+
+### Feature Flags
+
+`src/lib/feature-flags.ts` — lightweight, type-safe, client-side feature flag system. No SaaS dependency.
+
+**Flag definitions:** Code-defined `FLAGS` object with boolean defaults. All currently-shipped features are `true`. Experimental/future features (`premium_maps`, `vector_search`, `multi_language`) are `false`.
+
+**API:**
+- `isFeatureEnabled(flag)` — check default flag value (safe on server + client)
+- `isFeatureEnabledWithOverride(flag)` — check with localStorage override support (`ff:<flag>` keys)
+- `useFeatureFlag(flag)` — React hook (uses localStorage overrides)
+
+**Dev overrides:** Set `localStorage.setItem("ff:premium_maps", "true")` in browser console to enable features locally. Changes require page reload.
 
 ### Historical Weather Dashboard
 
@@ -1148,6 +1186,8 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
 - `src/lib/observability.test.ts` — structured logging, error reporting
+- `src/lib/analytics.test.ts` — centralized event tracking (GA4 + Vercel), no-op on server, missing gtag, all event types
+- `src/lib/feature-flags.test.ts` — flag definitions, default values, localStorage overrides, SSR fallback, hook equivalence
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers

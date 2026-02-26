@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore, isShamwariContextValid, type ShamwariContext } from "@/lib/store";
 import { getScrollBehavior } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Inline error boundary for ReactMarkdown — prevents malformed markdown from
@@ -282,6 +283,7 @@ export function ExploreChatbot() {
     // Reset textarea height back to single row after sending
     if (inputRef.current) inputRef.current.style.height = "auto";
     setLoading(true);
+    trackEvent("ai_chat_sent", { source: "shamwari" });
 
     try {
       // Build history from previous messages (text only).

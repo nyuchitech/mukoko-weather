@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogSheetHandle, DialogClose } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Report types
@@ -115,6 +116,7 @@ export function WeatherReportModal() {
 
       setSubmitted(true);
       setStep("confirm");
+      trackEvent("report_submitted", { type: reportType, severity, location: selectedLocation });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit report");
     } finally {
@@ -125,7 +127,7 @@ export function WeatherReportModal() {
   const typeInfo = REPORT_TYPES.find((t) => t.id === reportType);
 
   return (
-    <Dialog open={reportModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+    <Dialog open={reportModalOpen} onOpenChange={(open) => { if (open) trackEvent("modal_opened", { modal: "weather-report" }); else handleClose(); }}>
       <DialogContent className="sm:max-w-md" aria-describedby={undefined} aria-label="Report Weather">
         <DialogSheetHandle />
 

@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { SparklesIcon } from "@/lib/weather-icons";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
+import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
 // Markdown error boundary
@@ -63,6 +64,7 @@ export function HistoryAnalysis({
   const analyze = useCallback(async () => {
     setLoading(true);
     setError(null);
+    trackEvent("history_analysis", { location: locationSlug, days });
 
     try {
       const res = await fetch("/api/py/history/analyze", {

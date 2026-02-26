@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 /** Default category style for unknown categories */
 const DEFAULT_CATEGORY_STYLE = {
@@ -86,6 +87,7 @@ export function MyWeatherModal() {
     closeMyWeather();
     setSelectedLocation(pendingSlug);
     if (pendingSlug !== currentSlug) {
+      trackEvent("location_changed", { from: currentSlug, to: pendingSlug, method: "search" });
       router.push(`/${pendingSlug}`);
     }
   };
@@ -94,6 +96,7 @@ export function MyWeatherModal() {
     if (open) {
       setPendingSlug(currentSlug);
       setActiveTab("saved");
+      trackEvent("modal_opened", { modal: "my-weather" });
     } else {
       handleDone();
     }
@@ -524,7 +527,7 @@ function ActivitiesTab({
             return (
               <button
                 key={activity.id}
-                onClick={() => toggleActivity(activity.id)}
+                onClick={() => { toggleActivity(activity.id); trackEvent("activity_toggled", { activityId: activity.id, enabled: !isSelected }); }}
                 aria-pressed={isSelected}
                 aria-label={`${activity.label}: ${activity.description}`}
                 className={`press-scale relative flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 p-3 transition-all ${
@@ -585,7 +588,7 @@ function SettingsTab() {
             key={option.value}
             role="radio"
             aria-checked={theme === option.value}
-            onClick={() => setTheme(option.value)}
+            onClick={() => { setTheme(option.value); trackEvent("theme_changed", { theme: option.value }); }}
             className={`press-scale flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-card)] border-2 px-4 py-3 text-left transition-all ${
               theme === option.value
                 ? "border-primary bg-primary/5 shadow-sm"

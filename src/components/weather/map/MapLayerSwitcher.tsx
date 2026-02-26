@@ -3,6 +3,7 @@
 import { MAP_LAYERS } from "@/lib/map-layers";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 interface MapLayerSwitcherProps {
   activeLayer: string;
@@ -17,7 +18,7 @@ export function MapLayerSwitcher({
     <ToggleGroup
       type="single"
       value={activeLayer}
-      onValueChange={(val) => { if (val) onLayerChange(val); }}
+      onValueChange={(val) => { if (val) { onLayerChange(val); trackEvent("map_layer_changed", { layer: val, location: "" }); } }}
       variant="unstyled"
       className="flex gap-2 overflow-x-auto px-4 py-2 scrollbar-hide [overscroll-behavior-x:contain]"
       aria-label="Map layer selection"

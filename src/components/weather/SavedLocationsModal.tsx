@@ -10,6 +10,7 @@ import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
 import { Dialog, DialogContent, DialogSheetHandle, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { trackEvent } from "@/lib/analytics";
 
 export function SavedLocationsModal() {
   const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
@@ -30,21 +31,26 @@ export function SavedLocationsModal() {
     setSelectedLocation(slug);
     closeSavedLocations();
     if (slug !== currentSlug) {
+      trackEvent("location_changed", { from: currentSlug, to: slug, method: "saved" });
       router.push(`/${slug}`);
     }
   }, [completeOnboarding, setSelectedLocation, closeSavedLocations, currentSlug, router]);
 
   const handleRemoveLocation = useCallback((slug: string) => {
     removeLocation(slug);
+    trackEvent("location_removed", { slug });
   }, [removeLocation]);
 
   const handleAddLocation = useCallback((slug: string) => {
     saveLocation(slug);
     setShowSearch(false);
+    trackEvent("location_saved", { slug });
   }, [saveLocation]);
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
+    if (open) {
+      trackEvent("modal_opened", { modal: "saved-locations" });
+    } else {
       closeSavedLocations();
       setShowSearch(false);
     }
