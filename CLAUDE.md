@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding globally. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Locations span Zimbabwe (90+ seed locations), ASEAN countries, and developing regions across Africa — with new locations added dynamically by the community via geolocation and search.
+mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding globally. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Locations span Zimbabwe (98 seed locations), 54 AU member states, and ASEAN countries (265 total seed locations) — with new locations added dynamically by the community via geolocation and search.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -30,7 +30,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations; Atlas Search for fuzzy queries, Vector Search infrastructure for semantic search)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
-- **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
+- **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`) + Vercel Web Analytics (`@vercel/analytics` ^1.6.1)
 - **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
 - **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
 - **CI/CD:** GitHub Actions (single `ci` job: lint → typecheck → TypeScript tests → Python tests, all steps visible in one check on push/PR; CodeQL security scanning for JS/TS, Python, and Actions; Claude AI review on PRs; post-deploy DB init). All workflows use `concurrency` groups with `cancel-in-progress: true` to prevent zombie runs from rapid pushes
@@ -215,6 +215,8 @@ mukoko-weather/
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── SavedLocationsModal.tsx # Saved locations manager (browse, add, remove, geolocation)
 │   │   │   ├── SavedLocationsModal.test.ts
+│   │   │   ├── SupportBanner.tsx           # Buy Me a Coffee inline support card (BMC brand yellow)
+│   │   │   ├── SupportBanner.test.ts       # SupportBanner tests (structure, accessibility, isolation)
 │   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
 │   │   │   ├── WeatherLoadingScene.test.ts # KNOWN_ROUTES guard, reduced-motion, Three.js integration, accessibility
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
@@ -259,7 +261,7 @@ mukoko-weather/
 │   │   ├── suggested-prompts.test.ts
 │   │   ├── locations.ts           # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS, search, filtering
 │   │   ├── locations.test.ts
-│   │   ├── locations-africa.ts    # African city seed data (capitals + major cities across 54 AU member states)
+│   │   ├── locations-global.ts    # Global city seed data (capitals + major cities across 54 AU member states + ASEAN countries)
 │   │   ├── countries.ts           # Country/province types, seed data (54 AU + ASEAN), flag emoji, province slug generation
 │   │   ├── countries.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
@@ -291,7 +293,7 @@ mukoko-weather/
 │   │   ├── error-retry.test.ts
 │   │   ├── use-debounce.ts         # Shared useDebounce hook (generic, reusable across components)
 │   │   ├── use-debounce.test.ts
-│   │   ├── utils.ts               # Tailwind class merging helper (cn)
+│   │   ├── utils.ts               # Tailwind class merging helper (cn) + getScrollBehavior (reduced-motion-aware scrolling)
 │   │   ├── utils.test.ts
 │   │   ├── accessibility.test.ts  # Accessibility helpers tests
 │   │   ├── seed-suitability-rules.ts # Seed suitability rules for db-init (condition-based evaluation)
@@ -353,7 +355,7 @@ mukoko-weather/
 │       ├── codeql.yml             # CodeQL security scanning (JS/TS, Python, Actions; concurrency-grouped)
 │       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
 ├── tests/
-│   └── py/                        # Python backend tests (pytest, 19 files, 559 tests)
+│   └── py/                        # Python backend tests (pytest, 19 files, 587 tests)
 │       ├── conftest.py            # Shared fixtures, sys.path/module mocking
 │       └── test_*.py              # 19 test files covering all Python endpoints + circuit breaker
 ├── vercel.json                    # Rewrites /api/py/* to Python serverless functions
@@ -365,13 +367,18 @@ mukoko-weather/
 ├── eslint.config.mjs              # Next.js core-web-vitals + TypeScript
 ├── postcss.config.mjs             # Tailwind CSS 4 plugin
 ├── components.json                # shadcn/ui configuration (new-york style)
+├── ARCHITECTURE.md                # Key architectural patterns (search, resilience, lazy loading, DB schema)
 ├── CONTRIBUTING.md
 ├── README.md
+├── RELEASES.md                    # Release notes for major PRs
 ├── SECURITY.md
+├── TEST_COVERAGE_ANALYSIS.md      # Comprehensive test audit and coverage gap analysis
 └── LICENSE
 ```
 
 ## Architecture
+
+> For detailed architectural diagrams (search patterns, resilience flows, database schema), see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Layered Component Architecture (MANDATORY)
 
@@ -564,6 +571,11 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - `reportProviderFailure(provider, errorType, location?)` — tracks weather provider failures as GA4 events
 - Used in `ChartErrorBoundary` (`componentDidCatch`), all three `error.tsx` pages, and API routes
 
+**Webhook alerting (optional):**
+- `sendAlert(ctx)` — sends HTTP POST to `ALERT_WEBHOOK_URL` for high/critical severity errors
+- Supports Slack incoming webhooks, Discord webhooks, PagerDuty, and compatible services
+- Three-tier alerting: (1) structured JSON logs to stdout, (2) GA4 exception events, (3) webhook alerts for critical/high severity
+
 **Usage across API routes (Python backend):**
 - `/api/py/weather` — logs errors on unexpected failures, fallback warnings
 - `/api/py/ai` — logs on AI service unavailability
@@ -574,7 +586,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
 
-**Seed locations:** 90+ Zimbabwe locations defined in `src/lib/locations.ts`, plus African cities across 54 AU member states in `src/lib/locations-africa.ts`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across 54 AU member states and ASEAN countries in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
 
@@ -750,6 +762,12 @@ For weather alerts, status indicators, and severity levels, use the semantic sev
 Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
 Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
 
+**Third-party Brand Color Tokens:**
+- `--color-bmc` → Buy Me a Coffee official brand yellow (`#FFDD00`)
+- `--color-bmc-fg` → dark text for BMC yellow backgrounds (`#1A1A1A`)
+
+Use via Tailwind: `bg-bmc`, `border-bmc/40`, `text-bmc-fg`, `ring-bmc`, etc. Used by `SupportBanner` component.
+
 **Typography tokens:**
 - `--text-body: 1rem` (16px) — base body/footer text
 - `--text-body-lg: 1.125rem` (18px) — larger body text variant
@@ -858,6 +876,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 - **Google Analytics 4** (GA4) — measurement ID `G-4KB2ZS573N`
 - Loaded via `next/script` with `afterInteractive` strategy in `src/components/analytics/GoogleAnalytics.tsx`
 - Included in the root layout (`src/app/layout.tsx`) so it runs on all pages
+- **Vercel Web Analytics** — `@vercel/analytics` ^1.6.1, imported as `<Analytics />` from `@vercel/analytics/next` in root layout. Server-side Web Vitals collection and real-time performance monitoring in Vercel dashboards
 - Privacy policy (`/privacy`) updated to disclose GA4 usage, cookie information, and opt-out instructions
 - No personally identifiable information is collected — only anonymised page views, visitor counts, and navigation patterns
 
@@ -991,6 +1010,7 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `SunTimes` → `LazySection` + `Suspense`
 - `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `RecentReports` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `SupportBanner` → `LazySection` + `ChartErrorBoundary` (Buy Me a Coffee support card)
 - Location info card → `LazySection`
 
 **History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
@@ -1059,6 +1079,10 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `/explore/country/[code]` — locations in a country, grouped by province
 - `/explore/country/[code]/[province]` — locations in a specific province
 
+### Support Banner (Buy Me a Coffee)
+
+`src/components/weather/SupportBanner.tsx` — inline support card linking to Buy Me a Coffee (`https://www.buymeacoffee.com/bryany`). Uses the official BMC brand yellow via `--color-bmc` CSS custom property. Wrapped in `LazySection` + `ChartErrorBoundary` on the location page so a crash never affects weather sections. Rendered after community reports and before the location info card in `WeatherDashboard.tsx`.
+
 ### Community Weather Reporting (Waze-Style)
 
 Users can submit real-time ground-truth weather observations, similar to Waze for road incidents.
@@ -1118,7 +1142,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/suggested-prompts.test.ts` — suggested prompt generation, weather condition matching, max 3 cap
 - `src/lib/device-sync.test.ts` — device sync CRUD, debounced sync, migration, beforeunload
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
-- `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
+- `src/lib/utils.test.ts` — Tailwind class merging (cn utility), getScrollBehavior reduced-motion detection
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
 - `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
@@ -1183,6 +1207,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/CurrentConditions.test.ts` — current conditions rendering
 - `src/components/weather/LazySection.test.ts` — lazy section mounting, visibility
 - `src/components/weather/WelcomeBanner.test.ts` — welcome banner rendering, onboarding state, accessibility
+- `src/components/weather/SupportBanner.test.ts` — BMC support card structure, accessibility, error isolation, no hardcoded styles
 - `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
 - `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
 - `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, loading skeleton, capacity management, accessibility
@@ -1290,6 +1315,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - `MONGODB_URI` — required, MongoDB Atlas connection string
 - `ANTHROPIC_API_KEY` — optional, server-side only. Without it, a basic weather summary fallback is generated.
 - `DB_INIT_SECRET` — optional, protects the `/api/db-init` endpoint in production (via `x-init-secret` header)
+- `ALERT_WEBHOOK_URL` — optional, enables webhook alerting for high/critical severity errors (Slack incoming webhook, Discord webhook, PagerDuty, or compatible services). Used by `src/lib/observability.ts`
 
 ## Common Patterns
 
@@ -1346,7 +1372,7 @@ Community locations are stored in the same MongoDB `locations` collection as see
 ### Cloudflare Workers (optional edge layer)
 The `worker/` directory contains an independent Hono-based API that mirrors the Next.js API routes. It uses Cloudflare KV for caching instead of MongoDB. This is an optional deployment target — the primary deployment is Vercel.
 
-## Removed / Migrated Files
+## Removed / Migrated / Renamed Files
 
 The following TypeScript files were **removed** during the Python backend migration:
 - `src/lib/circuit-breaker.ts` — circuit breaker resilience (re-implemented in Python as `api/py/_circuit_breaker.py`)
@@ -1355,3 +1381,6 @@ The following TypeScript files were **removed** during the Python backend migrat
 - `src/lib/kv-cache.ts` — KV cache (replaced by MongoDB `src/lib/db.ts`, then migrated to Python)
 - `src/types/cloudflare.d.ts` — KV types (no longer needed)
 - All TypeScript API routes under `src/app/api/` except `og/` and `db-init/` — replaced by Python endpoints under `api/py/`
+
+The following files were **renamed**:
+- `src/lib/locations-africa.ts` → `src/lib/locations-global.ts` — expanded from African cities to include ASEAN countries (imported as `GLOBAL_LOCATIONS`)
