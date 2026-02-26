@@ -9,7 +9,7 @@ import Link from "next/link";
 
 const HYDRATION_TIMEOUT_MS = 4000;
 const SKIP_DELAY_MS = 1500;
-const SAFETY_TIMEOUT_MS = 8000;
+const SAFETY_TIMEOUT_MS = 15000;
 const FALLBACK_LOCATION = "harare";
 
 /**

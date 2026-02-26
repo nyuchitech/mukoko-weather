@@ -153,13 +153,12 @@ export function WeatherDashboard({
         {/* Frost alert banner */}
         {frostAlert && <FrostAlertBanner alert={frostAlert} />}
 
-        {/* Main grid — 3 children with CSS order for mobile reordering.
-            Mobile: top→right→bottom (Daily right after Hourly)
-            Tablet (md): 2 columns — top+right side-by-side, bottom below
-            Desktop (lg): 3 columns — top+bottom stack in cols 1-2, right in col 3 */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-          {/* Left-top: Current conditions + hourly forecast (eager) */}
-          <div className="min-w-0 space-y-8 order-1 md:col-span-1 lg:col-span-2">
+        {/* Main grid — simple 2-section layout.
+            Mobile: single column, natural DOM order
+            Desktop (lg): 3 columns — primary content in cols 1-2, sidebar in col 3 */}
+        <div className="grid gap-8 lg:grid-cols-3 lg:gap-10">
+          {/* Primary content — lg:col-span-2 */}
+          <div className="min-w-0 space-y-8 lg:col-span-2">
             <ChartErrorBoundary name="current conditions">
               <CurrentConditions
                 current={weather.current}
@@ -170,24 +169,57 @@ export function WeatherDashboard({
             </ChartErrorBoundary>
             <LazySection label="hourly-forecast">
               <ChartErrorBoundary name="hourly forecast">
-                <Suspense fallback={<SectionSkeleton />}>
+                <Suspense fallback={<SectionSkeleton className="h-[22rem]" />}>
                   <HourlyForecast hourly={weather.hourly} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
+            <LazySection label="activity-insights">
+              <ChartErrorBoundary name="activity insights">
+                <Suspense fallback={<SectionSkeleton className="h-56" />}>
+                  <ActivityInsights insights={weather.insights} activities={allActivities} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
+            <LazySection label="daily-forecast">
+              <ChartErrorBoundary name="daily forecast">
+                <Suspense fallback={<SectionSkeleton className="h-[28rem]" />}>
+                  <DailyForecast daily={weather.daily} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
+            <LazySection label="ai-summary">
+              <ChartErrorBoundary name="AI summary">
+                <Suspense fallback={<SectionSkeleton className="h-48" />}>
+                  {!usingFallback && <AISummary weather={weather} location={location} onSummaryLoaded={setAiSummary} />}
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
+            {aiSummary && !usingFallback && (
+              <LazySection label="ai-followup-chat">
+                <ChartErrorBoundary name="AI follow-up chat">
+                  <Suspense fallback={<SectionSkeleton className="h-40" />}>
+                    <AISummaryChat
+                      weather={weather}
+                      location={location}
+                      initialSummary={aiSummary}
+                      season={`${season.shona} (${season.name})`}
+                    />
+                  </Suspense>
+                </ChartErrorBoundary>
+              </LazySection>
+            )}
+            <LazySection label="atmospheric-summary">
+              <ChartErrorBoundary name="atmospheric conditions">
+                <Suspense fallback={<SectionSkeleton className="h-52" />}>
+                  <AtmosphericSummary current={weather.current} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
           </div>
 
-          {/* Right column: Daily + Sun + Map + Reports + Info
-              On mobile: shows SECOND (right after hourly, before AI/activities)
-              On lg: positioned in the 3rd column, spanning both rows */}
-          <div className="min-w-0 space-y-8 order-2 md:col-span-1 lg:row-span-2 lg:row-start-1 lg:col-start-3">
-            <LazySection label="daily-forecast">
-              <ChartErrorBoundary name="daily forecast">
-                <Suspense fallback={<SectionSkeleton />}>
-                  <DailyForecast daily={weather.daily} />
-                </Suspense>
-              </ChartErrorBoundary>
-            </LazySection>
+          {/* Sidebar — stacks below on mobile */}
+          <div className="min-w-0 space-y-8">
             <LazySection label="sun-times">
               <ChartErrorBoundary name="sun times">
                 <Suspense fallback={<SectionSkeleton />}>
@@ -198,7 +230,7 @@ export function WeatherDashboard({
 
             <LazySection label="weather-map">
               <ChartErrorBoundary name="weather map">
-                <Suspense fallback={<SectionSkeleton />}>
+                <Suspense fallback={<SectionSkeleton className="h-64" />}>
                   <MapPreview location={location} />
                 </Suspense>
               </ChartErrorBoundary>
@@ -206,7 +238,7 @@ export function WeatherDashboard({
 
             <LazySection label="community-reports">
               <ChartErrorBoundary name="community reports">
-                <Suspense fallback={<SectionSkeleton />}>
+                <Suspense fallback={<SectionSkeleton className="h-40" />}>
                   <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
@@ -240,47 +272,6 @@ export function WeatherDashboard({
                   </dl>
                 </div>
               </section>
-            </LazySection>
-          </div>
-
-          {/* Left-bottom: AI + activities + atmospheric (lazy-loaded detail sections)
-              On mobile: shows THIRD (after the right column)
-              On lg: stacks below left-top in cols 1-2 */}
-          <div className="min-w-0 space-y-8 order-3 md:col-span-2 lg:col-span-2">
-            <LazySection label="ai-summary">
-              <ChartErrorBoundary name="AI summary">
-                <Suspense fallback={<SectionSkeleton />}>
-                  {!usingFallback && <AISummary weather={weather} location={location} onSummaryLoaded={setAiSummary} />}
-                </Suspense>
-              </ChartErrorBoundary>
-            </LazySection>
-            {aiSummary && !usingFallback && (
-              <LazySection label="ai-followup-chat">
-                <ChartErrorBoundary name="AI follow-up chat">
-                  <Suspense fallback={<SectionSkeleton />}>
-                    <AISummaryChat
-                      weather={weather}
-                      location={location}
-                      initialSummary={aiSummary}
-                      season={`${season.shona} (${season.name})`}
-                    />
-                  </Suspense>
-                </ChartErrorBoundary>
-              </LazySection>
-            )}
-            <LazySection label="activity-insights">
-              <ChartErrorBoundary name="activity insights">
-                <Suspense fallback={<SectionSkeleton />}>
-                  <ActivityInsights insights={weather.insights} activities={allActivities} />
-                </Suspense>
-              </ChartErrorBoundary>
-            </LazySection>
-            <LazySection label="atmospheric-summary">
-              <ChartErrorBoundary name="atmospheric conditions">
-                <Suspense fallback={<SectionSkeleton />}>
-                  <AtmosphericSummary current={weather.current} />
-                </Suspense>
-              </ChartErrorBoundary>
             </LazySection>
           </div>
         </div>

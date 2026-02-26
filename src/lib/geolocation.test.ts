@@ -69,8 +69,8 @@ describe("geolocation source structure", () => {
     expect(source).toContain("/api/py/geo?lat=");
   });
 
-  it("uses 5 second timeout for geolocation", () => {
-    expect(source).toContain("timeout: 5000");
+  it("uses 10 second timeout for geolocation", () => {
+    expect(source).toContain("timeout: 10000");
   });
 
   it("caches position for 5 minutes", () => {

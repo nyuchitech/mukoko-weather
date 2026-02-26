@@ -21,16 +21,22 @@ describe("WeatherDashboard — section ordering (Google Weather pattern)", () =>
     expect(hourlyPos).toBeLessThan(aiPos);
   });
 
-  it("renders AISummary before ActivityInsights", () => {
-    const aiPos = source.indexOf('label="ai-summary"');
+  it("renders ActivityInsights before DailyForecast", () => {
     const activityPos = source.indexOf('label="activity-insights"');
-    expect(aiPos).toBeLessThan(activityPos);
+    const dailyPos = source.indexOf('label="daily-forecast"');
+    expect(activityPos).toBeLessThan(dailyPos);
   });
 
-  it("renders ActivityInsights before AtmosphericSummary", () => {
-    const activityPos = source.indexOf('label="activity-insights"');
+  it("renders DailyForecast before AISummary", () => {
+    const dailyPos = source.indexOf('label="daily-forecast"');
+    const aiPos = source.indexOf('label="ai-summary"');
+    expect(dailyPos).toBeLessThan(aiPos);
+  });
+
+  it("renders AISummary before AtmosphericSummary", () => {
+    const aiPos = source.indexOf('label="ai-summary"');
     const atmosphericPos = source.indexOf('label="atmospheric-summary"');
-    expect(activityPos).toBeLessThan(atmosphericPos);
+    expect(aiPos).toBeLessThan(atmosphericPos);
   });
 
   it("renders CurrentConditions eagerly (before any LazySection)", () => {
@@ -41,10 +47,10 @@ describe("WeatherDashboard — section ordering (Google Weather pattern)", () =>
     expect(currentPos).toBeLessThan(firstLazy);
   });
 
-  it("right column starts with DailyForecast", () => {
-    const leftColEnd = source.indexOf("Right column");
-    const dailyPos = source.indexOf('label="daily-forecast"');
-    expect(leftColEnd).toBeLessThan(dailyPos);
+  it("sidebar starts with SunTimes", () => {
+    const sidebarStart = source.indexOf("Sidebar");
+    const sunPos = source.indexOf('label="sun-times"');
+    expect(sidebarStart).toBeLessThan(sunPos);
   });
 });
 
