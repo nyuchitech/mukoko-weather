@@ -167,6 +167,13 @@ export function WeatherDashboard({
                 slug={location.slug}
               />
             </ChartErrorBoundary>
+            <LazySection label="community-reports">
+              <ChartErrorBoundary name="community reports">
+                <Suspense fallback={<SectionSkeleton className="h-40" />}>
+                  <RecentReports locationSlug={location.slug} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </LazySection>
             <LazySection label="hourly-forecast">
               <ChartErrorBoundary name="hourly forecast">
                 <Suspense fallback={<SectionSkeleton className="h-[22rem]" />}>
@@ -232,14 +239,6 @@ export function WeatherDashboard({
               <ChartErrorBoundary name="weather map">
                 <Suspense fallback={<SectionSkeleton className="h-64" />}>
                   <MapPreview location={location} />
-                </Suspense>
-              </ChartErrorBoundary>
-            </LazySection>
-
-            <LazySection label="community-reports">
-              <ChartErrorBoundary name="community reports">
-                <Suspense fallback={<SectionSkeleton className="h-40" />}>
-                  <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>

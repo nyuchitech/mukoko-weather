@@ -7,6 +7,16 @@ import { MukokoLogo } from "@/components/brand/MukokoLogo";
 import { MapPinIcon, ClockIcon, SparklesIcon } from "@/lib/weather-icons";
 import { useAppStore } from "@/lib/store";
 
+/** Megaphone icon for weather reporting */
+function MegaphoneIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m3 11 18-5v12L3 13v-2z" />
+      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </svg>
+  );
+}
+
 /** Layers/stack icon for maps */
 function LayersIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
@@ -55,6 +65,7 @@ export function Header() {
   const openMyWeather = useAppStore((s) => s.openMyWeather);
   const myWeatherOpen = useAppStore((s) => s.myWeatherOpen);
   const selectedLocation = useAppStore((s) => s.selectedLocation);
+  const openReportModal = useAppStore((s) => s.openReportModal);
   const reportModalOpen = useAppStore((s) => s.reportModalOpen);
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -146,6 +157,14 @@ export function Header() {
             >
               <LayersIcon size={18} className="text-primary-foreground" />
             </Link>
+            <button
+              onClick={openReportModal}
+              aria-label="Report current weather"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              type="button"
+            >
+              <MegaphoneIcon size={18} className="text-primary-foreground" />
+            </button>
             <button
               onClick={openMyWeather}
               aria-label="Open My Weather preferences"
