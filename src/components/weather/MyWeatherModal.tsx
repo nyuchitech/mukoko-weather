@@ -224,6 +224,9 @@ function LocationTab({
   const [geoLoading, setGeoLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Track which slugs came from geocoding (not yet in DB)
+  const geocodedSlugsRef = useRef<Map<string, { lat: number; lon: number }>>(new Map());
+
   // Search-driven location results
   const [searchResults, setSearchResults] = useState<WeatherLocation[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -278,8 +281,15 @@ function LocationTab({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (searchGenRef.current === gen) {
-          setSearchResults(data?.locations ?? []);
+          const locs = data?.locations ?? [];
+          setSearchResults(locs);
           setSearchLoading(false);
+          // Track geocoded results (not yet in DB) so we can auto-create on select
+          if (data?.source === "geocoded") {
+            for (const loc of locs) {
+              geocodedSlugsRef.current.set(loc.slug, { lat: loc.lat, lon: loc.lon });
+            }
+          }
         }
       })
       .catch(() => {
@@ -290,6 +300,21 @@ function LocationTab({
       });
     return () => { controller.abort(); cancelAnimationFrame(loadId); };
   }, [debouncedQuery, activeTag]);
+
+  /** Auto-create geocoded locations (not yet in DB) before selecting.
+   *  Fires /api/py/locations/add in the background — non-blocking. */
+  const handleLocationSelect = useCallback((slug: string) => {
+    const coords = geocodedSlugsRef.current.get(slug);
+    if (coords) {
+      geocodedSlugsRef.current.delete(slug);
+      fetch("/api/py/locations/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: coords.lat, lon: coords.lon }),
+      }).catch(() => {});
+    }
+    onSelectLocation(slug);
+  }, [onSelectLocation]);
 
   // Geolocation detection — set pending location and advance to activities
   const handleGeolocate = useCallback(async () => {
@@ -411,7 +436,7 @@ function LocationTab({
           return (
             <li key={loc.slug} role="option" aria-selected={isSelected}>
               <button
-                onClick={() => onSelectLocation(loc.slug)}
+                onClick={() => handleLocationSelect(loc.slug)}
                 className={`flex w-full min-h-[44px] items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-base transition-all hover:bg-surface-base focus-visible:outline-2 focus-visible:outline-primary ${
                   isSelected
                     ? "bg-primary/10 text-primary font-semibold"

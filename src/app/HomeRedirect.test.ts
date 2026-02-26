@@ -86,9 +86,9 @@ describe("HomeRedirect — redirect logic", () => {
     expect(source).not.toContain("Promise.race");
   });
 
-  it("has a 15-second safety timeout as last resort", () => {
+  it("has an 8-second safety timeout as last resort", () => {
     expect(source).toContain("SAFETY_TIMEOUT_MS");
-    expect(source).toContain("15000");
+    expect(source).toContain("8000");
   });
 
   it("falls back to harare when geolocation fails", () => {

@@ -79,7 +79,7 @@ export function detectUserLocation(): Promise<GeoResult> {
       },
       {
         enableHighAccuracy: false,
-        timeout: 10000,
+        timeout: 5000,
         maximumAge: 300000, // cache for 5 minutes
       },
     );
