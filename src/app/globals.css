@@ -361,6 +361,8 @@
   --animate-fade-in-up: fade-in-up 400ms ease-out;
   --animate-fade-in-down: fade-in-down 300ms ease-out;
   --animate-scale-in: scale-in 200ms ease-out;
+  --animate-slide-up: slide-up 300ms ease-out;
+  --animate-slide-down: slide-down 200ms ease-out;
   --animate-nav-indicator-in: nav-indicator-in 300ms ease-out;
 }
 
@@ -392,6 +394,16 @@
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
 }
 
 @keyframes nav-indicator-in {
@@ -436,6 +448,20 @@ body {
   /* overscroll-behavior-x prevents iOS Safari from bubbling horizontal
      scroll from inner containers (e.g. hourly forecast row) to the page */
   overscroll-behavior-x: none;
+}
+
+/* ===== Minerals Accent — Horizontal gradient for dialogs ===== */
+.minerals-accent {
+  height: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--mineral-tanzanite) 0%, var(--mineral-tanzanite) 20%,
+    var(--mineral-cobalt) 20%, var(--mineral-cobalt) 40%,
+    var(--mineral-malachite) 40%, var(--mineral-malachite) 60%,
+    var(--mineral-gold) 60%, var(--mineral-gold) 80%,
+    var(--mineral-terracotta) 80%, var(--mineral-terracotta) 100%
+  );
 }
 
 /* ===== Minerals Stripe — Five African Minerals ===== */

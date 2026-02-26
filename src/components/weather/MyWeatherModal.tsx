@@ -14,7 +14,7 @@ import {
 } from "@/lib/activities";
 import type { ActivityCategoryDoc } from "@/lib/db";
 import { CATEGORIES } from "@/lib/seed-categories";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogSheetHandle, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export function MyWeatherModal() {
   return (
     <Dialog open={myWeatherOpen} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby={undefined} className="flex h-[100dvh] flex-col p-0 sm:h-auto sm:max-h-[85vh]">
+        <DialogSheetHandle />
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <DialogTitle>My Weather</DialogTitle>

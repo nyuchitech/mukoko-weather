@@ -19,10 +19,10 @@ describe("WeatherReportModal structure", () => {
     expect(source).toContain("export function WeatherReportModal");
   });
 
-  it("uses shadcn Dialog", () => {
+  it("uses shadcn Dialog with sheet handle", () => {
     expect(source).toContain("<Dialog");
     expect(source).toContain("DialogContent");
-    expect(source).toContain("DialogHeader");
+    expect(source).toContain("DialogSheetHandle");
   });
 
   it("reads reportModalOpen from store", () => {

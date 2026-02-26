@@ -7,7 +7,7 @@ import { useDebounce } from "@/lib/use-debounce";
 import { MapPinIcon, SearchIcon, TrashIcon, PlusIcon, NavigationIcon } from "@/lib/weather-icons";
 import type { WeatherLocation } from "@/lib/locations";
 import { detectUserLocation, type GeoResult } from "@/lib/geolocation";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogSheetHandle, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -55,6 +55,7 @@ export function SavedLocationsModal() {
   return (
     <Dialog open={savedLocationsOpen} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby={undefined} className="flex h-[100dvh] flex-col p-0 sm:h-auto sm:max-h-[85vh]">
+        <DialogSheetHandle />
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <DialogTitle>Locations</DialogTitle>

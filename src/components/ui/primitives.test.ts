@@ -61,6 +61,60 @@ describe("Alert", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Dialog — bottom-sheet and export tests
+// ---------------------------------------------------------------------------
+
+describe("Dialog", () => {
+  it("exports Dialog, DialogContent, DialogSheetHandle and other parts", async () => {
+    const mod = await import("./dialog");
+    expect(mod.Dialog).toBeDefined();
+    expect(mod.DialogContent).toBeDefined();
+    expect(mod.DialogSheetHandle).toBeDefined();
+    expect(mod.DialogClose).toBeDefined();
+    expect(mod.DialogHeader).toBeDefined();
+    expect(mod.DialogFooter).toBeDefined();
+    expect(mod.DialogTitle).toBeDefined();
+    expect(mod.DialogDescription).toBeDefined();
+    expect(mod.DialogOverlay).toBeDefined();
+    expect(mod.DialogPortal).toBeDefined();
+    expect(mod.DialogTrigger).toBeDefined();
+  });
+
+  it("DialogContent uses bottom-sheet slide-up on mobile and centered dialog on desktop", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+    const src = readFileSync(resolve(__dirname, "dialog.tsx"), "utf-8");
+    // Mobile: bottom-sheet
+    expect(src).toContain("bottom-0");
+    expect(src).toContain("animate-slide-up");
+    expect(src).toContain("animate-slide-down");
+    expect(src).toContain("rounded-t-[var(--radius-card)]");
+    // Desktop: centered
+    expect(src).toContain("sm:top-[50%]");
+    expect(src).toContain("sm:left-[50%]");
+    expect(src).toContain("sm:rounded-[var(--radius-card)]");
+  });
+
+  it("DialogSheetHandle includes grab handle and minerals accent", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+    const src = readFileSync(resolve(__dirname, "dialog.tsx"), "utf-8");
+    expect(src).toContain("dialog-sheet-handle");
+    expect(src).toContain("minerals-accent");
+    expect(src).toContain("sm:hidden"); // grab handle only on mobile
+  });
+
+  it("uses CSS custom property radius tokens — no hardcoded border-radius", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+    const src = readFileSync(resolve(__dirname, "dialog.tsx"), "utf-8");
+    expect(src).not.toContain("rounded-2xl");
+    expect(src).not.toContain("rounded-none");
+    expect(src).toContain("var(--radius-card)");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tabs — focus-visible validation
 // ---------------------------------------------------------------------------
 
