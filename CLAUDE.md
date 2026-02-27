@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding globally. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Locations span Zimbabwe (90+ seed locations), ASEAN countries, and developing regions across Africa — with new locations added dynamically by the community via geolocation and search.
+mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding across the developing world. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Target regions include Africa (54 AU member states), ASEAN/Asia, the Middle East, South & Central America, and Eastern Europe. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -30,7 +30,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Weather data:** Tomorrow.io API (primary, free tier) + Open-Meteo API (fallback)
 - **Database:** MongoDB Atlas 7.1.0 (weather cache, AI summaries, historical data, locations; Atlas Search for fuzzy queries, Vector Search infrastructure for semantic search)
 - **i18n:** Custom lightweight system (`src/lib/i18n.ts`) — English complete, Shona/Ndebele structurally ready
-- **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`)
+- **Analytics:** Google Analytics 4 (GA4, measurement ID `G-4KB2ZS573N`) + Vercel Web Analytics (`@vercel/analytics` ^1.6.1)
 - **3D Animations:** Three.js (weather-aware particle loading scenes via `src/lib/weather-scenes/`)
 - **Testing:** Vitest 4.0.18 (TypeScript, `@vitest/coverage-v8` for coverage) + pytest 8.3 (Python)
 - **CI/CD:** GitHub Actions (single `ci` job: lint → typecheck → TypeScript tests → Python tests, all steps visible in one check on push/PR; CodeQL security scanning for JS/TS, Python, and Actions; Claude AI review on PRs; post-deploy DB init). All workflows use `concurrency` groups with `cancel-in-progress: true` to prevent zombie runs from rapid pushes
@@ -70,7 +70,7 @@ mukoko-weather/
 │   │   ├── robots.ts                 # Dynamic robots.txt
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
-│   │   ├── [location]/               # Dynamic weather pages (90+ locations)
+│   │   ├── [location]/               # Dynamic weather pages (265+ locations)
 │   │   │   ├── page.tsx              # Thin server wrapper (SEO, data fetch, JSON-LD)
 │   │   │   ├── WeatherDashboard.tsx  # Client component — all weather UI with per-section error boundaries
 │   │   │   ├── WeatherDashboard.test.ts
@@ -215,6 +215,8 @@ mukoko-weather/
 │   │   │   ├── MyWeatherModal.tsx     # Centralized preferences modal (location, activities, settings)
 │   │   │   ├── SavedLocationsModal.tsx # Saved locations manager (browse, add, remove, geolocation)
 │   │   │   ├── SavedLocationsModal.test.ts
+│   │   │   ├── SupportBanner.tsx           # Buy Me a Coffee inline support card (BMC brand yellow)
+│   │   │   ├── SupportBanner.test.ts       # SupportBanner tests (structure, accessibility, isolation)
 │   │   │   ├── WeatherLoadingScene.tsx # Branded Three.js weather loading animation (weather-aware scenes, respects prefers-reduced-motion)
 │   │   │   ├── WeatherLoadingScene.test.ts # KNOWN_ROUTES guard, reduced-motion, Three.js integration, accessibility
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
@@ -257,9 +259,9 @@ mukoko-weather/
 │   │   ├── device-sync.test.ts
 │   │   ├── suggested-prompts.ts   # Database-driven suggested prompt generation (fetches from /api/py/ai/prompts)
 │   │   ├── suggested-prompts.test.ts
-│   │   ├── locations.ts           # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS, search, filtering
+│   │   ├── locations.ts           # WeatherLocation type, 98 ZW seed locations, SUPPORTED_REGIONS, search, filtering
 │   │   ├── locations.test.ts
-│   │   ├── locations-africa.ts    # African city seed data (capitals + major cities across 54 AU member states)
+│   │   ├── locations-global.ts    # Global city seed data (capitals + major cities across 54 AU member states + ASEAN countries)
 │   │   ├── countries.ts           # Country/province types, seed data (54 AU + ASEAN), flag emoji, province slug generation
 │   │   ├── countries.test.ts
 │   │   ├── activities.ts          # Activity definitions for personalized weather insights
@@ -279,6 +281,10 @@ mukoko-weather/
 │   │   ├── db.test.ts
 │   │   ├── observability.ts       # Structured error logging + GA4 error reporting
 │   │   ├── observability.test.ts
+│   │   ├── analytics.ts           # Centralized event tracking (GA4 + Vercel Analytics)
+│   │   ├── analytics.test.ts
+│   │   ├── feature-flags.ts       # Client-side feature flag system (type-safe, localStorage overrides)
+│   │   ├── feature-flags.test.ts
 │   │   ├── geolocation.ts         # Browser Geolocation API wrapper (supports auto-creation)
 │   │   ├── geolocation.test.ts
 │   │   ├── weather-icons.tsx      # SVG weather/UI icons (MapPin, Clock, Search, Sun, Moon, etc.) + ActivityIcon
@@ -291,7 +297,7 @@ mukoko-weather/
 │   │   ├── error-retry.test.ts
 │   │   ├── use-debounce.ts         # Shared useDebounce hook (generic, reusable across components)
 │   │   ├── use-debounce.test.ts
-│   │   ├── utils.ts               # Tailwind class merging helper (cn)
+│   │   ├── utils.ts               # Tailwind class merging helper (cn) + getScrollBehavior (reduced-motion-aware scrolling)
 │   │   ├── utils.test.ts
 │   │   ├── accessibility.test.ts  # Accessibility helpers tests
 │   │   ├── seed-suitability-rules.ts # Seed suitability rules for db-init (condition-based evaluation)
@@ -353,7 +359,7 @@ mukoko-weather/
 │       ├── codeql.yml             # CodeQL security scanning (JS/TS, Python, Actions; concurrency-grouped)
 │       └── db-init.yml            # Post-deploy DB seed data sync (Vercel deployment webhook)
 ├── tests/
-│   └── py/                        # Python backend tests (pytest, 19 files, 559 tests)
+│   └── py/                        # Python backend tests (pytest, 19 files, 587 tests)
 │       ├── conftest.py            # Shared fixtures, sys.path/module mocking
 │       └── test_*.py              # 19 test files covering all Python endpoints + circuit breaker
 ├── vercel.json                    # Rewrites /api/py/* to Python serverless functions
@@ -365,13 +371,18 @@ mukoko-weather/
 ├── eslint.config.mjs              # Next.js core-web-vitals + TypeScript
 ├── postcss.config.mjs             # Tailwind CSS 4 plugin
 ├── components.json                # shadcn/ui configuration (new-york style)
+├── ARCHITECTURE.md                # Key architectural patterns (search, resilience, lazy loading, DB schema)
 ├── CONTRIBUTING.md
 ├── README.md
+├── RELEASES.md                    # Release notes for major PRs
 ├── SECURITY.md
+├── TEST_COVERAGE_ANALYSIS.md      # Comprehensive test audit and coverage gap analysis
 └── LICENSE
 ```
 
 ## Architecture
+
+> For detailed architectural diagrams (search patterns, resilience flows, database schema), see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Layered Component Architecture (MANDATORY)
 
@@ -403,7 +414,7 @@ Not every component needs every layer. Requirements scale with component weight:
 | **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
 
 **Every component MUST have (at minimum):**
-1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 44px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 48px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
 2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
 3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
 
@@ -564,6 +575,11 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - `reportProviderFailure(provider, errorType, location?)` — tracks weather provider failures as GA4 events
 - Used in `ChartErrorBoundary` (`componentDidCatch`), all three `error.tsx` pages, and API routes
 
+**Webhook alerting (optional):**
+- `sendAlert(ctx)` — sends HTTP POST to `ALERT_WEBHOOK_URL` for high/critical severity errors
+- Supports Slack incoming webhooks, Discord webhooks, PagerDuty, and compatible services
+- Three-tier alerting: (1) structured JSON logs to stdout, (2) GA4 exception events, (3) webhook alerts for critical/high severity
+
 **Usage across API routes (Python backend):**
 - `/api/py/weather` — logs errors on unexpected failures, fallback warnings
 - `/api/py/ai` — logs on AI service unavailability
@@ -574,11 +590,11 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
 
-**Seed locations:** 90+ Zimbabwe locations defined in `src/lib/locations.ts`, plus African cities across 54 AU member states in `src/lib/locations-africa.ts`. Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`.
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
 
-**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for Zimbabwe, ASEAN, and developing Africa. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
+**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for the developing world — Africa, ASEAN/Asia, Middle East, South & Central America, and Eastern Europe. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
 
 **Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
@@ -750,6 +766,12 @@ For weather alerts, status indicators, and severity levels, use the semantic sev
 Use these via Tailwind: `text-severity-low`, `bg-severity-severe/10`, `border-severity-moderate/20`, etc.
 Never use generic Tailwind colors (`text-green-600`, `text-red-500`, `bg-amber-500`) — always use severity tokens or brand tokens.
 
+**Third-party Brand Color Tokens:**
+- `--color-bmc` → Buy Me a Coffee official brand yellow (`#FFDD00`)
+- `--color-bmc-fg` → dark text for BMC yellow backgrounds (`#1A1A1A`)
+
+Use via Tailwind: `bg-bmc`, `border-bmc/40`, `text-bmc-fg`, `ring-bmc`, etc. Used by `SupportBanner` component.
+
 **Typography tokens:**
 - `--text-body: 1rem` (16px) — base body/footer text
 - `--text-body-lg: 1.125rem` (18px) — larger body text variant
@@ -772,10 +794,11 @@ Reusable skeleton components in `src/components/ui/skeleton.tsx`:
 - `MetricCardSkeleton` — matches AtmosphericSummary MetricCard shape
 - `ChatSkeleton` — matches ExploreChatbot container shape (used as Suspense fallback)
 
-Additional skeleton in `src/components/weather/SectionSkeleton.tsx`:
-- `SectionSkeleton` — generic section loading placeholder (h-32 pulsing card)
+Aspect-matched section skeletons in `src/components/weather/SectionSkeleton.tsx`:
+- `SectionSkeleton` — generic fallback (h-32 pulsing card)
+- `ReportsSkeleton`, `HourlyForecastSkeleton`, `ActivityInsightsSkeleton`, `DailyForecastSkeleton`, `AISummarySkeleton`, `AISummaryChatSkeleton`, `AtmosphericSummarySkeleton`, `SunTimesSkeleton`, `MapPreviewSkeleton`, `SupportBannerSkeleton`, `LocationInfoSkeleton` — each mirrors the shape of its corresponding component to prevent layout shift
 
-All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` text for screen readers.
+All skeletons include `role="status"` and `aria-label="Loading"` for screen readers. The `sr-only` span is optional when `aria-label` is present — both achieve the same result for assistive technology, so `aria-label` alone is sufficient.
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
@@ -843,6 +866,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 - Dynamic `robots.ts` and `sitemap.ts`
 - Per-page metadata via `generateMetadata()` in `[location]/page.tsx` — season data deduplicated across metadata + page component via React `cache()`
+- **Canonical URLs:** Every page sets its own `alternates.canonical` in metadata. The root layout does NOT set a canonical — doing so would bleed into every child page that doesn't override it, causing Google Search Console duplicate canonical errors. The home page (`/`) canonical points to `/harare` so Google indexes the main location page instead of the client-side redirect
 - JSON-LD schemas: WebApplication, Organization, WebSite, FAQPage, BreadcrumbList, WebPage+Place
 - Twitter cards (`@mukokoafrica`) and Open Graph tags on all pages
 - Dynamic OG images via `/api/og` (Edge runtime, Satori) — 6 templates (home, location, explore, history, season, shamwari), mineral accent stripe, in-memory rate limiting, 1-day CDN cache. Location pages intentionally omit weather data from OG params to avoid extra DB round-trips per SSR render
@@ -858,8 +882,43 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 - **Google Analytics 4** (GA4) — measurement ID `G-4KB2ZS573N`
 - Loaded via `next/script` with `afterInteractive` strategy in `src/components/analytics/GoogleAnalytics.tsx`
 - Included in the root layout (`src/app/layout.tsx`) so it runs on all pages
-- Privacy policy (`/privacy`) updated to disclose GA4 usage, cookie information, and opt-out instructions
-- No personally identifiable information is collected — only anonymised page views, visitor counts, and navigation patterns
+- **Vercel Web Analytics** — `@vercel/analytics` ^1.6.1, imported as `<Analytics />` from `@vercel/analytics/next` in root layout. Server-side Web Vitals collection and real-time performance monitoring in Vercel dashboards
+- Privacy policy (`/privacy`) updated to disclose GA4 + Vercel Analytics usage, cookie information, opt-out instructions, and custom event tracking
+- No personally identifiable information is collected — only anonymised page views, visitor counts, navigation patterns, and interaction events
+
+**Custom event tracking:** `src/lib/analytics.ts` — centralized utility that fires events to both GA4 and Vercel Analytics via a single `trackEvent(name, properties)` call. Type-safe event names and property shapes. No-ops on server, silently swallows errors so tracking never breaks the app.
+
+**Tracked events:**
+| Event | Trigger | Properties |
+|-------|---------|------------|
+| `report_submitted` | Weather report wizard complete | type, severity, location |
+| `report_upvoted` | Community report upvote | reportId, location |
+| `location_changed` | User navigates to different location | from, to, method (saved/geolocation/search) |
+| `location_saved` | Location added to saved list | slug |
+| `location_removed` | Location removed from saved list | slug |
+| `activity_toggled` | Activity enabled/disabled | activityId, enabled |
+| `theme_changed` | Theme preference changed | theme |
+| `ai_summary_loaded` | AI summary fetched for location | location |
+| `ai_chat_sent` | Message sent in AI chat | source, location? |
+| `explore_search` | Explore search performed | query, resultCount |
+| `history_analysis` | Historical analysis triggered | location, days |
+| `geolocation_result` | Home page geolocation resolved | status, location? |
+| `map_layer_changed` | Weather map layer switched | layer, location |
+| `onboarding_completed` | Welcome banner action taken | method |
+| `modal_opened` | Modal opened | modal |
+
+### Feature Flags
+
+`src/lib/feature-flags.ts` — lightweight, type-safe, client-side feature flag system. No SaaS dependency.
+
+**Flag definitions:** Code-defined `FLAGS` object with boolean defaults. All currently-shipped features are `true`. Experimental/future features (`premium_maps`, `vector_search`, `multi_language`) are `false`.
+
+**API:**
+- `isFeatureEnabled(flag)` — check default flag value (safe on server + client)
+- `isFeatureEnabledWithOverride(flag)` — check with localStorage override support (`ff:<flag>` keys)
+- `getFeatureFlag(flag)` — check flag with localStorage override support (safe anywhere, not a React hook)
+
+**Dev overrides:** Set `localStorage.setItem("ff:premium_maps", "true")` in browser console to enable features locally. Changes require page reload.
 
 ### Historical Weather Dashboard
 
@@ -893,11 +952,11 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 **Desktop nav links** (hidden on mobile, `sm:flex`): Explore | Shamwari | History — text links with active state highlighting.
 
-**Action pill** (`bg-primary`, two 44px circular icon buttons):
-1. **Layers icon** — opens the Saved Locations modal
-2. **Map pin** — opens the My Weather modal
-
-The pill is deliberately focused on contextual actions (location management, preferences) and does not duplicate the desktop nav links.
+**Action pill** (`bg-primary`, four 48px circular icon buttons):
+1. **Compass icon** — links to `/explore` (Explore locations)
+2. **Layers icon** — links to `/${selectedLocation}/map` (Weather map)
+3. **Megaphone icon** — opens the Weather Report modal (Report current weather)
+4. **Map pin icon** — opens the My Weather modal (Preferences)
 
 The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true). `SavedLocationsModal` is additionally wrapped in `ChartErrorBoundary` so a crash in the modal never takes down the header.
 
@@ -915,7 +974,7 @@ The header takes no props — location context comes from the URL path.
 - **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming. Auto-scrolls into view after location selection.
 - **Settings** — theme radio group (light/dark/system) with visual indicators.
 
-**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 44px min-height touch targets.
+**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 48px min-height touch targets.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
@@ -982,15 +1041,16 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 5. **Memory pressure monitoring** — `useMemoryPressure()` hook monitors `performance.memory` for JS heap pressure
 
 **Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
-- `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
-- `AISummary` → `LazySection` + `Suspense`
-- `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
-- `ActivityInsights` → `LazySection` + `Suspense`
-- `AtmosphericSummary` → `LazySection` + `Suspense`
-- `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
-- `SunTimes` → `LazySection` + `Suspense`
-- `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `RecentReports` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `ActivityInsights` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AISummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
+- `AtmosphericSummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `SunTimes` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `SupportBanner` → `LazySection` + `ChartErrorBoundary` (Buy Me a Coffee support card)
 - Location info card → `LazySection`
 
 **History page — only the search/filters and summary stats load eagerly.** All charts and the data table are lazy:
@@ -1059,6 +1119,10 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 - `/explore/country/[code]` — locations in a country, grouped by province
 - `/explore/country/[code]/[province]` — locations in a specific province
 
+### Support Banner (Buy Me a Coffee)
+
+`src/components/weather/SupportBanner.tsx` — inline support card linking to Buy Me a Coffee (`https://www.buymeacoffee.com/bryany`). Uses the official BMC brand yellow via `--color-bmc` CSS custom property. Wrapped in `LazySection` + `ChartErrorBoundary` on the location page so a crash never affects weather sections. Rendered after community reports and before the location info card in `WeatherDashboard.tsx`.
+
 ### Community Weather Reporting (Waze-Style)
 
 Users can submit real-time ground-truth weather observations, similar to Waze for road incidents.
@@ -1118,12 +1182,14 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/suggested-prompts.test.ts` — suggested prompt generation, weather condition matching, max 3 cap
 - `src/lib/device-sync.test.ts` — device sync CRUD, debounced sync, migration, beforeunload
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
-- `src/lib/utils.test.ts` — Tailwind class merging (cn utility)
+- `src/lib/utils.test.ts` — Tailwind class merging (cn utility), getScrollBehavior reduced-motion detection
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
 - `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
 - `src/lib/observability.test.ts` — structured logging, error reporting
+- `src/lib/analytics.test.ts` — centralized event tracking (GA4 + Vercel), no-op on server, missing gtag, all event types
+- `src/lib/feature-flags.test.ts` — flag definitions, default values, localStorage overrides, SSR fallback, getFeatureFlag equivalence
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
@@ -1161,7 +1227,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
 *Page/component tests:*
-- `src/app/seo.test.ts` — metadata generation, schema validation
+- `src/app/seo.test.ts` — metadata generation, schema validation, canonical URL coverage (layout bleed guard, per-page canonical presence)
 - `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard (max-wait timeout), deferred fallback, redirect logic, geolocation
 - `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
 - `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton
@@ -1183,6 +1249,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/CurrentConditions.test.ts` — current conditions rendering
 - `src/components/weather/LazySection.test.ts` — lazy section mounting, visibility
 - `src/components/weather/WelcomeBanner.test.ts` — welcome banner rendering, onboarding state, accessibility
+- `src/components/weather/SupportBanner.test.ts` — BMC support card structure, accessibility, error isolation, no hardcoded styles
 - `src/components/weather/AISummaryChat.test.ts` — inline follow-up chat structure, max message cap, accessibility
 - `src/components/weather/HistoryAnalysis.test.ts` — analysis structure, endpoint, request body, ShamwariContext, accessibility
 - `src/components/weather/SavedLocationsModal.test.ts` — modal structure, icons, search, geolocation, loading skeleton, capacity management, accessibility
@@ -1242,10 +1309,10 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Screen reader utilities** — `.sr-only` CSS class in `globals.css` for visually hidden but screen reader accessible text
 - **Reduced motion** — all entrance animations, stagger delays, and transitions gated by `@media (prefers-reduced-motion: no-preference)`; `prefers-reduced-motion: reduce` disables all animations/transitions globally
 - **High contrast** — `prefers-contrast: more` overrides for maximum contrast; `forced-colors: active` support for Windows High Contrast mode
-- **Touch targets** — all interactive elements have 44px minimum touch targets
+- **Touch targets** — all interactive elements have 48px minimum touch targets
 - **Headings** — all sections use `aria-labelledby` with heading IDs
 - **Decorative elements** — icons marked `aria-hidden="true"`
-- **Skeletons** — all loading states include `role="status"`, `aria-label="Loading"`, and `sr-only` text
+- **Skeletons** — all loading states include `role="status"` and `aria-label="Loading"` (`sr-only` span is optional when `aria-label` is present)
 
 ### General
 - Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `explore/`, `embed/`)
@@ -1290,6 +1357,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - `MONGODB_URI` — required, MongoDB Atlas connection string
 - `ANTHROPIC_API_KEY` — optional, server-side only. Without it, a basic weather summary fallback is generated.
 - `DB_INIT_SECRET` — optional, protects the `/api/db-init` endpoint in production (via `x-init-secret` header)
+- `ALERT_WEBHOOK_URL` — optional, enables webhook alerting for high/critical severity errors (Slack incoming webhook, Discord webhook, PagerDuty, or compatible services). Used by `src/lib/observability.ts`
 
 ## Common Patterns
 
@@ -1346,7 +1414,7 @@ Community locations are stored in the same MongoDB `locations` collection as see
 ### Cloudflare Workers (optional edge layer)
 The `worker/` directory contains an independent Hono-based API that mirrors the Next.js API routes. It uses Cloudflare KV for caching instead of MongoDB. This is an optional deployment target — the primary deployment is Vercel.
 
-## Removed / Migrated Files
+## Removed / Migrated / Renamed Files
 
 The following TypeScript files were **removed** during the Python backend migration:
 - `src/lib/circuit-breaker.ts` — circuit breaker resilience (re-implemented in Python as `api/py/_circuit_breaker.py`)
@@ -1355,3 +1423,6 @@ The following TypeScript files were **removed** during the Python backend migrat
 - `src/lib/kv-cache.ts` — KV cache (replaced by MongoDB `src/lib/db.ts`, then migrated to Python)
 - `src/types/cloudflare.d.ts` — KV types (no longer needed)
 - All TypeScript API routes under `src/app/api/` except `og/` and `db-init/` — replaced by Python endpoints under `api/py/`
+
+The following files were **renamed**:
+- `src/lib/locations-africa.ts` → `src/lib/locations-global.ts` — expanded from African cities to include ASEAN countries (imported as `GLOBAL_LOCATIONS`)
