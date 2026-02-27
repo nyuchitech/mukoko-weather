@@ -26,7 +26,7 @@ export type AnalyticsEvents = {
   location_changed: {
     from: string;
     to: string;
-    method: "search" | "geolocation" | "saved" | "explore";
+    method: "search" | "geolocation" | "saved";
   };
   /** User saved a location to their list */
   location_saved: { slug: string };

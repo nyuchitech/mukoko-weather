@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogSheetHandle, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogSheetHandle, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
 import { trackEvent } from "@/lib/analytics";
 
@@ -132,7 +132,7 @@ export function WeatherReportModal() {
         <DialogSheetHandle />
 
         {/* Title + description */}
-        <div className="px-5">
+        <DialogHeader className="px-5">
           <DialogTitle>
             {step === "confirm" ? "Report Submitted" : "Report Weather"}
           </DialogTitle>
@@ -141,7 +141,7 @@ export function WeatherReportModal() {
             {step === "clarify" && typeInfo && `Tell us more about the ${typeInfo.label.toLowerCase()}`}
             {step === "confirm" && "Thank you for helping your community!"}
           </DialogDescription>
-        </div>
+        </DialogHeader>
 
         {/* Step 1: Select type */}
         {step === "select" && (

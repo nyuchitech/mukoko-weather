@@ -17,7 +17,7 @@ export function SectionSkeleton({ className }: { className?: string } = {}) {
 
 export function ReportsSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse" role="status" aria-label="Loading community reports">
+    <div className="space-y-3" role="status" aria-label="Loading community reports">
       {/* Header row: heading + button */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-40" />
@@ -37,7 +37,7 @@ export function ReportsSkeleton() {
 export function HourlyForecastSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
+      className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
       role="status"
       aria-label="Loading hourly forecast"
     >
@@ -66,7 +66,7 @@ export function HourlyForecastSkeleton() {
 
 export function ActivityInsightsSkeleton() {
   return (
-    <div className="animate-pulse" role="status" aria-label="Loading activity insights">
+    <div role="status" aria-label="Loading activity insights">
       {/* Section header: title + Edit action */}
       <div className="mb-4 flex items-center justify-between">
         <Skeleton className="h-6 w-32" />
@@ -104,7 +104,7 @@ export function ActivityInsightsSkeleton() {
 export function DailyForecastSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
+      className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
       role="status"
       aria-label="Loading daily forecast"
     >
@@ -144,7 +144,7 @@ export function DailyForecastSkeleton() {
 export function AISummarySkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 border-l-[6px] border-l-tanzanite bg-surface-card p-5 shadow-sm sm:p-6"
+      className="rounded-[var(--radius-card)] border border-primary/25 border-l-[6px] border-l-tanzanite bg-surface-card p-5 shadow-sm sm:p-6"
       role="status"
       aria-label="Loading AI summary"
     >
@@ -173,7 +173,7 @@ export function AISummarySkeleton() {
 export function AISummaryChatSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border-l-4 border-tanzanite bg-surface-card"
+      className="rounded-[var(--radius-card)] border-l-4 border-tanzanite bg-surface-card"
       role="status"
       aria-label="Loading follow-up chat"
     >
@@ -196,7 +196,7 @@ export function AISummaryChatSkeleton() {
 
 export function AtmosphericSummarySkeleton() {
   return (
-    <div className="animate-pulse" role="status" aria-label="Loading atmospheric conditions">
+    <div role="status" aria-label="Loading atmospheric conditions">
       {/* Section header: title + link */}
       <div className="mb-4 flex items-center justify-between">
         <Skeleton className="h-6 w-28" />
@@ -220,7 +220,7 @@ export function AtmosphericSummarySkeleton() {
 export function SunTimesSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
+      className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
       role="status"
       aria-label="Loading sun times"
     >
@@ -250,7 +250,7 @@ export function SunTimesSkeleton() {
 export function MapPreviewSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 bg-surface-card shadow-sm overflow-hidden"
+      className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card shadow-sm overflow-hidden"
       role="status"
       aria-label="Loading weather map"
     >
@@ -273,7 +273,7 @@ export function MapPreviewSkeleton() {
 export function SupportBannerSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-text-tertiary/20 bg-surface-card p-0 shadow-sm"
+      className="rounded-[var(--radius-card)] border border-text-tertiary/20 bg-surface-card p-0 shadow-sm"
       role="status"
       aria-label="Loading support banner"
     >
@@ -300,7 +300,7 @@ export function SupportBannerSkeleton() {
 export function LocationInfoSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
+      className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6"
       role="status"
       aria-label="Loading location information"
     >
