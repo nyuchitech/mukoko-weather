@@ -13,10 +13,15 @@ import { ExploreSearch } from "@/components/explore/ExploreSearch";
 // Location data changes rarely — this eliminates cold-start DB latency for visitors.
 export const revalidate = 3600;
 
+const BASE_URL = "https://weather.mukoko.com";
+
 export const metadata: Metadata = {
   title: "Explore Weather | mukoko weather",
   description:
     "Browse weather locations across Africa and ASEAN by category, country, and province. Discover cities, farming regions, national parks, and more.",
+  alternates: {
+    canonical: `${BASE_URL}/explore`,
+  },
   openGraph: {
     title: "Explore Weather | mukoko weather",
     description:

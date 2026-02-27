@@ -9,10 +9,15 @@ import type { CountryDoc } from "@/lib/db";
 
 export const revalidate = 3600;
 
+const BASE_URL = "https://weather.mukoko.com";
+
 export const metadata: Metadata = {
   title: "Browse Weather by Country | mukoko weather",
   description:
     "Explore weather forecasts across Africa and ASEAN — browse by country and region.",
+  alternates: {
+    canonical: `${BASE_URL}/explore/country`,
+  },
   openGraph: {
     title: "Browse Weather by Country | mukoko weather",
     description:

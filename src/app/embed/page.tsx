@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Embed Weather Widgets",
   description:
     "Add mukoko weather widgets to your website. Current conditions, forecasts, and compact badges for any Zimbabwe location.",
+  alternates: {
+    canonical: "https://weather.mukoko.com/embed",
+  },
 };
 
 export default function EmbedPage() {

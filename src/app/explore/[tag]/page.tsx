@@ -25,6 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${meta.label} Weather — Zimbabwe | mukoko weather`,
     description: meta.description,
+    alternates: {
+      canonical: `https://weather.mukoko.com/explore/${tag}`,
+    },
     openGraph: {
       title: `${meta.label} Weather — Zimbabwe | mukoko weather`,
       description: meta.description,

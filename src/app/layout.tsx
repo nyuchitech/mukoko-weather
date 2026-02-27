@@ -40,7 +40,6 @@ export const metadata: Metadata = {
   creator: "Mukoko Africa",
   publisher: "Nyuchi Africa (PVT) Ltd",
   alternates: {
-    canonical: BASE_URL,
     languages: {
       "en": BASE_URL,
       "x-default": BASE_URL,
