@@ -1039,15 +1039,15 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 5. **Memory pressure monitoring** — `useMemoryPressure()` hook monitors `performance.memory` for JS heap pressure
 
 **Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
-- `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
-- `AISummary` → `LazySection` + `Suspense`
-- `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
-- `ActivityInsights` → `LazySection` + `Suspense`
-- `AtmosphericSummary` → `LazySection` + `Suspense`
-- `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
-- `SunTimes` → `LazySection` + `Suspense`
-- `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `RecentReports` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `ActivityInsights` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AISummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
+- `AtmosphericSummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `SunTimes` → `LazySection` + `ChartErrorBoundary` + `Suspense`
+- `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `SupportBanner` → `LazySection` + `ChartErrorBoundary` (Buy Me a Coffee support card)
 - Location info card → `LazySection`
 

@@ -108,8 +108,11 @@ describe("Dialog", () => {
     const { readFileSync } = await import("fs");
     const { resolve } = await import("path");
     const src = readFileSync(resolve(__dirname, "dialog.tsx"), "utf-8");
-    expect(src).not.toContain("rounded-2xl");
-    expect(src).not.toContain("rounded-none");
+    // All rounded-* classes must use CSS variables or "full" — never hardcoded sizes
+    const roundedClasses = src.match(/rounded-[^\s"']*/g) || [];
+    for (const cls of roundedClasses) {
+      expect(cls).toMatch(/rounded-(?:t-)?(?:\[var\(--radius-|full)/);
+    }
     expect(src).toContain("var(--radius-card)");
   });
 });

@@ -169,7 +169,7 @@ export function WeatherDashboard({
             </ChartErrorBoundary>
             <LazySection label="community-reports">
               <ChartErrorBoundary name="community reports">
-                <Suspense fallback={<SectionSkeleton className="h-40" />}>
+                <Suspense fallback={<SectionSkeleton className="h-24" />}>
                   <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
@@ -197,7 +197,7 @@ export function WeatherDashboard({
             </LazySection>
             <LazySection label="ai-summary">
               <ChartErrorBoundary name="AI summary">
-                <Suspense fallback={<SectionSkeleton className="h-48" />}>
+                <Suspense fallback={<SectionSkeleton className="h-72" />}>
                   {!usingFallback && <AISummary weather={weather} location={location} onSummaryLoaded={setAiSummary} />}
                 </Suspense>
               </ChartErrorBoundary>
@@ -227,9 +227,9 @@ export function WeatherDashboard({
 
           {/* Sidebar — stacks below on mobile */}
           <div className="min-w-0 space-y-8">
-            <LazySection label="sun-times">
+            <LazySection label="sun-times" fallback={<SectionSkeleton className="h-32" />}>
               <ChartErrorBoundary name="sun times">
-                <Suspense fallback={<SectionSkeleton />}>
+                <Suspense fallback={<SectionSkeleton className="h-32" />}>
                   <SunTimes daily={weather.daily} />
                 </Suspense>
               </ChartErrorBoundary>
@@ -243,14 +243,14 @@ export function WeatherDashboard({
               </ChartErrorBoundary>
             </LazySection>
 
-            <LazySection label="support-banner">
+            <LazySection label="support-banner" fallback={<SectionSkeleton className="h-28" />}>
               <ChartErrorBoundary name="support banner">
                 <SupportBanner />
               </ChartErrorBoundary>
             </LazySection>
 
             {/* Location info card */}
-            <LazySection label="location-info">
+            <LazySection label="location-info" fallback={<SectionSkeleton className="h-44" />}>
               <section aria-labelledby={`about-${location.slug}`}>
                 <div className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6">
                   <h2 id={`about-${location.slug}`} className="text-lg font-semibold text-text-primary font-heading">

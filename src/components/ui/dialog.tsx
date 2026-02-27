@@ -50,7 +50,7 @@ function DialogContent({
         className={cn(
           // Mobile: bottom-sheet that slides up from bottom
           "bg-surface-card fixed z-50 w-full shadow-lg duration-200",
-          "inset-x-0 bottom-0 rounded-t-[var(--radius-card)] data-[state=open]:animate-slide-up data-[state=closed]:animate-slide-down",
+          "inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-card)] data-[state=open]:animate-slide-up data-[state=closed]:animate-slide-down",
           // Desktop: centered dialog
           "sm:inset-auto sm:top-[50%] sm:left-[50%] sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-[var(--radius-card)] sm:data-[state=open]:animate-in sm:data-[state=open]:fade-in-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:animate-out sm:data-[state=closed]:fade-out-0 sm:data-[state=closed]:zoom-out-95 sm:max-h-[85vh]",
           className
