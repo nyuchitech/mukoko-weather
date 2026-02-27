@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding globally. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Locations span Zimbabwe (98 seed locations), 54 AU member states, and ASEAN countries (265 total seed locations) — with new locations added dynamically by the community via geolocation and search.
+mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding across the developing world. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Target regions include Africa (54 AU member states), ASEAN/Asia, the Middle East, South & Central America, and Eastern Europe. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -590,11 +590,11 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
 
-**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across 54 AU member states and ASEAN countries in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
 
-**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for Zimbabwe, ASEAN, and developing Africa. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
+**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for the developing world — Africa, ASEAN/Asia, Middle East, South & Central America, and Eastern Europe. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
 
 **Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
