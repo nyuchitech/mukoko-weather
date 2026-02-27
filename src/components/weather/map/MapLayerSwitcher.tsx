@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { MAP_LAYERS } from "@/lib/map-layers";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -14,11 +15,14 @@ export function MapLayerSwitcher({
   activeLayer,
   onLayerChange,
 }: MapLayerSwitcherProps) {
+  const pathname = usePathname();
+  const locationSlug = pathname.split("/")[1] || "";
+
   return (
     <ToggleGroup
       type="single"
       value={activeLayer}
-      onValueChange={(val) => { if (val) { onLayerChange(val); trackEvent("map_layer_changed", { layer: val, location: "" }); } }}
+      onValueChange={(val) => { if (val) { onLayerChange(val); trackEvent("map_layer_changed", { layer: val, location: locationSlug }); } }}
       variant="unstyled"
       className="flex gap-2 overflow-x-auto px-4 py-2 scrollbar-hide [overscroll-behavior-x:contain]"
       aria-label="Map layer selection"

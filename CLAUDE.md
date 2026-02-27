@@ -950,11 +950,11 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 **Desktop nav links** (hidden on mobile, `sm:flex`): Explore | Shamwari | History — text links with active state highlighting.
 
-**Action pill** (`bg-primary`, two 44px circular icon buttons):
-1. **Layers icon** — opens the Saved Locations modal
-2. **Map pin** — opens the My Weather modal
-
-The pill is deliberately focused on contextual actions (location management, preferences) and does not duplicate the desktop nav links.
+**Action pill** (`bg-primary`, four 44px circular icon buttons):
+1. **Compass icon** — links to `/explore` (Explore locations)
+2. **Layers icon** — links to `/${selectedLocation}/map` (Weather map)
+3. **Megaphone icon** — opens the Weather Report modal (Report current weather)
+4. **Map pin icon** — opens the My Weather modal (Preferences)
 
 The header also renders `WeatherReportModal` and `SavedLocationsModal` (both lazy-loaded, only mount when their respective store state is true). `SavedLocationsModal` is additionally wrapped in `ChartErrorBoundary` so a crash in the modal never takes down the header.
 

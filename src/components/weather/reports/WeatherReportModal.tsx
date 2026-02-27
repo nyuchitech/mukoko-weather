@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogSheetHandle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogSheetHandle, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
 import { trackEvent } from "@/lib/analytics";
 
@@ -128,14 +128,14 @@ export function WeatherReportModal() {
 
   return (
     <Dialog open={reportModalOpen} onOpenChange={(open) => { if (open) trackEvent("modal_opened", { modal: "weather-report" }); else handleClose(); }}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined} aria-label="Report Weather">
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
         <DialogSheetHandle />
 
         {/* Title */}
         <div className="px-5">
-          <h2 id="report-modal-title" className="text-lg font-semibold text-text-primary font-heading">
+          <DialogTitle>
             {step === "confirm" ? "Report Submitted" : "Report Weather"}
-          </h2>
+          </DialogTitle>
           <p className="mt-0.5 text-base text-text-secondary">
             {step === "select" && "What are you experiencing right now?"}
             {step === "clarify" && typeInfo && `Tell us more about the ${typeInfo.label.toLowerCase()}`}
