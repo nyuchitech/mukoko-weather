@@ -5,12 +5,12 @@
  * No SaaS dependency — flags can be extended to MongoDB-backed in the future.
  *
  * Usage:
- *   import { useFeatureFlag, isFeatureEnabled } from "@/lib/feature-flags";
+ *   import { getFeatureFlag, isFeatureEnabled } from "@/lib/feature-flags";
  *
- *   // In React components (hook)
- *   const enabled = useFeatureFlag("weather_reports");
+ *   // In components or anywhere (checks localStorage overrides)
+ *   const enabled = getFeatureFlag("weather_reports");
  *
- *   // Outside React (plain function)
+ *   // Without localStorage overrides (safe on server)
  *   if (isFeatureEnabled("premium_maps")) { ... }
  *
  * Dev overrides via localStorage (browser console):
@@ -81,12 +81,12 @@ export function isFeatureEnabledWithOverride(flag: FeatureFlag): boolean {
 }
 
 /**
- * React hook for checking a feature flag in components.
- * Uses localStorage overrides so developers can toggle features at runtime.
+ * Check a feature flag with localStorage override support.
+ * Alias for `isFeatureEnabledWithOverride` with a shorter name.
  *
- * Note: This is a synchronous read — flag changes require a page reload
- * to take effect (no reactive re-rendering on localStorage change).
+ * Safe to call anywhere (components, utilities, event handlers).
+ * Synchronous read — flag changes require a page reload to take effect.
  */
-export function useFeatureFlag(flag: FeatureFlag): boolean {
+export function getFeatureFlag(flag: FeatureFlag): boolean {
   return isFeatureEnabledWithOverride(flag);
 }

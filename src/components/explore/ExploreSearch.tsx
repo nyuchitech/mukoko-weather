@@ -69,6 +69,7 @@ export function ExploreSearch() {
         const data: SearchResponse = await res.json();
         setResults(data.locations || []);
         setSummary(data.summary || null);
+        // Note: query text is tracked (truncated to 100 chars) — disclosed in /privacy under custom event tracking
         trackEvent("explore_search", { query: trimmed.slice(0, 100), resultCount: (data.locations || []).length });
       } catch (err) {
         setError(

@@ -914,7 +914,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 **API:**
 - `isFeatureEnabled(flag)` — check default flag value (safe on server + client)
 - `isFeatureEnabledWithOverride(flag)` — check with localStorage override support (`ff:<flag>` keys)
-- `useFeatureFlag(flag)` — React hook (uses localStorage overrides)
+- `getFeatureFlag(flag)` — check flag with localStorage override support (safe anywhere, not a React hook)
 
 **Dev overrides:** Set `localStorage.setItem("ff:premium_maps", "true")` in browser console to enable features locally. Changes require page reload.
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { MAP_LAYERS } from "@/lib/map-layers";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -16,11 +17,20 @@ export function MapLayerSwitcher({
   onLayerChange,
   locationSlug,
 }: MapLayerSwitcherProps) {
+  const handleLayerChange = useCallback(
+    (val: string) => {
+      if (!val) return;
+      onLayerChange(val);
+      trackEvent("map_layer_changed", { layer: val, location: locationSlug });
+    },
+    [onLayerChange, locationSlug],
+  );
+
   return (
     <ToggleGroup
       type="single"
       value={activeLayer}
-      onValueChange={(val) => { if (val) { onLayerChange(val); trackEvent("map_layer_changed", { layer: val, location: locationSlug }); } }}
+      onValueChange={handleLayerChange}
       variant="unstyled"
       className="flex gap-2 overflow-x-auto px-4 py-2 scrollbar-hide [overscroll-behavior-x:contain]"
       aria-label="Map layer selection"

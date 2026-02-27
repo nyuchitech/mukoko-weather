@@ -3,7 +3,7 @@ import {
   FLAGS,
   isFeatureEnabled,
   isFeatureEnabledWithOverride,
-  useFeatureFlag,
+  getFeatureFlag,
   type FeatureFlag,
 } from "./feature-flags";
 
@@ -155,25 +155,25 @@ describe("feature-flags", () => {
     });
   });
 
-  describe("useFeatureFlag", () => {
+  describe("getFeatureFlag", () => {
     beforeEach(() => {
       localStorageMock.clear();
     });
 
     it("returns default flag value", () => {
-      expect(useFeatureFlag("weather_reports")).toBe(true);
-      expect(useFeatureFlag("premium_maps")).toBe(false);
+      expect(getFeatureFlag("weather_reports")).toBe(true);
+      expect(getFeatureFlag("premium_maps")).toBe(false);
     });
 
     it("respects localStorage overrides", () => {
       localStorageMock.setItem("ff:premium_maps", "true");
-      expect(useFeatureFlag("premium_maps")).toBe(true);
+      expect(getFeatureFlag("premium_maps")).toBe(true);
     });
 
     it("is equivalent to isFeatureEnabledWithOverride for a given flag", () => {
       // Test a representative flag (not in a loop to satisfy react-hooks/rules-of-hooks)
-      expect(useFeatureFlag("weather_reports")).toBe(isFeatureEnabledWithOverride("weather_reports"));
-      expect(useFeatureFlag("premium_maps")).toBe(isFeatureEnabledWithOverride("premium_maps"));
+      expect(getFeatureFlag("weather_reports")).toBe(isFeatureEnabledWithOverride("weather_reports"));
+      expect(getFeatureFlag("premium_maps")).toBe(isFeatureEnabledWithOverride("premium_maps"));
     });
   });
 });
