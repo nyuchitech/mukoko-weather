@@ -70,7 +70,7 @@ mukoko-weather/
 │   │   ├── robots.ts                 # Dynamic robots.txt
 │   │   ├── sitemap.ts                # Dynamic XML sitemap (all locations + pages)
 │   │   ├── seo.test.ts               # SEO tests
-│   │   ├── [location]/               # Dynamic weather pages (90+ locations)
+│   │   ├── [location]/               # Dynamic weather pages (265+ locations)
 │   │   │   ├── page.tsx              # Thin server wrapper (SEO, data fetch, JSON-LD)
 │   │   │   ├── WeatherDashboard.tsx  # Client component — all weather UI with per-section error boundaries
 │   │   │   ├── WeatherDashboard.test.ts
@@ -865,6 +865,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 
 - Dynamic `robots.ts` and `sitemap.ts`
 - Per-page metadata via `generateMetadata()` in `[location]/page.tsx` — season data deduplicated across metadata + page component via React `cache()`
+- **Canonical URLs:** Every page sets its own `alternates.canonical` in metadata. The root layout does NOT set a canonical — doing so would bleed into every child page that doesn't override it, causing Google Search Console duplicate canonical errors. The home page (`/`) canonical points to `/harare` so Google indexes the main location page instead of the client-side redirect
 - JSON-LD schemas: WebApplication, Organization, WebSite, FAQPage, BreadcrumbList, WebPage+Place
 - Twitter cards (`@mukokoafrica`) and Open Graph tags on all pages
 - Dynamic OG images via `/api/og` (Edge runtime, Satori) — 6 templates (home, location, explore, history, season, shamwari), mineral accent stripe, in-memory rate limiting, 1-day CDN cache. Location pages intentionally omit weather data from OG params to avoid extra DB round-trips per SSR render
@@ -1187,7 +1188,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
 - `src/lib/observability.test.ts` — structured logging, error reporting
 - `src/lib/analytics.test.ts` — centralized event tracking (GA4 + Vercel), no-op on server, missing gtag, all event types
-- `src/lib/feature-flags.test.ts` — flag definitions, default values, localStorage overrides, SSR fallback, hook equivalence
+- `src/lib/feature-flags.test.ts` — flag definitions, default values, localStorage overrides, SSR fallback, getFeatureFlag equivalence
 - `src/lib/weather-icons.test.ts` — weather icon mapping
 - `src/lib/error-retry.test.ts` — error retry logic
 - `src/lib/accessibility.test.ts` — accessibility helpers
@@ -1225,7 +1226,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
 *Page/component tests:*
-- `src/app/seo.test.ts` — metadata generation, schema validation
+- `src/app/seo.test.ts` — metadata generation, schema validation, canonical URL coverage (layout bleed guard, per-page canonical presence)
 - `src/app/HomeRedirect.test.ts` — HomeRedirect structure, Zustand rehydration guard (max-wait timeout), deferred fallback, redirect logic, geolocation
 - `src/app/explore/explore.test.ts` — explore page tests (browse-only, Shamwari CTA link)
 - `src/app/shamwari/shamwari.test.ts` — Shamwari page structure, full-viewport layout, loading skeleton

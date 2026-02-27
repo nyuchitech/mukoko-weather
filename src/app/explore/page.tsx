@@ -111,7 +111,7 @@ export default async function ExplorePage() {
             Browse by Category
           </h2>
           <p className="mt-1 text-base text-text-secondary">
-            {totalLocations || "90+"} locations across Africa and ASEAN
+            {totalLocations || "265+"} locations across Africa and ASEAN
           </p>
 
           {tagCounts.length === 0 && (

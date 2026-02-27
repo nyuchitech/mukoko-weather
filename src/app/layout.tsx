@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | mukoko weather",
   },
   description:
-    "AI-powered weather intelligence for Zimbabwe. Accurate forecasts, frost alerts, and actionable insights for farming, mining, travel, and daily life across Harare, Bulawayo, Mutare, and 90+ locations.",
+    "AI-powered weather intelligence for Zimbabwe. Accurate forecasts, frost alerts, and actionable insights for farming, mining, travel, and daily life across Harare, Bulawayo, Mutare, and 265+ locations.",
   keywords: [
     "Zimbabwe weather",
     "Zimbabwe weather forecast",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "mukoko weather — Zimbabwe Weather Intelligence",
     description:
-      "AI-powered weather intelligence for Zimbabwe. Accurate forecasts, frost alerts, and actionable insights for farming, mining, travel, and daily life across 90+ locations.",
+      "AI-powered weather intelligence for Zimbabwe. Accurate forecasts, frost alerts, and actionable insights for farming, mining, travel, and daily life across 265+ locations.",
     type: "website",
     locale: "en_ZW",
     url: BASE_URL,
@@ -101,7 +101,7 @@ export default function RootLayout({
     name: "mukoko weather",
     alternateName: "Mukoko Weather Zimbabwe",
     description:
-      "AI-powered weather intelligence platform for Zimbabwe, providing actionable forecasts for farming, mining, travel, and daily life across 90+ locations.",
+      "AI-powered weather intelligence platform for Zimbabwe, providing actionable forecasts for farming, mining, travel, and daily life across 265+ locations.",
     url: BASE_URL,
     applicationCategory: "WeatherApplication",
     operatingSystem: "Any",
@@ -132,7 +132,7 @@ export default function RootLayout({
       "24-hour hourly forecasts",
       "AI-powered weather summaries",
       "Frost alerts for farmers",
-      "90+ Zimbabwe locations",
+      "265+ weather locations",
       "Sunrise and sunset times",
     ],
   };
