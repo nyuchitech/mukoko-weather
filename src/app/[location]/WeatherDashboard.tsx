@@ -7,7 +7,19 @@ import { CurrentConditions } from "@/components/weather/CurrentConditions";
 import { SeasonBadge } from "@/components/weather/SeasonBadge";
 import { LazySection } from "@/components/weather/LazySection";
 import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
-import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
+import {
+  ReportsSkeleton,
+  HourlyForecastSkeleton,
+  ActivityInsightsSkeleton,
+  DailyForecastSkeleton,
+  AISummarySkeleton,
+  AISummaryChatSkeleton,
+  AtmosphericSummarySkeleton,
+  SunTimesSkeleton,
+  MapPreviewSkeleton,
+  SupportBannerSkeleton,
+  LocationInfoSkeleton,
+} from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
 import { useAppStore } from "@/lib/store";
@@ -167,45 +179,45 @@ export function WeatherDashboard({
                 slug={location.slug}
               />
             </ChartErrorBoundary>
-            <LazySection label="community-reports">
+            <LazySection label="community-reports" fallback={<ReportsSkeleton />}>
               <ChartErrorBoundary name="community reports">
-                <Suspense fallback={<SectionSkeleton className="h-24" />}>
+                <Suspense fallback={<ReportsSkeleton />}>
                   <RecentReports locationSlug={location.slug} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
-            <LazySection label="hourly-forecast">
+            <LazySection label="hourly-forecast" fallback={<HourlyForecastSkeleton />}>
               <ChartErrorBoundary name="hourly forecast">
-                <Suspense fallback={<SectionSkeleton className="h-[22rem]" />}>
+                <Suspense fallback={<HourlyForecastSkeleton />}>
                   <HourlyForecast hourly={weather.hourly} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
-            <LazySection label="activity-insights">
+            <LazySection label="activity-insights" fallback={<ActivityInsightsSkeleton />}>
               <ChartErrorBoundary name="activity insights">
-                <Suspense fallback={<SectionSkeleton className="h-56" />}>
+                <Suspense fallback={<ActivityInsightsSkeleton />}>
                   <ActivityInsights insights={weather.insights} activities={allActivities} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
-            <LazySection label="daily-forecast">
+            <LazySection label="daily-forecast" fallback={<DailyForecastSkeleton />}>
               <ChartErrorBoundary name="daily forecast">
-                <Suspense fallback={<SectionSkeleton className="h-[28rem]" />}>
+                <Suspense fallback={<DailyForecastSkeleton />}>
                   <DailyForecast daily={weather.daily} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
-            <LazySection label="ai-summary">
+            <LazySection label="ai-summary" fallback={<AISummarySkeleton />}>
               <ChartErrorBoundary name="AI summary">
-                <Suspense fallback={<SectionSkeleton className="h-72" />}>
+                <Suspense fallback={<AISummarySkeleton />}>
                   {!usingFallback && <AISummary weather={weather} location={location} onSummaryLoaded={setAiSummary} />}
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
             {aiSummary && !usingFallback && (
-              <LazySection label="ai-followup-chat">
+              <LazySection label="ai-followup-chat" fallback={<AISummaryChatSkeleton />}>
                 <ChartErrorBoundary name="AI follow-up chat">
-                  <Suspense fallback={<SectionSkeleton className="h-40" />}>
+                  <Suspense fallback={<AISummaryChatSkeleton />}>
                     <AISummaryChat
                       weather={weather}
                       location={location}
@@ -216,9 +228,9 @@ export function WeatherDashboard({
                 </ChartErrorBoundary>
               </LazySection>
             )}
-            <LazySection label="atmospheric-summary">
+            <LazySection label="atmospheric-summary" fallback={<AtmosphericSummarySkeleton />}>
               <ChartErrorBoundary name="atmospheric conditions">
-                <Suspense fallback={<SectionSkeleton className="h-52" />}>
+                <Suspense fallback={<AtmosphericSummarySkeleton />}>
                   <AtmosphericSummary current={weather.current} />
                 </Suspense>
               </ChartErrorBoundary>
@@ -227,30 +239,30 @@ export function WeatherDashboard({
 
           {/* Sidebar — stacks below on mobile */}
           <div className="min-w-0 space-y-8">
-            <LazySection label="sun-times" fallback={<SectionSkeleton className="h-32" />}>
+            <LazySection label="sun-times" fallback={<SunTimesSkeleton />}>
               <ChartErrorBoundary name="sun times">
-                <Suspense fallback={<SectionSkeleton className="h-32" />}>
+                <Suspense fallback={<SunTimesSkeleton />}>
                   <SunTimes daily={weather.daily} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
 
-            <LazySection label="weather-map">
+            <LazySection label="weather-map" fallback={<MapPreviewSkeleton />}>
               <ChartErrorBoundary name="weather map">
-                <Suspense fallback={<SectionSkeleton className="h-64" />}>
+                <Suspense fallback={<MapPreviewSkeleton />}>
                   <MapPreview location={location} />
                 </Suspense>
               </ChartErrorBoundary>
             </LazySection>
 
-            <LazySection label="support-banner" fallback={<SectionSkeleton className="h-28" />}>
+            <LazySection label="support-banner" fallback={<SupportBannerSkeleton />}>
               <ChartErrorBoundary name="support banner">
                 <SupportBanner />
               </ChartErrorBoundary>
             </LazySection>
 
             {/* Location info card */}
-            <LazySection label="location-info" fallback={<SectionSkeleton className="h-44" />}>
+            <LazySection label="location-info" fallback={<LocationInfoSkeleton />}>
               <section aria-labelledby={`about-${location.slug}`}>
                 <div className="rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-5 shadow-sm sm:p-6">
                   <h2 id={`about-${location.slug}`} className="text-lg font-semibold text-text-primary font-heading">
