@@ -794,10 +794,11 @@ Reusable skeleton components in `src/components/ui/skeleton.tsx`:
 - `MetricCardSkeleton` — matches AtmosphericSummary MetricCard shape
 - `ChatSkeleton` — matches ExploreChatbot container shape (used as Suspense fallback)
 
-Additional skeleton in `src/components/weather/SectionSkeleton.tsx`:
-- `SectionSkeleton` — generic section loading placeholder (h-32 pulsing card)
+Aspect-matched section skeletons in `src/components/weather/SectionSkeleton.tsx`:
+- `SectionSkeleton` — generic fallback (h-32 pulsing card)
+- `ReportsSkeleton`, `HourlyForecastSkeleton`, `ActivityInsightsSkeleton`, `DailyForecastSkeleton`, `AISummarySkeleton`, `AISummaryChatSkeleton`, `AtmosphericSummarySkeleton`, `SunTimesSkeleton`, `MapPreviewSkeleton`, `SupportBannerSkeleton`, `LocationInfoSkeleton` — each mirrors the shape of its corresponding component to prevent layout shift
 
-All skeletons include `role="status"`, `aria-label="Loading"`, and `sr-only` text for screen readers.
+All skeletons include `role="status"` and `aria-label="Loading"` for screen readers. The `sr-only` span is optional when `aria-label` is present — both achieve the same result for assistive technology, so `aria-label` alone is sufficient.
 
 **Rules:**
 - Never use hardcoded hex colors, rgba(), or inline `style={{}}` in components — use Tailwind classes backed by CSS custom properties
@@ -1311,7 +1312,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Touch targets** — all interactive elements have 48px minimum touch targets
 - **Headings** — all sections use `aria-labelledby` with heading IDs
 - **Decorative elements** — icons marked `aria-hidden="true"`
-- **Skeletons** — all loading states include `role="status"`, `aria-label="Loading"`, and `sr-only` text
+- **Skeletons** — all loading states include `role="status"` and `aria-label="Loading"` (`sr-only` span is optional when `aria-label` is present)
 
 ### General
 - Components are in `src/components/`, organized by domain (`brand/`, `layout/`, `weather/`, `explore/`, `embed/`)

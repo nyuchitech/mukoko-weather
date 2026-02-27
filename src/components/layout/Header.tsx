@@ -124,7 +124,7 @@ export function Header() {
               href="/explore"
               prefetch={false}
               aria-label="Explore locations"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
             >
               <CompassIcon size={18} className="text-primary-foreground" />
             </Link>
@@ -132,14 +132,14 @@ export function Header() {
               href={`/${selectedLocation || "harare"}/map`}
               prefetch={false}
               aria-label="Weather map"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
             >
               <LayersIcon size={18} className="text-primary-foreground" />
             </Link>
             <button
               onClick={openReportModal}
               aria-label="Report current weather"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
               <MegaphoneIcon size={18} className="text-primary-foreground" />
@@ -147,7 +147,7 @@ export function Header() {
             <button
               onClick={openMyWeather}
               aria-label="Open My Weather preferences"
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
               type="button"
             >
               <MapPinIcon size={18} className="text-primary-foreground" />
