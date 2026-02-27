@@ -892,7 +892,7 @@ All AI system prompts, suggested prompt rules, and model configurations are stor
 |-------|---------|------------|
 | `report_submitted` | Weather report wizard complete | type, severity, location |
 | `report_upvoted` | Community report upvote | reportId, location |
-| `location_changed` | User navigates to different location | from, to, method |
+| `location_changed` | User navigates to different location | from, to, method (saved/geolocation/search) |
 | `location_saved` | Location added to saved list | slug |
 | `location_removed` | Location removed from saved list | slug |
 | `activity_toggled` | Activity enabled/disabled | activityId, enabled |

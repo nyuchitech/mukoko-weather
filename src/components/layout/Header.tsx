@@ -4,29 +4,8 @@ import { lazy, Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MukokoLogo } from "@/components/brand/MukokoLogo";
-import { MapPinIcon, ClockIcon, SparklesIcon } from "@/lib/weather-icons";
+import { MapPinIcon, ClockIcon, SparklesIcon, MegaphoneIcon, LayersIcon } from "@/lib/weather-icons";
 import { useAppStore } from "@/lib/store";
-
-/** Megaphone icon for weather reporting */
-function MegaphoneIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m3 11 18-5v12L3 13v-2z" />
-      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
-    </svg>
-  );
-}
-
-/** Layers/stack icon for maps */
-function LayersIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-      <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
-      <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
-    </svg>
-  );
-}
 
 // Code-split: MyWeatherModal imports LOCATIONS (154 items), ACTIVITIES (20 items),
 // geolocation, router, etc. Lazy-loading prevents this from bloating the initial

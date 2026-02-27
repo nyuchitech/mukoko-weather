@@ -50,6 +50,7 @@ export function MyWeatherModal() {
 
   const currentSlug = pathname?.replace("/", "") || "harare";
   const [pendingSlug, setPendingSlug] = useState(currentSlug);
+  const pendingMethodRef = useRef<"saved" | "geolocation" | "search">("saved");
   const [activeTab, setActiveTab] = useState("saved");
 
   const [allActivities, setAllActivities] = useState<Activity[]>(ACTIVITIES);
@@ -87,7 +88,7 @@ export function MyWeatherModal() {
     closeMyWeather();
     setSelectedLocation(pendingSlug);
     if (pendingSlug !== currentSlug) {
-      trackEvent("location_changed", { from: currentSlug, to: pendingSlug, method: "search" });
+      trackEvent("location_changed", { from: currentSlug, to: pendingSlug, method: pendingMethodRef.current });
       router.push(`/${pendingSlug}`);
     }
   };
@@ -95,6 +96,7 @@ export function MyWeatherModal() {
   const handleOpenChange = (open: boolean) => {
     if (open) {
       setPendingSlug(currentSlug);
+      pendingMethodRef.current = "saved";
       setActiveTab("saved");
       trackEvent("modal_opened", { modal: "my-weather" });
     } else {
@@ -103,8 +105,9 @@ export function MyWeatherModal() {
   };
 
   /** When user selects a location from saved, navigate and close */
-  const handleSelectSavedLocation = useCallback((slug: string) => {
+  const handleSelectSavedLocation = useCallback((slug: string, method: "saved" | "geolocation" | "search" = "saved") => {
     setPendingSlug(slug);
+    pendingMethodRef.current = method;
   }, []);
 
   const locationChanged = pendingSlug !== currentSlug;
@@ -160,7 +163,7 @@ function SavedTab({
   onSelectLocation,
 }: {
   pendingSlug: string;
-  onSelectLocation: (slug: string) => void;
+  onSelectLocation: (slug: string, method?: "saved" | "geolocation" | "search") => void;
 }) {
   const savedLocations = useAppStore((s) => s.savedLocations);
   const locationLabels = useAppStore((s) => s.locationLabels);
@@ -235,7 +238,7 @@ function SavedTab({
     setGeoLoading(false);
     if ((result.status === "success" || result.status === "created") && result.location) {
       saveLocation(result.location.slug);
-      onSelectLocation(result.location.slug);
+      onSelectLocation(result.location.slug, "geolocation");
     }
   }, [onSelectLocation, saveLocation]);
 
