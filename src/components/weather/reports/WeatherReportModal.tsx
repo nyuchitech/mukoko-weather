@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogSheetHandle, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogSheetHandle, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
 import { trackEvent } from "@/lib/analytics";
 
@@ -128,19 +128,19 @@ export function WeatherReportModal() {
 
   return (
     <Dialog open={reportModalOpen} onOpenChange={(open) => { if (open) trackEvent("modal_opened", { modal: "weather-report" }); else handleClose(); }}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+      <DialogContent className="sm:max-w-md">
         <DialogSheetHandle />
 
-        {/* Title */}
+        {/* Title + description */}
         <div className="px-5">
           <DialogTitle>
             {step === "confirm" ? "Report Submitted" : "Report Weather"}
           </DialogTitle>
-          <p className="mt-0.5 text-base text-text-secondary">
+          <DialogDescription className="mt-0.5 text-base text-text-secondary">
             {step === "select" && "What are you experiencing right now?"}
             {step === "clarify" && typeInfo && `Tell us more about the ${typeInfo.label.toLowerCase()}`}
             {step === "confirm" && "Thank you for helping your community!"}
-          </p>
+          </DialogDescription>
         </div>
 
         {/* Step 1: Select type */}
@@ -153,7 +153,7 @@ export function WeatherReportModal() {
                   type="button"
                   onClick={() => handleTypeSelect(type.id)}
                   disabled={loading}
-                  className="flex items-center gap-2.5 rounded-[var(--radius-button)] border border-border bg-surface-card px-3 py-3 text-left text-base transition-colors hover:bg-surface-dim hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[44px] disabled:opacity-50"
+                  className="flex items-center gap-2.5 rounded-[var(--radius-button)] border border-border bg-surface-card px-3 py-3 text-left text-base transition-colors hover:bg-surface-dim hover:border-primary/30 focus-visible:outline-2 focus-visible:outline-primary min-h-[48px] disabled:opacity-50"
                 >
                   <span className="text-lg" aria-hidden="true">{type.icon}</span>
                   <span className="text-text-primary font-medium">{type.label}</span>
@@ -189,7 +189,7 @@ export function WeatherReportModal() {
                     onClick={() => setSeverity(s.id)}
                     role="radio"
                     aria-checked={severity === s.id}
-                    className={`flex-1 rounded-[var(--radius-button)] border px-3 py-2 text-center text-base font-medium transition-colors min-h-[44px] ${
+                    className={`flex-1 rounded-[var(--radius-button)] border px-3 py-2 text-center text-base font-medium transition-colors min-h-[48px] ${
                       severity === s.id
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border text-text-secondary hover:border-primary/30"
@@ -226,14 +226,14 @@ export function WeatherReportModal() {
               <Button
                 variant="outline"
                 onClick={() => { setStep("select"); setReportType(null); }}
-                className="min-h-[44px]"
+                className="min-h-[48px]"
               >
                 Back
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex-1 min-h-[44px]"
+                className="flex-1 min-h-[48px]"
               >
                 {loading ? "Submitting..." : "Submit Report"}
               </Button>
@@ -254,7 +254,7 @@ export function WeatherReportModal() {
               Other users in the area will see it.
             </p>
             <DialogClose asChild>
-              <Button onClick={handleClose} className="min-h-[44px]">Done</Button>
+              <Button onClick={handleClose} className="min-h-[48px]">Done</Button>
             </DialogClose>
           </div>
         )}

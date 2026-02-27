@@ -66,7 +66,7 @@
   --focus-ring-width: 3px;
 
   /* Touch & Interaction */
-  --touch-target-min: 44px;
+  --touch-target-min: 48px;
 
   /* Typography — 16px base, 18px larger variant */
   --text-body: 1rem;           /* 16px — base body/footer text */
@@ -430,6 +430,7 @@ html {
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-fade-in"],
   [class*="animate-scale-in"],
+  [class*="animate-slide"],
   [class*="animate-nav-indicator"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

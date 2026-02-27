@@ -6,9 +6,7 @@ import { Skeleton, MetricCardSkeleton } from "@/components/ui/skeleton";
 
 export function SectionSkeleton({ className }: { className?: string } = {}) {
   return (
-    <div className={`animate-pulse rounded-[var(--radius-card)] bg-surface-card ${className ?? "h-32"}`} role="status" aria-label="Loading section">
-      <span className="sr-only">Loading section</span>
-    </div>
+    <div className={`animate-pulse rounded-[var(--radius-card)] bg-surface-card ${className ?? "h-32"}`} role="status" aria-label="Loading section" />
   );
 }
 
@@ -23,11 +21,10 @@ export function ReportsSkeleton() {
       {/* Header row: heading + button */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-[44px] w-32 rounded-[var(--radius-input)]" />
+        <Skeleton className="h-[48px] w-32 rounded-[var(--radius-input)]" />
       </div>
       {/* Empty-state text placeholder */}
       <Skeleton className="h-4 w-72" />
-      <span className="sr-only">Loading community reports</span>
     </div>
   );
 }
@@ -58,7 +55,6 @@ export function HourlyForecastSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">Loading hourly forecast</span>
     </div>
   );
 }
@@ -96,7 +92,6 @@ export function ActivityInsightsSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">Loading activity insights</span>
     </div>
   );
 }
@@ -120,7 +115,7 @@ export function DailyForecastSkeleton() {
       {/* 7 daily rows */}
       <div className="mt-5 space-y-3">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5 min-h-[44px] sm:gap-4">
+          <div key={i} className="flex items-center gap-3 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5 min-h-[48px] sm:gap-4">
             {/* Day + date */}
             <div className="flex w-12 shrink-0 flex-col items-center gap-1 sm:w-14">
               <Skeleton className="h-3.5 w-8" />
@@ -137,7 +132,6 @@ export function DailyForecastSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">Loading daily forecast</span>
     </div>
   );
 }
@@ -167,7 +161,6 @@ export function AISummarySkeleton() {
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-4 w-4/5" />
       </div>
-      <span className="sr-only">Loading AI weather summary</span>
     </div>
   );
 }
@@ -185,14 +178,13 @@ export function AISummaryChatSkeleton() {
       aria-label="Loading follow-up chat"
     >
       {/* Collapsed header */}
-      <div className="flex items-center justify-between px-4 py-3 min-h-[44px]">
+      <div className="flex items-center justify-between px-4 py-3 min-h-[48px]">
         <div className="flex items-center gap-2">
           <Skeleton className="h-5 w-5 rounded" />
           <Skeleton className="h-5 w-48" />
         </div>
         <Skeleton className="h-5 w-5 rounded" />
       </div>
-      <span className="sr-only">Loading follow-up chat</span>
     </div>
   );
 }
@@ -216,7 +208,6 @@ export function AtmosphericSummarySkeleton() {
           <MetricCardSkeleton key={i} />
         ))}
       </div>
-      <span className="sr-only">Loading atmospheric conditions</span>
     </div>
   );
 }
@@ -247,7 +238,6 @@ export function SunTimesSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">Loading sun times</span>
     </div>
   );
 }
@@ -271,7 +261,6 @@ export function MapPreviewSkeleton() {
       </div>
       {/* Map area */}
       <Skeleton className="aspect-[16/9] w-full rounded-none" />
-      <span className="sr-only">Loading weather map</span>
     </div>
   );
 }
@@ -299,7 +288,6 @@ export function SupportBannerSkeleton() {
         {/* Badge */}
         <Skeleton className="mt-3 h-8 w-40 rounded-[var(--radius-badge)]" />
       </div>
-      <span className="sr-only">Loading support banner</span>
     </div>
   );
 }
@@ -327,7 +315,6 @@ export function LocationInfoSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">Loading location information</span>
     </div>
   );
 }
