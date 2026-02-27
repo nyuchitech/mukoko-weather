@@ -130,7 +130,7 @@ export const REGIONS: RegionDoc[] = [
     name: "Eastern Europe",
     north: 56.0,   // northern Ukraine/Belarus border (~55.5°N)
     south: 35.0,   // southern Greece/Crete (~35°N) / Albania
-    east: 42.0,    // eastern Ukraine (Donetsk ~38°E) / Georgia border
+    east: 46.0,    // eastern Georgia (Tbilisi ~44.8°E, eastern border ~46.7°E)
     west: 14.0,    // western Croatia/Slovenia (~14°E)
     center: { lat: 45.0, lon: 28.0 },
     active: true,

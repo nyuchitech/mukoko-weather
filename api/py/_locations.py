@@ -417,8 +417,8 @@ def _hardcoded_region_check(lat: float, lon: float) -> bool:
     # Central America, Mexico & Caribbean
     if 6 <= lat <= 34 and -123 <= lon <= -58:
         return True
-    # Eastern Europe (Ukraine, Romania, Moldova, Bulgaria, Serbia, Bosnia, Albania, etc.)
-    if 34 <= lat <= 57 and 13 <= lon <= 43:
+    # Eastern Europe (Ukraine, Romania, Moldova, Bulgaria, Serbia, Bosnia, Albania, Georgia, etc.)
+    if 34 <= lat <= 57 and 13 <= lon <= 47:
         return True
     # Pacific Islands (bounding box crosses antimeridian: 130°E to 176°W).
     # DB seed bounds: west=130, east=-176. With +1° padding: west-1=129, east+1=-175.
