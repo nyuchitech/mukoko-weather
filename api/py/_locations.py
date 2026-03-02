@@ -26,6 +26,10 @@ SLUG_RE = re.compile(r"^[a-z0-9-]{1,80}$")
 COUNTRY_PREFERENCE_MAX_KM = 50
 _http_client: Optional[httpx.Client] = None
 
+# City-states where state/province fields are meaningless (postal codes or same as country).
+# For these, province is derived from district-level fields (city_district, suburb, etc.).
+_CITY_STATES = {"SG", "MC", "VA", "GI", "SM", "AD", "LI", "MT", "BN", "DJ", "BH", "QA", "KW"}
+
 
 def _get_http() -> httpx.Client:
     global _http_client
@@ -229,8 +233,106 @@ async def search_locations(
 # ---------------------------------------------------------------------------
 
 
+def _extract_location_name(data: dict, address: dict, country_code: str) -> str:
+    """Extract the most specific location name from Nominatim response.
+
+    Prefers POIs, suburbs, neighborhoods over generic city names.
+    Real-world addresses and landmarks produce names like
+    "Singapore American School", "Meikles Hotel", "525 Canberra Drive".
+    """
+    city = address.get("city") or address.get("town") or ""
+    country_name = address.get("country", "")
+
+    # Most specific: Nominatim's own name for this exact point (POI, building, etc.)
+    poi_name = data.get("name", "")
+    if poi_name and poi_name not in (city, country_name, ""):
+        return poi_name
+
+    # Next: suburb or neighbourhood — e.g., "Woodlands", "Strathaven"
+    suburb = address.get("suburb") or address.get("neighbourhood") or ""
+    if suburb and suburb not in (city, country_name):
+        return suburb
+
+    # Next: road name — e.g., "Orchard Road", "525 Canberra Drive"
+    road = address.get("road", "")
+    if road:
+        return road
+
+    # Fallback: city/town/village level
+    return (
+        city
+        or address.get("village")
+        or address.get("county")
+        or data.get("name", "Unknown")
+    )
+
+
+def _normalize_admin1(address: dict, country_code: str, country_name: str) -> str:
+    """Extract a meaningful province/district from Nominatim address.
+
+    For city-states: uses district/suburb-level fields (e.g., "Woodlands" for SG).
+    For normal countries: uses state/province with numeric rejection.
+    """
+    # City-states: state is meaningless (postal code or same as country).
+    # Use sub-national divisions as "province".
+    if country_code.upper() in _CITY_STATES:
+        return (
+            address.get("city_district")
+            or address.get("suburb")
+            or address.get("state_district")
+            or address.get("county")
+            or country_name
+        )
+
+    raw = address.get("state") or address.get("province") or ""
+    stripped = raw.strip()
+
+    # Validate: reject purely numeric, ≤2 chars, or digit-heavy strings
+    if stripped and not stripped.isdigit() and len(stripped) > 2:
+        digit_ratio = sum(c.isdigit() for c in stripped) / len(stripped)
+        if digit_ratio < 0.5:
+            return stripped
+
+    # Fallback chain for invalid admin1
+    return (
+        address.get("state_district")
+        or address.get("city_district")
+        or address.get("region")
+        or address.get("county")
+        or country_name
+    )
+
+
+def _build_nominatim_address(address: dict, country_code: str, display_name: str) -> dict:
+    """Build structured address dict from Nominatim address fields.
+
+    Stores formal address components separately for contextual display
+    in breadcrumbs, cards, and info panels.
+    """
+    return {
+        k: v for k, v in {
+            "road": address.get("road"),
+            "suburb": address.get("suburb"),
+            "cityDistrict": address.get("city_district"),
+            "city": address.get("city"),
+            "state": address.get("state"),
+            "stateDistrict": address.get("state_district"),
+            "county": address.get("county"),
+            "postcode": address.get("postcode"),
+            "country": address.get("country"),
+            "countryCode": country_code,
+            "displayName": display_name,
+        }.items() if v
+    }
+
+
 def _reverse_geocode(lat: float, lon: float) -> dict | None:
-    """Reverse geocode using Nominatim."""
+    """Reverse geocode using Nominatim.
+
+    Uses zoom=18 (building/POI level) to get the most specific place name
+    available — landmarks, schools, roads, suburbs. Stores the full
+    structured Nominatim address for contextual display.
+    """
     client = _get_http()
     try:
         resp = client.get(
@@ -239,7 +341,7 @@ def _reverse_geocode(lat: float, lon: float) -> dict | None:
                 "lat": str(lat),
                 "lon": str(lon),
                 "format": "jsonv2",
-                "zoom": 10,
+                "zoom": 18,
                 "accept-language": "en",
             },
             headers={"User-Agent": "mukoko-weather/2.0 (support@mukoko.com)"},
@@ -250,24 +352,21 @@ def _reverse_geocode(lat: float, lon: float) -> dict | None:
         data = resp.json()
         address = data.get("address", {})
 
-        name = (
-            address.get("city")
-            or address.get("town")
-            or address.get("village")
-            or address.get("suburb")
-            or address.get("county")
-            or data.get("name", "Unknown")
-        )
-
         country_code = address.get("country_code", "zw").upper()
         country_name = address.get("country", "Zimbabwe")
-        admin1 = address.get("state", address.get("province", ""))
+
+        name = _extract_location_name(data, address, country_code)
+        admin1 = _normalize_admin1(address, country_code, country_name)
+        nominatim_address = _build_nominatim_address(
+            address, country_code, data.get("display_name", ""),
+        )
 
         return {
             "name": name,
             "country": country_code,
             "countryName": country_name,
             "admin1": admin1,
+            "nominatimAddress": nominatim_address,
             "lat": float(data.get("lat", lat)),
             "lon": float(data.get("lon", lon)),
             "elevation": 0,
@@ -427,8 +526,10 @@ def _hardcoded_region_check(lat: float, lon: float) -> bool:
     return False
 
 
-DEDUP_RADIUS_ZW_KM = 5
-DEDUP_RADIUS_DEFAULT_KM = 10
+# Dedup radius — tight because location names are now specific (POIs, addresses,
+# suburbs). Two different places 2km apart are legitimately different locations.
+DEDUP_RADIUS_ZW_KM = 1
+DEDUP_RADIUS_DEFAULT_KM = 1
 
 
 def _dedup_radius(country: str | None) -> float:
@@ -438,9 +539,16 @@ def _dedup_radius(country: str | None) -> float:
     return DEDUP_RADIUS_DEFAULT_KM
 
 
-def _find_duplicate(lat: float, lon: float, radius_km: float = DEDUP_RADIUS_DEFAULT_KM) -> dict | None:
-    """Check for existing locations within radius_km."""
+def _find_duplicate(
+    lat: float,
+    lon: float,
+    radius_km: float = DEDUP_RADIUS_DEFAULT_KM,
+    name: str | None = None,
+    country: str | None = None,
+) -> dict | None:
+    """Check for existing locations within radius_km OR with same name+country."""
     try:
+        # Geospatial proximity check
         result = locations_collection().find_one(
             {
                 "geo": {
@@ -452,7 +560,19 @@ def _find_duplicate(lat: float, lon: float, radius_km: float = DEDUP_RADIUS_DEFA
             },
             {"_id": 0},
         )
-        return result
+        if result:
+            return result
+
+        # Name + country check — catches same-named locations farther apart
+        if name and country:
+            result = locations_collection().find_one(
+                {"name": name, "country": country.upper()},
+                {"_id": 0},
+            )
+            if result:
+                return result
+
+        return None
     except Exception:
         return None
 
@@ -535,9 +655,12 @@ async def geo_lookup(
                     detail="Could not determine location name",
                 )
 
-            # Duplicate check (5km for Zimbabwe, 10km elsewhere)
+            # Duplicate check (1km radius + name/country match)
             dedup_km = _dedup_radius(geocoded.get("country"))
-            duplicate = _find_duplicate(lat, lon, dedup_km)
+            duplicate = _find_duplicate(
+                lat, lon, dedup_km,
+                name=geocoded["name"], country=geocoded["country"],
+            )
             if duplicate:
                 return {
                     "nearest": duplicate,
@@ -601,6 +724,7 @@ async def geo_lookup(
                 "source": "geolocation",
                 "provinceSlug": province_slug,
                 "geo": {"type": "Point", "coordinates": [geocoded["lon"], geocoded["lat"]]},
+                "nominatimAddress": geocoded.get("nominatimAddress", {}),
             }
             locations_collection().insert_one(new_loc)
             new_loc.pop("_id", None)
@@ -695,9 +819,12 @@ async def add_location(request: Request):
         if not geocoded:
             raise HTTPException(status_code=422, detail="Could not determine location name")
 
-        # Duplicate check (5km for Zimbabwe, 10km elsewhere)
+        # Duplicate check (1km radius + name/country match)
         dedup_km = _dedup_radius(geocoded.get("country"))
-        duplicate = _find_duplicate(lat, lon, dedup_km)
+        duplicate = _find_duplicate(
+            lat, lon, dedup_km,
+            name=geocoded["name"], country=geocoded["country"],
+        )
         if duplicate:
             return {
                 "mode": "duplicate",
@@ -754,6 +881,7 @@ async def add_location(request: Request):
             "source": "community",
             "provinceSlug": province_slug,
             "geo": {"type": "Point", "coordinates": [geocoded["lon"], geocoded["lat"]]},
+            "nominatimAddress": geocoded.get("nominatimAddress", {}),
         }
         locations_collection().insert_one(new_loc)
         new_loc.pop("_id", None)

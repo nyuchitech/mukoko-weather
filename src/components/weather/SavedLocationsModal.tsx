@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trackEvent } from "@/lib/analytics";
 
+/** Format coordinates with N/S/E/W indicators. */
+function formatCoords(lat: number, lon: number): string {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(4)}\u00B0${ns}, ${Math.abs(lon).toFixed(4)}\u00B0${ew}`;
+}
+
 export function SavedLocationsModal() {
   const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
   const closeSavedLocations = useAppStore((s) => s.closeSavedLocations);
@@ -261,7 +268,7 @@ function SavedLocationsList({
         fetch(`/api/py/locations?slug=${encodeURIComponent(slug)}`, { signal: controller.signal })
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
-            if (data?.locations?.[0]) return [slug, data.locations[0]] as const;
+            if (data?.location) return [slug, data.location] as const;
             return [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const;
           })
           .catch(() => [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const),
@@ -351,6 +358,14 @@ function SavedLocationsList({
                       <span className="block truncate">{loc?.name ?? slug}</span>
                       {contextLabel && (
                         <span className="block text-base text-text-tertiary truncate">{contextLabel}</span>
+                      )}
+                      {loc && loc.lat !== 0 && loc.lon !== 0 && (
+                        <span className="block text-base text-text-tertiary font-mono truncate">{formatCoords(loc.lat, loc.lon)}</span>
+                      )}
+                      {loc && loc.lat !== 0 && loc.lon !== 0 && (
+                        <span className="block text-base text-text-tertiary font-mono truncate">
+                          {formatCoords(loc.lat, loc.lon)}
+                        </span>
                       )}
                       {!label && (
                         <span

@@ -142,7 +142,7 @@ Use `LazySection` from `src/components/weather/LazySection.tsx` for any section 
 
 ### Community locations (dynamic)
 
-Users can add locations at runtime via geolocation auto-detection, search, or coordinates — no code change needed. These are stored in MongoDB and immediately available.
+Users can add locations at runtime via geolocation auto-detection, search, or coordinates — no code change needed. These are stored in MongoDB and immediately available. Community locations are reverse-geocoded via Nominatim (OpenStreetMap) at zoom=18 (building/POI level), producing specific place names (landmarks, schools, roads, suburbs) and structured addresses (`nominatimAddress` field). Province normalization handles city-states (Singapore, Monaco, etc.) by using district-level fields instead of meaningless postal codes.
 
 ## Pre-Commit Checklist
 

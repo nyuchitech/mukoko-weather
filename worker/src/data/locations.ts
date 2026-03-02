@@ -13,6 +13,22 @@
  *   tags       → additionalType
  */
 
+/** Structured address from Nominatim reverse geocoding (community/geolocation locations only). */
+export interface NominatimAddress {
+  road?: string;
+  suburb?: string;
+  cityDistrict?: string;
+  city?: string;
+  state?: string;
+  stateDistrict?: string;
+  county?: string;
+  postcode?: string;
+  country?: string;
+  countryCode?: string;
+  /** Full formatted address from Nominatim display_name */
+  displayName?: string;
+}
+
 export interface WeatherLocation {
   slug: string;
   name: string;
@@ -28,6 +44,8 @@ export interface WeatherLocation {
   source?: "seed" | "community" | "geolocation";
   /** Links location to the provinces collection — auto-computed if absent */
   provinceSlug?: string;
+  /** Structured address from Nominatim — stored for community/geolocation locations */
+  nominatimAddress?: NominatimAddress;
 }
 
 /** @deprecated Use WeatherLocation instead */

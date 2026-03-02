@@ -46,6 +46,13 @@ const RecentReports = lazy(() => import("@/components/weather/reports/RecentRepo
 
 const BASE_URL = "https://weather.mukoko.com";
 
+/** Format coordinates with N/S/E/W indicators (e.g., "17.8300°S, 31.0500°E"). */
+function formatCoords(lat: number, lon: number): string {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(4)}\u00B0${ns}, ${Math.abs(lon).toFixed(4)}\u00B0${ew}`;
+}
+
 interface WeatherDashboardProps {
   weather: WeatherData;
   location: ZimbabweLocation;
@@ -111,7 +118,7 @@ export function WeatherDashboard({
     <>
       <Header />
 
-      {/* Breadcrumb navigation for SEO and accessibility */}
+      {/* Breadcrumb navigation — always three layers: Country / Province / Location */}
       <nav aria-label="Breadcrumb" className="mx-auto max-w-5xl px-4 pt-5 sm:px-6 md:px-8">
         <ol className="flex flex-wrap items-center gap-1.5 text-base text-text-tertiary">
           <li>
@@ -120,8 +127,8 @@ export function WeatherDashboard({
             </a>
           </li>
           <li aria-hidden="true">/</li>
-          {/* Show country for non-ZW locations so global users have context */}
-          {countryName && location.country && location.country !== "ZW" && (
+          {/* Country — always shown */}
+          {countryName && (
             <>
               <li>
                 <span className="text-text-secondary">{countryName}</span>
@@ -129,10 +136,15 @@ export function WeatherDashboard({
               <li aria-hidden="true">/</li>
             </>
           )}
-          <li>
-            <span className="text-text-secondary">{location.province}</span>
-          </li>
-          <li aria-hidden="true">/</li>
+          {/* Province — skip only if identical to location name */}
+          {location.province && location.province !== location.name && (
+            <>
+              <li>
+                <span className="text-text-secondary">{location.province}</span>
+              </li>
+              <li aria-hidden="true">/</li>
+            </>
+          )}
           <li aria-current="page">
             <span className="font-medium text-text-primary">{location.name}</span>
           </li>
@@ -269,16 +281,20 @@ export function WeatherDashboard({
                     About {location.name}
                   </h2>
                   <dl className="mt-5 space-y-3.5 text-base">
+                    {countryName && <InfoRow label="Country" value={countryName} />}
                     <InfoRow label="Province" value={location.province} />
                     <InfoRow label="Elevation" value={`${location.elevation}m`} />
                     <InfoRow
                       label="Coordinates"
                       value={
                         <span className="font-mono text-base">
-                          {location.lat.toFixed(2)}, {location.lon.toFixed(2)}
+                          {formatCoords(location.lat, location.lon)}
                         </span>
                       }
                     />
+                    {location.nominatimAddress?.displayName && (
+                      <InfoRow label="Address" value={location.nominatimAddress.displayName} />
+                    )}
                     <InfoRow label="Season" value={`${season.shona} (${season.name})`} />
                   </dl>
                 </div>

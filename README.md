@@ -16,7 +16,7 @@ AI-powered weather intelligence for the developing world — real-time forecasts
 - **Cross-device sync** — device profile sync bridges browser localStorage with a server-side profile, so preferences survive across devices and browser resets
 - **Community weather reporting** — Waze-style ground-truth observations: 10 weather types, 3 severity levels, AI-assisted clarification, cross-validation against API data, community upvoting
 - **Frost alerts** — automated frost risk detection for overnight hours with severity levels
-- **Dynamic locations** — 265 seed locations across 64 countries (98 Zimbabwe + 167 global), with community-driven expansion via geolocation and search
+- **Dynamic locations** — 265 seed locations across 64 countries (98 Zimbabwe + 167 global), with community-driven expansion via geolocation and search. Reverse-geocoded via Nominatim (OpenStreetMap) with structured address storage for formal three-layer breadcrumbs (Country / Province / Location)
 - **Seasonal awareness** — Zimbabwe seasons (Masika, Chirimo, Zhizha, Munakamwe) and regional context
 - **Geolocation** — automatic nearest-location detection via browser GPS, with auto-creation for new areas
 - **Shamwari AI chat** — dedicated `/shamwari` page with full-viewport Claude app-style chat (search locations, check weather, get activity advice, compare cities). Contextual navigation carries weather/location data from any page
@@ -259,7 +259,7 @@ src/
     embed/
       MukokoWeatherEmbed.tsx # Embeddable widget (CSS module, self-contained)
   lib/
-    locations.ts            # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS
+    locations.ts            # WeatherLocation + NominatimAddress types, 98 ZW seed locations, SUPPORTED_REGIONS
     locations-global.ts     # Global city seed data (54 AU member states + ASEAN countries)
     countries.ts            # Country/province types, 64 seed countries, flag emoji
     activities.ts           # 30+ activities, 6 categories, mineral color styles
@@ -341,7 +341,7 @@ This app targets **WCAG 3.0 APCA/AAA** compliance:
 - Dynamic `robots.txt` and `sitemap.xml` for all locations and sub-routes
 - Per-page canonical URLs, Open Graph, and Twitter cards
 - FAQPage, BreadcrumbList, WebApplication, Organization, and WebSite JSON-LD schemas
-- Visible breadcrumb navigation
+- Three-layer breadcrumb navigation (Country / Province / Location) with city-state deduplication
 - Semantic H1 on every location page
 
 ## Contributing

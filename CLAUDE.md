@@ -588,7 +588,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 ### Location Data
 
-**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`. Maps to `schema.org/Place` — see Data Standards section below.
+**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
 
 **Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 
@@ -597,15 +597,23 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - **Global locations** (`GLOBAL_LOCATIONS`): additionally require `country` (ISO 3166-1 alpha-2). Slugs MUST use `{city}-{country_lowercase}` format (e.g., `nairobi-ke`, `bangkok-th`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
 - **Source field:** `"seed"` for curated data, `"community"` for user-submitted, `"geolocation"` for auto-detected.
 
-**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
+**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim (zoom=18, building/POI level) for specific place names, structured addresses, and administrative divisions.
+
+**Structured address storage:** Community/geolocation locations store a `nominatimAddress` object with formal address fields from Nominatim: `road`, `suburb`, `cityDistrict`, `city`, `state`, `stateDistrict`, `county`, `postcode`, `country`, `countryCode`, `displayName`. This enables three-layer breadcrumbs (Country / Province / Location) and contextual display in cards and info panels. TypeScript type: `NominatimAddress` in `src/lib/locations.ts`.
+
+**Location naming:** `_extract_location_name()` in `api/py/_locations.py` prefers the most specific name: POI name (school, hotel, landmark) → suburb/neighbourhood → road name → city/town/village. This produces names like "Singapore American School", "Strathaven", "525 Canberra Drive" instead of generic city names.
+
+**Province normalization:** `_normalize_admin1()` validates the admin1 field. For city-states (`_CITY_STATES` set: SG, MC, VA, GI, SM, AD, LI, MT, BN, DJ, BH, QA, KW), state/province is meaningless (postal codes), so district-level fields are used instead (e.g., "Woodlands" for Singapore). For normal countries, numeric and ≤2-char values are rejected with a fallback chain through state_district, city_district, region, county.
+
+**Breadcrumbs:** Always three layers — `Home / Country / Province / Location`. Country is always shown (including Zimbabwe). Province is skipped only when identical to location name (e.g., Harare metro). Examples: `Home / Zimbabwe / Mashonaland East / Marondera`, `Home / Singapore / Woodlands / Singapore American School`.
 
 **Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for the developing world — Africa, ASEAN/Asia, Middle East, South & Central America, and Eastern Europe. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
 
-**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
+**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name, zoom=18 for POI-level specificity), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
 **Rate limiting:** MongoDB-backed IP rate limiter in Python (`api/py/_db.py` `check_rate_limit`). 5 location creations/hour/IP. Uses atomic `findOneAndUpdate` with TTL index.
 
-**Deduplication:** New locations within 5km (ZW) or 10km (others) of an existing location are rejected.
+**Deduplication:** New locations within 1km of an existing location OR with the same name+country are rejected. The tight 1km radius reflects that location names are now specific (POIs, addresses, suburbs) — two different places 2km apart are legitimately different locations.
 
 **Countries & Provinces:** `src/lib/countries.ts` — `Country` type (code, name, region, supported), `Province` type (slug, name, countryCode), 64 seed countries (54 AU + ASEAN), 80+ province definitions, `getFlagEmoji(code)`, `generateProvinceSlug(name, code)`.
 

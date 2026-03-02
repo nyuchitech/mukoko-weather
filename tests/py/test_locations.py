@@ -17,6 +17,11 @@ from py._locations import (
     _reverse_geocode,
     _forward_geocode,
     _get_elevation,
+    _extract_location_name,
+    _normalize_admin1,
+    _build_nominatim_address,
+    _find_duplicate,
+    _CITY_STATES,
     list_locations,
     search_locations,
     geo_lookup,
@@ -145,22 +150,20 @@ class TestInferTags:
 
 
 class TestDedupRadius:
-    def test_zimbabwe_5km(self):
+    def test_zimbabwe(self):
         assert _dedup_radius("ZW") == DEDUP_RADIUS_ZW_KM
-        assert _dedup_radius("ZW") == 5
 
     def test_zimbabwe_case_insensitive(self):
-        assert _dedup_radius("zw") == 5
+        assert _dedup_radius("zw") == DEDUP_RADIUS_ZW_KM
 
-    def test_other_country_10km(self):
+    def test_other_country(self):
         assert _dedup_radius("KE") == DEDUP_RADIUS_DEFAULT_KM
-        assert _dedup_radius("KE") == 10
 
-    def test_none_country_10km(self):
-        assert _dedup_radius(None) == 10
+    def test_none_country(self):
+        assert _dedup_radius(None) == DEDUP_RADIUS_DEFAULT_KM
 
-    def test_empty_string_10km(self):
-        assert _dedup_radius("") == 10
+    def test_empty_string(self):
+        assert _dedup_radius("") == DEDUP_RADIUS_DEFAULT_KM
 
 
 # ---------------------------------------------------------------------------
@@ -349,13 +352,14 @@ class TestReverseGeocode:
         assert result["admin1"] == "Harare"
 
     @patch("py._locations._get_http")
-    def test_falls_back_to_town(self, mock_http):
+    def test_prefers_poi_name_over_town(self, mock_http):
+        """With zoom=18, data.name is a specific POI — preferred over town."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
             "lat": "-18.0",
             "lon": "31.5",
-            "name": "Somewhere",
+            "name": "Marondera High School",
             "address": {
                 "town": "Marondera",
                 "state": "Mashonaland East",
@@ -366,6 +370,28 @@ class TestReverseGeocode:
         mock_http.return_value.get.return_value = mock_resp
 
         result = _reverse_geocode(-18.0, 31.5)
+        assert result["name"] == "Marondera High School"
+
+    @patch("py._locations._get_http")
+    def test_falls_back_to_town_when_no_poi(self, mock_http):
+        """When no POI name, falls back through suburb → road → city → town."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "lat": "-18.0",
+            "lon": "31.5",
+            "address": {
+                "town": "Marondera",
+                "state": "Mashonaland East",
+                "country": "Zimbabwe",
+                "country_code": "zw",
+            },
+        }
+        mock_http.return_value.get.return_value = mock_resp
+
+        result = _reverse_geocode(-18.0, 31.5)
+        # No POI name, no suburb, no road, no city → falls to town via city chain
+        # _extract_location_name: city=None, town="Marondera" → returns "Marondera"
         assert result["name"] == "Marondera"
 
     @patch("py._locations._get_http")
@@ -1048,3 +1074,273 @@ class TestSlugRegex:
         assert SLUG_RE.match("Harare") is None  # uppercase
         assert SLUG_RE.match("a" * 81) is None  # too long
         assert SLUG_RE.match("") is None
+
+
+# ---------------------------------------------------------------------------
+# _extract_location_name
+# ---------------------------------------------------------------------------
+
+
+class TestExtractLocationName:
+    def test_prefers_poi_name_over_city(self):
+        """POI name like 'Singapore American School' should be preferred."""
+        data = {"name": "Singapore American School"}
+        address = {"city": "Singapore", "country": "Singapore"}
+        assert _extract_location_name(data, address, "SG") == "Singapore American School"
+
+    def test_rejects_poi_name_matching_city(self):
+        """If POI name equals city name, fall through to suburb."""
+        data = {"name": "Singapore"}
+        address = {"city": "Singapore", "suburb": "Woodlands", "country": "Singapore"}
+        assert _extract_location_name(data, address, "SG") == "Woodlands"
+
+    def test_rejects_poi_name_matching_country(self):
+        """If POI name equals country, fall through."""
+        data = {"name": "Singapore"}
+        address = {"country": "Singapore", "suburb": "Tanglin"}
+        assert _extract_location_name(data, address, "SG") == "Tanglin"
+
+    def test_falls_back_to_suburb(self):
+        """When no POI name, use suburb."""
+        data = {}
+        address = {"suburb": "Strathaven", "city": "Harare", "country": "Zimbabwe"}
+        assert _extract_location_name(data, address, "ZW") == "Strathaven"
+
+    def test_falls_back_to_road(self):
+        """When no POI name or suburb, use road."""
+        data = {}
+        address = {"road": "525 Canberra Drive", "city": "Singapore", "country": "Singapore"}
+        assert _extract_location_name(data, address, "SG") == "525 Canberra Drive"
+
+    def test_falls_back_to_city(self):
+        """Last resort: city name."""
+        data = {}
+        address = {"city": "Harare", "country": "Zimbabwe"}
+        assert _extract_location_name(data, address, "ZW") == "Harare"
+
+    def test_falls_back_to_village(self):
+        """No city — falls back to village."""
+        data = {}
+        address = {"village": "Rusape", "country": "Zimbabwe"}
+        assert _extract_location_name(data, address, "ZW") == "Rusape"
+
+    def test_falls_back_to_data_name_as_last_resort(self):
+        """When address is empty, use data.name."""
+        data = {"name": "SomeName"}
+        address = {"country": "Zimbabwe"}
+        assert _extract_location_name(data, address, "ZW") == "SomeName"
+
+    def test_empty_poi_name_ignored(self):
+        """Empty string POI name should be skipped."""
+        data = {"name": ""}
+        address = {"city": "Harare", "country": "Zimbabwe"}
+        assert _extract_location_name(data, address, "ZW") == "Harare"
+
+
+# ---------------------------------------------------------------------------
+# _normalize_admin1
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeAdmin1:
+    def test_city_state_uses_district(self):
+        """Singapore (city-state) should use city_district, not state."""
+        address = {"state": "11", "city_district": "Woodlands", "country": "Singapore"}
+        assert _normalize_admin1(address, "SG", "Singapore") == "Woodlands"
+
+    def test_city_state_falls_back_to_suburb(self):
+        """City-state with no city_district falls to suburb."""
+        address = {"state": "14", "suburb": "Tanglin", "country": "Singapore"}
+        assert _normalize_admin1(address, "SG", "Singapore") == "Tanglin"
+
+    def test_city_state_falls_back_to_country_name(self):
+        """City-state with no district fields falls to country name."""
+        address = {"state": "11", "country": "Singapore"}
+        assert _normalize_admin1(address, "SG", "Singapore") == "Singapore"
+
+    def test_normal_country_valid_state(self):
+        """Normal country with valid state passes through."""
+        address = {"state": "Nairobi County", "country": "Kenya"}
+        assert _normalize_admin1(address, "KE", "Kenya") == "Nairobi County"
+
+    def test_rejects_numeric_state(self):
+        """Purely numeric state (postal code) should be rejected."""
+        address = {"state": "11", "state_district": "Central Region", "country": "Some"}
+        assert _normalize_admin1(address, "XX", "Some") == "Central Region"
+
+    def test_rejects_short_state(self):
+        """State ≤2 chars (e.g., 'AB') should be rejected."""
+        address = {"state": "AB", "county": "Fallback County", "country": "Some"}
+        assert _normalize_admin1(address, "XX", "Some") == "Fallback County"
+
+    def test_rejects_digit_heavy_state(self):
+        """State with >50% digits should be rejected."""
+        address = {"state": "12345A", "region": "Metro", "country": "Some"}
+        result = _normalize_admin1(address, "XX", "Some")
+        assert result == "Metro"
+
+    def test_empty_state_falls_through(self):
+        """Empty state falls through to fallback chain."""
+        address = {"state": "", "county": "Some County", "country": "Some"}
+        assert _normalize_admin1(address, "XX", "Some") == "Some County"
+
+    def test_zimbabwe_valid_province(self):
+        """Zimbabwe with valid province passes through."""
+        address = {"state": "Mashonaland East", "country": "Zimbabwe"}
+        assert _normalize_admin1(address, "ZW", "Zimbabwe") == "Mashonaland East"
+
+    def test_all_city_states_defined(self):
+        """Verify known city-states are in the set."""
+        assert "SG" in _CITY_STATES
+        assert "MC" in _CITY_STATES
+        assert "DJ" in _CITY_STATES
+        assert "BH" in _CITY_STATES
+        assert "QA" in _CITY_STATES
+
+
+# ---------------------------------------------------------------------------
+# _build_nominatim_address
+# ---------------------------------------------------------------------------
+
+
+class TestBuildNominatimAddress:
+    def test_extracts_fields(self):
+        address = {
+            "road": "Orchard Road",
+            "suburb": "Tanglin",
+            "city": "Singapore",
+            "state": "11",
+            "postcode": "238823",
+            "country": "Singapore",
+            "country_code": "sg",
+        }
+        result = _build_nominatim_address(address, "SG", "Orchard Road, Tanglin, Singapore")
+        assert result["road"] == "Orchard Road"
+        assert result["suburb"] == "Tanglin"
+        assert result["city"] == "Singapore"
+        assert result["state"] == "11"
+        assert result["postcode"] == "238823"
+        assert result["country"] == "Singapore"
+        assert result["countryCode"] == "SG"
+        assert result["displayName"] == "Orchard Road, Tanglin, Singapore"
+
+    def test_omits_none_values(self):
+        """None values should not appear in the result dict."""
+        address = {"city": "Harare", "country": "Zimbabwe"}
+        result = _build_nominatim_address(address, "ZW", "Harare, Zimbabwe")
+        assert "road" not in result
+        assert "suburb" not in result
+        assert "postcode" not in result
+        assert result["city"] == "Harare"
+
+    def test_empty_display_name_omitted(self):
+        """Empty display_name should not be included."""
+        address = {"city": "Harare"}
+        result = _build_nominatim_address(address, "ZW", "")
+        assert "displayName" not in result
+
+
+# ---------------------------------------------------------------------------
+# _find_duplicate — name+country matching
+# ---------------------------------------------------------------------------
+
+
+class TestFindDuplicateNameCountry:
+    @patch("py._locations.locations_collection")
+    def test_geo_match_returns_first(self, mock_coll):
+        """Geospatial match should be returned even if name/country also matches."""
+        mock_coll.return_value.find_one.return_value = {"slug": "nearby", "name": "Nearby"}
+        result = _find_duplicate(1.3, 103.8, 1.0, name="Singapore", country="SG")
+        assert result is not None
+        assert result["slug"] == "nearby"
+
+    @patch("py._locations.locations_collection")
+    def test_name_country_match_when_no_geo(self, mock_coll):
+        """When no geospatial match, name+country should catch duplicates."""
+        # First call (geo) returns None, second call (name+country) returns match
+        mock_coll.return_value.find_one.side_effect = [None, {"slug": "singapore-sg", "name": "Singapore"}]
+        result = _find_duplicate(1.3, 103.8, 1.0, name="Singapore", country="SG")
+        assert result is not None
+        assert result["slug"] == "singapore-sg"
+
+    @patch("py._locations.locations_collection")
+    def test_no_match_returns_none(self, mock_coll):
+        """When neither geo nor name match, return None."""
+        mock_coll.return_value.find_one.return_value = None
+        result = _find_duplicate(1.3, 103.8, 1.0, name="NewPlace", country="SG")
+        assert result is None
+
+    @patch("py._locations.locations_collection")
+    def test_no_name_skips_name_check(self, mock_coll):
+        """When name is None, only geo check runs."""
+        mock_coll.return_value.find_one.return_value = None
+        result = _find_duplicate(1.3, 103.8, 1.0)
+        assert result is None
+        # Should only be called once (geo check only)
+        assert mock_coll.return_value.find_one.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# _reverse_geocode — nominatimAddress and zoom=18
+# ---------------------------------------------------------------------------
+
+
+class TestReverseGeocodeNominatimAddress:
+    @patch("py._locations._get_http")
+    def test_includes_nominatim_address(self, mock_http):
+        """Result should include structured nominatimAddress."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "lat": "1.35",
+            "lon": "103.82",
+            "name": "Singapore American School",
+            "display_name": "Singapore American School, Woodlands Ave 1, Singapore",
+            "address": {
+                "amenity": "Singapore American School",
+                "road": "Woodlands Avenue 1",
+                "suburb": "Woodlands",
+                "city": "Singapore",
+                "state": "11",
+                "city_district": "Woodlands",
+                "postcode": "738547",
+                "country": "Singapore",
+                "country_code": "sg",
+            },
+        }
+        mock_http.return_value.get.return_value = mock_resp
+
+        result = _reverse_geocode(1.35, 103.82)
+        assert result is not None
+        assert result["name"] == "Singapore American School"
+        assert result["admin1"] == "Woodlands"  # city_district for city-state
+        assert "nominatimAddress" in result
+        na = result["nominatimAddress"]
+        assert na["road"] == "Woodlands Avenue 1"
+        assert na["suburb"] == "Woodlands"
+        assert na["city"] == "Singapore"
+        assert na["countryCode"] == "SG"
+        assert "displayName" in na
+
+    @patch("py._locations._get_http")
+    def test_zoom_18_in_request(self, mock_http):
+        """Verify Nominatim request uses zoom=18."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "lat": "-17.83",
+            "lon": "31.05",
+            "name": "Meikles Hotel",
+            "address": {
+                "city": "Harare",
+                "state": "Harare",
+                "country": "Zimbabwe",
+                "country_code": "zw",
+            },
+        }
+        mock_http.return_value.get.return_value = mock_resp
+
+        _reverse_geocode(-17.83, 31.05)
+        call_args = mock_http.return_value.get.call_args
+        params = call_args.kwargs.get("params", call_args[1].get("params", {}))
+        assert params.get("zoom") == 18
