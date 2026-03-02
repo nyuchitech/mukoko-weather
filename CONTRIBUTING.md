@@ -32,6 +32,15 @@ Thank you for your interest in contributing to mukoko weather. This project prov
 - **Mobile-first** — design for mobile screens first, then scale up
 - **44px touch targets** — all interactive elements must meet the minimum touch target size
 
+### Data Standards
+
+All data models must align with **schema.org** vocabulary and **OpenAPI** standards. See the **Data Standards & Interoperability** section in `CLAUDE.md` for the full specification.
+
+- **Schema.org mapping** — new data entities must identify their schema.org equivalent before implementation (e.g., locations → `schema.org/Place`, weather → `schema.org/Observation`)
+- **ISO standards** — country codes use ISO 3166-1 alpha-2, dates use ISO 8601, coordinates use WGS 84, measurement units follow UN/CEFACT Recommendation 20
+- **OpenAPI contract** — all Python API endpoints must define Pydantic `BaseModel` request/response schemas. The auto-generated OpenAPI spec (available at `/api/py/docs` in dev) is the source of truth for API consumers
+- **JSON-LD structured data** — all public-facing pages must include schema.org JSON-LD. New page types must add appropriate schemas
+
 ### Commit Messages
 
 Use conventional commits:

@@ -1,6 +1,6 @@
 # mukoko weather
 
-AI-powered weather intelligence, starting with Zimbabwe and expanding globally. Accurate forecasts, frost alerts, and actionable insights for farming, mining, travel, and daily life across Zimbabwe, ASEAN countries, and developing regions.
+AI-powered weather intelligence for the developing world — real-time forecasts and locally-relevant insights for farming, mining, travel, and daily life. Built in Zimbabwe, scaling globally.
 
 **Live:** [weather.mukoko.com](https://weather.mukoko.com)
 
@@ -16,7 +16,7 @@ AI-powered weather intelligence, starting with Zimbabwe and expanding globally. 
 - **Cross-device sync** — device profile sync bridges browser localStorage with a server-side profile, so preferences survive across devices and browser resets
 - **Community weather reporting** — Waze-style ground-truth observations: 10 weather types, 3 severity levels, AI-assisted clarification, cross-validation against API data, community upvoting
 - **Frost alerts** — automated frost risk detection for overnight hours with severity levels
-- **Dynamic locations** — 90+ seed locations in Zimbabwe, with community-driven expansion to ASEAN and developing regions via geolocation and search
+- **Dynamic locations** — 265 seed locations across 64 countries (98 Zimbabwe + 167 global), with community-driven expansion via geolocation and search
 - **Seasonal awareness** — Zimbabwe seasons (Masika, Chirimo, Zhizha, Munakamwe) and regional context
 - **Geolocation** — automatic nearest-location detection via browser GPS, with auto-creation for new areas
 - **Shamwari AI chat** — dedicated `/shamwari` page with full-viewport Claude app-style chat (search locations, check weather, get activity advice, compare cities). Contextual navigation carries weather/location data from any page
@@ -260,7 +260,7 @@ src/
       MukokoWeatherEmbed.tsx # Embeddable widget (CSS module, self-contained)
   lib/
     locations.ts            # WeatherLocation type, 90+ ZW seed locations, SUPPORTED_REGIONS
-    locations-africa.ts     # African city seed data (54 AU member states)
+    locations-global.ts     # Global city seed data (54 AU member states + ASEAN countries)
     countries.ts            # Country/province types, 64 seed countries, flag emoji
     activities.ts           # 30+ activities, 6 categories, mineral color styles
     suitability.ts          # Database-driven suitability evaluation engine (evaluateRule)

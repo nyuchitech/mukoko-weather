@@ -1,24 +1,45 @@
 /**
- * Zimbabwe locations data — shared between Worker and Next.js app.
+ * Weather location data — shared between Worker and Next.js app.
  * This is the authoritative source for the Worker bundle.
  * Keep in sync with src/lib/locations.ts in the Next.js app.
+ *
+ * Data model aligned with schema.org/Place:
+ *   slug       → identifier
+ *   name       → name
+ *   lat/lon    → geo (GeoCoordinates)
+ *   elevation  → geo.elevation (QuantitativeValue, unitCode: MTR)
+ *   province   → address.addressRegion (PostalAddress)
+ *   country    → address.addressCountry (ISO 3166-1 alpha-2)
+ *   tags       → additionalType
  */
 
-export interface ZimbabweLocation {
+export interface WeatherLocation {
   slug: string;
   name: string;
+  /** Province, state, region, or administrative division */
   province: string;
   lat: number;
   lon: number;
   elevation: number;
   tags: string[];
+  /** ISO 3166-1 alpha-2 country code (defaults to "ZW") */
+  country?: string;
+  /** How this location was added */
+  source?: "seed" | "community" | "geolocation";
+  /** Links location to the provinces collection — auto-computed if absent */
+  provinceSlug?: string;
 }
 
-export type LocationTag =
-  | "city" | "farming" | "mining" | "tourism"
-  | "education" | "border" | "travel" | "national-park";
+/** @deprecated Use WeatherLocation instead */
+export type ZimbabweLocation = WeatherLocation;
 
-export const TAG_LABELS: Record<LocationTag, string> = {
+/**
+ * Location tag — any string slug from the database `tags` collection.
+ * New tags can be added via db-init without code changes.
+ */
+export type LocationTag = string;
+
+export const TAG_LABELS: Record<string, string> = {
   city: "Cities & Towns",
   farming: "Farming Regions",
   mining: "Mining Areas",
@@ -29,12 +50,18 @@ export const TAG_LABELS: Record<LocationTag, string> = {
   "national-park": "National Parks",
 };
 
+/** Zimbabwe-specific bounds (used for ZW location validation) */
 export const ZIMBABWE_BOUNDS = {
   north: -15.61, south: -22.42, east: 33.07, west: 25.24,
   center: { lat: -19.02, lon: 29.15 },
 };
 
-export const LOCATIONS: ZimbabweLocation[] = [
+/** Global coordinate bounds (used for non-ZW location validation) */
+export const GLOBAL_BOUNDS = {
+  north: 90, south: -90, east: 180, west: -180,
+};
+
+export const LOCATIONS: WeatherLocation[] = [
   // Cities & Towns
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },
   { slug: "bulawayo", name: "Bulawayo", province: "Bulawayo", lat: -20.15, lon: 28.58, elevation: 1348, tags: ["city", "education"] },
@@ -141,16 +168,16 @@ export const LOCATIONS: ZimbabweLocation[] = [
   { slug: "lion-den", name: "Lion's Den", province: "Mashonaland West", lat: -16.93, lon: 29.65, elevation: 1100, tags: ["travel"] },
 ];
 
-export function getLocationBySlug(slug: string): ZimbabweLocation | undefined {
+export function getLocationBySlug(slug: string): WeatherLocation | undefined {
   return LOCATIONS.find((l) => l.slug === slug);
 }
 
-export function findNearestLocation(lat: number, lon: number): ZimbabweLocation | null {
-  if (lat < ZIMBABWE_BOUNDS.south - 1 || lat > ZIMBABWE_BOUNDS.north + 1 ||
-      lon < ZIMBABWE_BOUNDS.west - 1 || lon > ZIMBABWE_BOUNDS.east + 1) {
+export function findNearestLocation(lat: number, lon: number): WeatherLocation | null {
+  if (lat < GLOBAL_BOUNDS.south || lat > GLOBAL_BOUNDS.north ||
+      lon < GLOBAL_BOUNDS.west || lon > GLOBAL_BOUNDS.east) {
     return null;
   }
-  let nearest: ZimbabweLocation | null = null;
+  let nearest: WeatherLocation | null = null;
   let minDist = Infinity;
   for (const loc of LOCATIONS) {
     const dLat = ((loc.lat - lat) * Math.PI) / 180;

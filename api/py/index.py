@@ -10,6 +10,8 @@ routed here via vercel.json rewrites.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -37,11 +39,17 @@ from ._db import get_db
 # App setup
 # ---------------------------------------------------------------------------
 
+# OpenAPI docs are available in non-production environments (local dev,
+# preview deploys) for schema inspection. Disabled in production for security.
+_is_prod = os.environ.get("VERCEL_ENV") == "production"
+
 app = FastAPI(
-    title="mukoko weather — Python API",
+    title="mukoko weather API",
     version="3.0.0",
-    docs_url=None,
-    redoc_url=None,
+    description="Weather intelligence API — schema.org-aligned data models, OpenAPI 3.1 compliant.",
+    docs_url=None if _is_prod else "/api/py/docs",
+    redoc_url=None if _is_prod else "/api/py/redoc",
+    openapi_url=None if _is_prod else "/api/py/openapi.json",
 )
 
 _ALLOWED_ORIGINS = [

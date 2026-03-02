@@ -588,9 +588,14 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 ### Location Data
 
-**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
+**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`. Maps to `schema.org/Place` — see Data Standards section below.
 
 **Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
+
+**Location validation rules (global-first):**
+- **Zimbabwe locations** (`ZW_LOCATIONS`): require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, and `tags`. Coordinates validated within Zimbabwe bounds (south: -22.42, north: -15.61, west: 25.24, east: 33.07).
+- **Global locations** (`GLOBAL_LOCATIONS`): additionally require `country` (ISO 3166-1 alpha-2). Slugs MUST use `{city}-{country_lowercase}` format (e.g., `nairobi-ke`, `bangkok-th`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
+- **Source field:** `"seed"` for curated data, `"community"` for user-submitted, `"geolocation"` for auto-detected.
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
 
@@ -1321,6 +1326,77 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - The app is mobile-first — all layouts start from small screens
 - TypeScript path alias: `@/*` maps to `./src/*` (e.g., `import { t } from "@/lib/i18n"`)
 - CORS is configured in `next.config.ts` for `/api/*` and `/embed/*` routes
+
+## Data Standards & Interoperability
+
+All data models in mukoko weather are aligned with **schema.org** vocabulary and **OpenAPI 3.1** standards. This is mandatory — never deviate from these standards when adding new entities, endpoints, or data fields.
+
+### Schema.org Data Model Mapping
+
+Every data entity MUST map to a schema.org type. The JSON-LD structured data in `src/app/layout.tsx` and `src/app/[location]/page.tsx` already implements these mappings. New entities must follow the same pattern.
+
+**Location → `schema.org/Place`:**
+
+| `WeatherLocation` field | schema.org property | Type | Standard |
+|-------------------------|---------------------|------|----------|
+| `slug` | `identifier` | string | URL-safe slug |
+| `name` | `name` | string | — |
+| `lat` | `geo.latitude` | number | WGS 84 |
+| `lon` | `geo.longitude` | number | WGS 84 |
+| `elevation` | `geo.elevation` | QuantitativeValue | UN/CEFACT unitCode: `MTR` |
+| `province` | `address.addressRegion` | string (PostalAddress) | — |
+| `country` | `address.addressCountry` | string | ISO 3166-1 alpha-2 |
+| `tags` | `additionalType` | string[] | Internal taxonomy |
+
+**Weather data → `schema.org/Observation`:**
+
+| Measurement | schema.org property | unitCode | unitText | Standard |
+|-------------|---------------------|----------|----------|----------|
+| Temperature | `PropertyValue` | `CEL` | °C | UN/CEFACT Rec 20 |
+| Wind speed | `PropertyValue` | `KMH` | km/h | UN/CEFACT Rec 20 |
+| Pressure | `PropertyValue` | `HPA` | hPa | UN/CEFACT Rec 20 |
+| Humidity | `PropertyValue` | `P1` | % | UN/CEFACT Rec 20 |
+| Precipitation | `PropertyValue` | `MMT` | mm | UN/CEFACT Rec 20 |
+| Wind direction | `PropertyValue` | `DD` | ° | UN/CEFACT Rec 20 |
+| Elevation | `QuantitativeValue` | `MTR` | metres | UN/CEFACT Rec 20 |
+| UV index | `PropertyValue` | — | — | WHO UV Index |
+
+**Other entities already mapped:**
+- App → `schema.org/WebApplication` (layout.tsx)
+- Company → `schema.org/Organization` (layout.tsx)
+- Site → `schema.org/WebSite` with `SearchAction` (layout.tsx)
+- Navigation → `schema.org/ItemList` / `SiteNavigationElement` (layout.tsx)
+- Breadcrumbs → `schema.org/BreadcrumbList` (layout.tsx, [location]/page.tsx)
+- FAQs → `schema.org/FAQPage` ([location]/page.tsx, help/page.tsx)
+- Country → `schema.org/Country` ([location]/page.tsx `containedInPlace`)
+
+### ISO Standards (Mandatory)
+
+| Domain | Standard | Usage |
+|--------|----------|-------|
+| Country codes | ISO 3166-1 alpha-2 | `WeatherLocation.country`, `Country.code`, `addressCountry` |
+| Date/time | ISO 8601 | All `time` arrays, `sunrise`/`sunset`, `datePublished`, `dateModified` |
+| Weather codes | WMO 4677 / 4680 | `weather_code` in hourly/daily/current data |
+| Measurement units | UN/CEFACT Rec 20 | All `unitCode` values in JSON-LD PropertyValue |
+| Language tags | IETF BCP 47 | `en-ZW`, `sn-ZW`, `nd-ZW` in i18n formatting |
+| Coordinates | WGS 84 | All `lat`/`lon` values (decimal degrees) |
+
+### OpenAPI Compliance
+
+The Python FastAPI backend auto-generates an **OpenAPI 3.1** specification from Pydantic models and route definitions.
+
+- **Development:** OpenAPI docs are available at `/api/py/docs` (Swagger UI), `/api/py/redoc` (ReDoc), and `/api/py/openapi.json` (raw schema). Disabled in production for security.
+- **Pydantic models** in `api/py/_*.py` files serve as the canonical API contract. All request/response shapes are defined via `BaseModel` subclasses.
+- **New endpoints** MUST define Pydantic request/response models — never use raw `dict` responses without a model.
+- **When adding a new data entity:** (1) identify its schema.org equivalent, (2) define a Pydantic model with field names matching schema.org where practical, (3) document the mapping in this section.
+
+### Rules
+
+1. **Schema.org first** — any new data entity must identify its schema.org equivalent before implementation. If no direct mapping exists, use the closest parent type and document the extension in this section.
+2. **ISO standards always** — country codes are ISO 3166-1, dates are ISO 8601, coordinates are WGS 84, units follow UN/CEFACT Rec 20. No custom formats.
+3. **OpenAPI as contract** — all API endpoints expose their schema via Pydantic models. The auto-generated OpenAPI spec is the source of truth for API consumers.
+4. **JSON-LD in pages** — all public-facing pages include schema.org JSON-LD structured data. New page types must add appropriate schemas.
+5. **Unit codes are explicit** — weather measurements always carry their `unitCode` in JSON-LD output, never bare numbers without context.
 
 ## Premium / Subscription Model
 
