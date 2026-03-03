@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkFrostRisk,
   weatherCodeToInfo,
+  getDefaultSeason,
   getZimbabweSeason,
   windDirection,
   uvLevel,
@@ -204,6 +205,15 @@ describe("getZimbabweSeason", () => {
     expect(season.name).toBeTruthy();
     expect(season.shona).toBeTruthy();
     expect(season.description).toBeTruthy();
+  });
+
+  it("getDefaultSeason is the canonical name", () => {
+    const date = new Date("2025-06-15");
+    expect(getDefaultSeason(date)).toEqual(getZimbabweSeason(date));
+  });
+
+  it("getZimbabweSeason is a backward-compat alias for getDefaultSeason", () => {
+    expect(getZimbabweSeason).toBe(getDefaultSeason);
   });
 });
 

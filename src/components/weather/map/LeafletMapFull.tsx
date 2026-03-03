@@ -3,6 +3,7 @@
 import "./leaflet-css";
 import "./leaflet-icon-fix";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { useAppStore } from "@/lib/store";
 
 interface LeafletMapFullProps {
   lat: number;
@@ -15,6 +16,10 @@ export default function LeafletMapFull({
   lon,
   layer,
 }: LeafletMapFullProps) {
+  const theme = useAppStore((s) => s.theme);
+  const isDark = theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const mapStyle = isDark ? "dark-v11" : "streets-v12";
+
   return (
     <MapContainer
       center={[lat, lon]}
@@ -23,10 +28,12 @@ export default function LeafletMapFull({
       zoomControl={true}
       style={{ height: "100%", width: "100%" }}
     >
-      {/* Base map — OpenStreetMap */}
+      {/* Base map — Mapbox (proxied to keep API key server-side) */}
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
+        url={`/api/py/map-tiles/base?z={z}&x={x}&y={y}&style=${mapStyle}`}
+        attribution='&copy; <a href="https://www.mapbox.com/">Mapbox</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
+        tileSize={512}
+        zoomOffset={-1}
       />
       {/* Weather overlay via tile proxy */}
       <TileLayer

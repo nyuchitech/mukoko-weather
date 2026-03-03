@@ -11,11 +11,11 @@
  *   - activities      : User activities for personalized weather insights
  *   - regions         : Supported geographic regions (replaces SUPPORTED_REGIONS array)
  *   - tags            : Location tag metadata (replaces TAG_LABELS / TAG_META constants)
- *   - seasons         : Country-specific season definitions (replaces getZimbabweSeason logic)
+ *   - seasons         : Country-specific season definitions (replaces getDefaultSeason logic)
  */
 
 import { getDb } from "./mongo";
-import { fetchWeather, createFallbackWeather, getZimbabweSeason, synthesizeOpenMeteoInsights, type WeatherData, type ZimbabweSeason } from "./weather";
+import { fetchWeather, createFallbackWeather, getDefaultSeason, synthesizeOpenMeteoInsights, type WeatherData, type Season } from "./weather";
 import { fetchWeatherFromTomorrow, TomorrowRateLimitError } from "./tomorrow";
 import { logWarn, logError } from "./observability";
 import type { ZimbabweLocation } from "./locations";
@@ -1316,7 +1316,7 @@ export async function getFeaturedTagsFromDb(): Promise<TagDoc[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Season operations (replaces getZimbabweSeason() hardcoded logic at runtime)
+// Season operations (replaces getDefaultSeason() hardcoded logic at runtime)
 // ---------------------------------------------------------------------------
 
 export async function syncSeasons(seasons: SeasonDoc[]): Promise<void> {
@@ -1355,7 +1355,7 @@ export async function getSeasonFromDb(
 export async function getSeasonForDate(
   date: Date = new Date(),
   countryCode: string = "ZW",
-): Promise<ZimbabweSeason> {
+): Promise<Season> {
   try {
     const doc = await getSeasonFromDb(date, countryCode);
     if (doc) {
@@ -1364,7 +1364,7 @@ export async function getSeasonForDate(
   } catch {
     // DB unavailable — fall through to sync fallback
   }
-  return getZimbabweSeason(date);
+  return getDefaultSeason(date);
 }
 
 // ---------------------------------------------------------------------------

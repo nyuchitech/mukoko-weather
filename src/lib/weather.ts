@@ -257,15 +257,18 @@ export function weatherCodeToInfo(code: number): { label: string; icon: string }
   return map[code] ?? { label: "Unknown", icon: "cloud" };
 }
 
-/** Zimbabwe season info */
-export interface ZimbabweSeason {
+/** Season info (name, local name, description) */
+export interface Season {
   name: string;
   shona: string;
   description: string;
 }
 
-/** Zimbabwe seasons — synchronous fallback (used when DB is unavailable or country has no seasons) */
-export function getZimbabweSeason(date: Date = new Date()): ZimbabweSeason {
+/** @deprecated Use Season instead */
+export type ZimbabweSeason = Season;
+
+/** Default season fallback using Zimbabwe seasonal calendar (used when DB is unavailable or country has no seasons) */
+export function getDefaultSeason(date: Date = new Date()): Season {
   const month = date.getMonth() + 1; // 1-12
   if (month >= 11 || month <= 3) {
     return { name: "Main rains", shona: "Masika", description: "Flooding, road damage, planting" };
@@ -279,6 +282,9 @@ export function getZimbabweSeason(date: Date = new Date()): ZimbabweSeason {
   // month 4 (April)
   return { name: "Short rains", shona: "Munakamwe", description: "Harvest, late rains" };
 }
+
+/** @deprecated Use getDefaultSeason instead */
+export const getZimbabweSeason = getDefaultSeason;
 
 
 export function windDirection(degrees: number): string {
@@ -296,13 +302,13 @@ export function uvLevel(index: number): { label: string; color: string } {
 }
 
 /**
- * Generate fallback weather data using seasonal averages for a Zimbabwe location.
+ * Generate fallback weather data using seasonal averages (Zimbabwe baseline, elevation-adjusted).
  * Used when all weather providers are unavailable so the page still renders.
  * Temperatures are adjusted for elevation (~6.5°C per 1000m lapse rate).
  */
 export function createFallbackWeather(lat: number, lon: number, elevation: number): WeatherData {
   const now = new Date();
-  const season = getZimbabweSeason(now);
+  const season = getDefaultSeason(now);
   const hour = now.getHours();
   const isDay = hour >= 6 && hour < 18 ? 1 : 0;
 

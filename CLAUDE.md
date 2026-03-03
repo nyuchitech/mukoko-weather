@@ -21,7 +21,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Chart.js 4 + react-chartjs-2 (Canvas 2D rendering via `src/components/ui/chart.tsx`)
-- **Maps:** Leaflet + react-leaflet (dynamic import, SSR disabled; Tomorrow.io tile overlays via `/api/map-tiles` proxy)
+- **Maps:** Leaflet + react-leaflet (dynamic import, SSR disabled; Mapbox base tiles + Tomorrow.io weather overlays via `/api/py/map-tiles` proxy)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme, location, activities, hasOnboarded saved to localStorage; device sync to Python backend)
@@ -531,7 +531,8 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - `/api/py/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/py/history/analyze` — POST, AI-powered historical weather analysis. Server-side aggregation (~800 tokens) + Claude analysis. Cached 1h in `history_analysis` collection. Rate-limited 10 req/hour/IP
 - `/api/py/explore/search` — POST, AI-powered location search using Claude with `search_locations` + `get_weather` tools. Falls back to text search if AI unavailable. Rate-limited 15 req/hour/IP
-- `/api/py/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
+- `/api/py/map-tiles` — GET, tile proxy for Tomorrow.io weather overlay layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
+- `/api/py/map-tiles/base` — GET, tile proxy for Mapbox base map tiles (query: `z`, `x`, `y`, optional `style` default `streets-v12`; keeps access token server-side). Styles: `streets-v12`, `dark-v11`, `light-v11`, `outdoors-v12`, `satellite-streets-v12`. 1h CDN cache
 - `/api/py/reports` — POST (submit) / GET (list), community weather reports. Submit rate-limited 5 req/hour/IP, auto-captures weather snapshot for cross-validation
 - `/api/py/reports/upvote` — POST, upvote a community report (IP-based dedup)
 - `/api/py/reports/clarify` — POST, AI-generated follow-up questions for weather report clarification. Rate-limited 10 req/hour/IP
@@ -688,7 +689,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `fetchWeather(lat, lon)` — API call (7-day forecast, no auth required)
 - `checkFrostRisk(hourly)` — frost detection (temps <= 3°C between 10pm-8am)
 - `weatherCodeToInfo(code)` — WMO code to label/icon
-- `getZimbabweSeason(date)` — Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe)
+- `getDefaultSeason(date)` — default season fallback using Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe). `getZimbabweSeason` is a backward-compat alias
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
 - `synthesizeOpenMeteoInsights(data)` — constructs a `WeatherInsights` object from Open-Meteo data (wind speed, gusts, visibility) for suitability evaluation
@@ -1235,7 +1236,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
 - `tests/py/test_ai_prompts.py` — AI prompts: single/all prompts, suggested rules, module-level caching, DB error graceful degradation
 - `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 16 routers mounted
-- `tests/py/test_tiles.py` — Map tiles: layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers
+- `tests/py/test_tiles.py` — Map tiles: Tomorrow.io weather overlay proxy (layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers) + Mapbox base tile proxy (style validation, zoom range, URL construction, dark mode)
 - `tests/py/test_status.py` — System health: MongoDB/Tomorrow.io/Open-Meteo/Anthropic/cache checks, overall status aggregation
 - `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
@@ -1428,7 +1429,7 @@ The Python FastAPI backend auto-generates an **OpenAPI 3.1** specification from 
 
 **Map data providers:**
 - **Tomorrow.io** — Radar satellite constellation with growing Africa coverage. 60+ data layers including precipitation, cloud, wind. Primary source for all premium map tile layers. API key stored in MongoDB (not env vars).
-- **Base map tiles:** OpenStreetMap (free, no key) via Leaflet
+- **Base map tiles:** Mapbox (raster tiles, proxied via `/api/py/map-tiles/base` to keep access token server-side). Theme-aware: `streets-v12` for light mode, `dark-v11` for dark mode. API key stored in MongoDB `api_keys` collection
 
 **Map technical notes:**
 - Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)

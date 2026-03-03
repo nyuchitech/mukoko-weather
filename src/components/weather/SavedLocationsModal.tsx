@@ -307,8 +307,8 @@ function SavedLocationsList({
         const isActive = slug === currentSlug;
         const countryCode = ((loc?.country as string) ?? "ZW").toUpperCase();
         const contextLabel = loc?.province
-          ? countryCode !== "ZW" ? `${loc.province}, ${countryCode}` : loc.province
-          : "";
+          ? `${loc.province}, ${countryCode}`
+          : countryCode;
 
         const label = locationLabels[slug];
         const isEditing = editingSlug === slug;
@@ -507,9 +507,9 @@ function AddLocationSearch({
         <ul className="space-y-0.5" aria-label="Search results">
           {filteredResults.map((loc) => {
             const countryCode = ((loc.country as string) ?? "ZW").toUpperCase();
-            const contextLabel = countryCode !== "ZW"
+            const contextLabel = loc.province
               ? `${loc.province}, ${countryCode}`
-              : loc.province;
+              : countryCode;
             return (
               <li key={loc.slug}>
                 <button

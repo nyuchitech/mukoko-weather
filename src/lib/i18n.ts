@@ -27,7 +27,7 @@ const messages: Record<string, Record<string, string>> = {
     "nav.useMyLocation": "Use my location",
     "nav.detectingLocation": "Detecting location...",
     "nav.locationDenied": "Location access denied. Enable it in your browser settings.",
-    "nav.outsideZw": "You appear to be outside Zimbabwe. Select a location below.",
+    "nav.outsideZw": "Unable to detect your location. Select one below.",
 
     // Weather
     "weather.current": "Current weather conditions in {location}",
