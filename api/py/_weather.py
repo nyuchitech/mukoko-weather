@@ -270,8 +270,8 @@ def _create_fallback_weather(lat: float, lon: float, elevation: int) -> dict:
         else:  # Winter
             temp, code = 5, 0
 
-    # Tropical adjustment: locations near equator have less seasonal variation
-    if abs(lat) < 15:
+    # Tropical adjustment: locations within ±10° of equator have minimal seasonal variation
+    if abs(lat) < 10:
         temp = 28
         code = 2
 

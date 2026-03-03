@@ -70,6 +70,9 @@ export const GLOBAL_BOUNDS = {
   north: 90, south: -90, east: 180, west: -180,
 };
 
+/** @deprecated Use WeatherLocation instead */
+export type ZimbabweLocation = WeatherLocation;
+
 export const LOCATIONS: WeatherLocation[] = [
   // Cities & Towns
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },

@@ -159,3 +159,13 @@ export const SEED_LOCATIONS_ZW: WeatherLocation[] = [
 /** Combined location array: Zimbabwe seed locations + global locations */
 export const LOCATIONS: WeatherLocation[] = [...SEED_LOCATIONS_ZW, ...GLOBAL_LOCATIONS];
 
+// ---------------------------------------------------------------------------
+// Backward-compatibility aliases — retain until all callers are migrated
+// ---------------------------------------------------------------------------
+
+/** @deprecated Use WeatherLocation instead */
+export type ZimbabweLocation = WeatherLocation;
+
+/** @deprecated Use SEED_LOCATIONS_ZW instead */
+export const ZW_LOCATIONS = SEED_LOCATIONS_ZW;
+

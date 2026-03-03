@@ -131,6 +131,9 @@ async def proxy_base_tile(
         if not api_key:
             raise HTTPException(status_code=503, detail="Base map service unavailable")
 
+        # Note: access_token appears in the URL which is inherent to the Mapbox
+        # raster tile API. This is acceptable for server-side proxying, but ensure
+        # log verbosity is not increased to avoid token exposure in request logs.
         tile_url = (
             f"{MAPBOX_TILE_ORIGIN}/styles/v1/mapbox/{style}/tiles/{z}/{x}/{y}"
             f"?access_token={api_key}"
