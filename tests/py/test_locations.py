@@ -19,6 +19,7 @@ from py._locations import (
     _normalize_admin1,
     _build_nominatim_address,
     _find_duplicate,
+    _enrich_location_with_ai,
     _CITY_STATES,
     list_locations,
     search_locations,
@@ -685,13 +686,14 @@ class TestGeoLookup:
         assert result["nearest"]["slug"] == "harare"
 
     @pytest.mark.asyncio
+    @patch("py._locations._enrich_location_with_ai")
     @patch("py._locations.get_db")
     @patch("py._locations._get_elevation")
     @patch("py._locations._find_duplicate")
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.locations_collection")
     async def test_auto_create_success(self, mock_coll, mock_geocode,
-                                        mock_dedup, mock_elev, mock_db):
+                                        mock_dedup, mock_elev, mock_db, mock_enrich):
         """Auto-create should insert a new location when no duplicate exists."""
         mock_geocode.return_value = {
             "country": "ZW",
@@ -716,6 +718,7 @@ class TestGeoLookup:
         assert result["isNew"] is True
         assert result["nearest"]["name"] == "NewPlace"
         mock_coll.return_value.insert_one.assert_called_once()
+        mock_enrich.assert_called_once_with("ZW", -19.0, 32.0)
 
     @pytest.mark.asyncio
     @patch("py._locations._reverse_geocode")
@@ -847,6 +850,7 @@ class TestAddLocation:
         assert result["existing"]["slug"] == "harare"
 
     @pytest.mark.asyncio
+    @patch("py._locations._enrich_location_with_ai")
     @patch("py._locations.get_db")
     @patch("py._locations._get_elevation")
     @patch("py._locations._find_duplicate")
@@ -856,7 +860,7 @@ class TestAddLocation:
     @patch("py._locations.locations_collection")
     async def test_coordinates_mode_creates_location(self, mock_coll, mock_ip,
                                                       mock_rate, mock_geocode, mock_dedup,
-                                                      mock_elev, mock_db):
+                                                      mock_elev, mock_db, mock_enrich):
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
         mock_geocode.return_value = {
@@ -877,8 +881,10 @@ class TestAddLocation:
         assert result["mode"] == "created"
         assert result["location"]["name"] == "NewPlace"
         mock_coll.return_value.insert_one.assert_called_once()
+        mock_enrich.assert_called_once_with("ZW", -19.0, 32.0)
 
     @pytest.mark.asyncio
+    @patch("py._locations._enrich_location_with_ai")
     @patch("py._locations.get_db")
     @patch("py._locations._get_elevation")
     @patch("py._locations._find_duplicate")
@@ -888,7 +894,7 @@ class TestAddLocation:
     @patch("py._locations.locations_collection")
     async def test_slug_collision_handling(self, mock_coll, mock_ip,
                                            mock_rate, mock_geocode, mock_dedup,
-                                           mock_elev, mock_db):
+                                           mock_elev, mock_db, mock_enrich):
         """When slug already exists, should append a numeric suffix."""
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
@@ -910,6 +916,57 @@ class TestAddLocation:
         result = await add_location(request)
         assert result["mode"] == "created"
         assert result["location"]["slug"] == "harare-zw-2"
+
+
+# ---------------------------------------------------------------------------
+# _enrich_location_with_ai — AI season enrichment on location creation
+# ---------------------------------------------------------------------------
+
+
+class TestEnrichLocationWithAi:
+    @patch("py._locations.get_db")
+    def test_skips_when_country_has_seasons(self, mock_db):
+        """Does not call AI if country already has season data."""
+        mock_coll = MagicMock()
+        mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
+        mock_coll.find_one.return_value = {"countryCode": "ZW", "name": "Summer"}
+
+        with patch("py._locations._enrich_location_with_ai", wraps=_enrich_location_with_ai):
+            _enrich_location_with_ai("ZW", -17.8, 31.0)
+
+        # Should check DB, find existing, and not call AI
+        mock_coll.find_one.assert_called_once()
+
+    @patch("py._ai._resolve_seasons_with_ai")
+    @patch("py._locations.get_db")
+    def test_triggers_ai_when_no_seasons(self, mock_db, mock_resolve):
+        """Calls AI resolution when country has no season data."""
+        mock_coll = MagicMock()
+        mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
+        mock_coll.find_one.return_value = None  # No seasons in DB
+
+        _enrich_location_with_ai("VN", 21.0, 105.8)
+        mock_resolve.assert_called_once_with("VN", 21.0, 105.8)
+
+    @patch("py._locations.get_db")
+    def test_handles_db_error_gracefully(self, mock_db):
+        """DB errors should be swallowed silently."""
+        mock_db.side_effect = Exception("DB connection failed")
+
+        # Should not raise
+        _enrich_location_with_ai("XX", 0.0, 0.0)
+
+    @patch("py._ai._resolve_seasons_with_ai")
+    @patch("py._locations.get_db")
+    def test_handles_ai_error_gracefully(self, mock_db, mock_resolve):
+        """AI errors should be swallowed silently."""
+        mock_coll = MagicMock()
+        mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
+        mock_coll.find_one.return_value = None
+        mock_resolve.side_effect = Exception("AI unavailable")
+
+        # Should not raise
+        _enrich_location_with_ai("XX", 0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------

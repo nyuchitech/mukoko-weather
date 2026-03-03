@@ -7,6 +7,8 @@ MongoDB caching (30/60/120 min by location importance).
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -17,6 +19,8 @@ from pydantic import BaseModel, Field
 
 from ._db import get_db, get_api_key
 from ._circuit_breaker import anthropic_breaker, CircuitOpenError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -135,26 +139,104 @@ def _get_client() -> anthropic.Anthropic:
 # ---------------------------------------------------------------------------
 
 
-def _get_season(country: str = "", lat: float = 0.0) -> dict:
-    """Look up the current season from MongoDB, falling back to hemisphere-based seasons."""
-    try:
-        if country:
-            db = get_db()
-            month = datetime.now(timezone.utc).month
-            doc = db["seasons"].find_one(
-                {"countryCode": country.upper(), "months": month},
-                {"_id": 0},
-            )
-            if doc:
-                return {
-                    "name": doc.get("name", ""),
-                    "localName": doc.get("localName", doc.get("name", "")),
-                    "description": doc.get("description", ""),
-                }
-    except Exception:
-        pass
+def _resolve_seasons_with_ai(
+    country_code: str,
+    lat: float = 0.0,
+    lon: float = 0.0,
+) -> list[dict] | None:
+    """Use AI to generate season definitions for a country not in the seed data.
 
-    # Hemisphere-aware fallback (no country-specific assumptions)
+    Calls Claude Haiku to produce a structured seasonal calendar, validates the
+    response, and stores the result in MongoDB for future lookups. Returns the
+    list of season docs on success, or None if AI is unavailable/invalid.
+    """
+    client = _get_client()
+    if not client or not anthropic_breaker.is_allowed:
+        return None
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"For country code {country_code} (representative coordinates "
+                    f"{lat:.1f}°, {lon:.1f}°), return the seasonal calendar as a JSON array.\n\n"
+                    "Each object must have:\n"
+                    '- "name": English season name (e.g. "Dry season", "Monsoon", "Summer")\n'
+                    '- "localName": Local language name (or English if unknown)\n'
+                    '- "months": Array of month numbers (1=Jan, 12=Dec) this season covers\n'
+                    '- "description": Brief typical weather for this season\n\n'
+                    "Rules:\n"
+                    "- Every month 1-12 must appear in exactly one season\n"
+                    "- Use culturally appropriate names for the region\n"
+                    "- Include local language names where known\n"
+                    "- Return ONLY the JSON array, no other text"
+                ),
+            }],
+        )
+        anthropic_breaker.record_success()
+
+        text = response.content[0].text.strip()
+        # Extract JSON array from response
+        if text.startswith("["):
+            seasons_raw = json.loads(text)
+        else:
+            import re as _re
+            match = _re.search(r"\[.*\]", text, _re.DOTALL)
+            if match:
+                seasons_raw = json.loads(match.group())
+            else:
+                return None
+
+        # Validate: every month 1-12 covered exactly once
+        all_months: set[int] = set()
+        hemisphere = "south" if lat < 0 else ("equatorial" if abs(lat) < 10 else "north")
+        valid: list[dict] = []
+        for s in seasons_raw:
+            if not isinstance(s, dict):
+                continue
+            name = s.get("name", "")
+            months = [m for m in s.get("months", []) if isinstance(m, int) and 1 <= m <= 12]
+            if not name or not months:
+                continue
+            all_months.update(months)
+            valid.append({
+                "countryCode": country_code.upper(),
+                "name": name,
+                "localName": s.get("localName", name),
+                "months": months,
+                "hemisphere": hemisphere,
+                "description": s.get("description", ""),
+                "source": "ai",
+            })
+
+        if len(all_months) != 12 or not valid:
+            logger.warning("AI season resolution for %s: incomplete month coverage", country_code)
+            return None
+
+        # Store in MongoDB for future lookups
+        try:
+            db = get_db()
+            for doc in valid:
+                db["seasons"].update_one(
+                    {"countryCode": doc["countryCode"], "name": doc["name"]},
+                    {"$set": doc},
+                    upsert=True,
+                )
+        except Exception:
+            logger.warning("Failed to cache AI-generated seasons for %s", country_code)
+
+        return valid
+
+    except Exception:
+        anthropic_breaker.record_failure()
+        return None
+
+
+def _hemisphere_fallback(lat: float) -> dict:
+    """Last-resort hemisphere-based season when DB and AI are unavailable."""
     month = datetime.now(timezone.utc).month
     southern = lat < 0
     if southern:
@@ -175,6 +257,46 @@ def _get_season(country: str = "", lat: float = 0.0) -> dict:
             return {"name": "Autumn", "localName": "Autumn", "description": "Cooling temperatures, shorter days."}
         else:
             return {"name": "Winter", "localName": "Winter", "description": "Coldest season with shorter days."}
+
+
+def _get_season(country: str = "", lat: float = 0.0, lon: float = 0.0) -> dict:
+    """Look up the current season: DB → AI resolution → hemisphere fallback.
+
+    Flow:
+    1. Query MongoDB seasons collection by country code + current month
+    2. If not found, ask AI to generate seasons for this country (cached to DB)
+    3. If AI unavailable, fall back to generic hemisphere-based seasons
+    """
+    month = datetime.now(timezone.utc).month
+
+    try:
+        if country:
+            db = get_db()
+            doc = db["seasons"].find_one(
+                {"countryCode": country.upper(), "months": month},
+                {"_id": 0},
+            )
+            if doc:
+                return {
+                    "name": doc.get("name", ""),
+                    "localName": doc.get("localName", doc.get("name", "")),
+                    "description": doc.get("description", ""),
+                }
+
+            # Country not in DB — resolve with AI and cache
+            ai_seasons = _resolve_seasons_with_ai(country, lat, lon)
+            if ai_seasons:
+                current = next((s for s in ai_seasons if month in s["months"]), None)
+                if current:
+                    return {
+                        "name": current["name"],
+                        "localName": current.get("localName", current["name"]),
+                        "description": current.get("description", ""),
+                    }
+    except Exception:
+        pass
+
+    return _hemisphere_fallback(lat)
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +422,7 @@ async def generate_summary(body: AISummaryRequest):
 
     # Get season
     country = location.country if location.country and len(location.country) == 2 else ""
-    season = _get_season(country, lat=location.lat)
+    season = _get_season(country, lat=location.lat, lon=location.lon)
 
     # Try AI generation
     client = _get_client()

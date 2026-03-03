@@ -335,6 +335,7 @@ async def analyze_history(body: AnalyzeRequest, request: Request):
     elevation = loc.get("elevation", 0)
     country = loc.get("country", "")
     loc_lat = loc.get("lat", 0.0)
+    loc_lon = loc.get("lon", 0.0)
 
     # Fetch history from MongoDB
     db = get_db()
@@ -382,7 +383,7 @@ async def analyze_history(body: AnalyzeRequest, request: Request):
 
     # Get season
     from ._ai import _get_season
-    season = _get_season(country, lat=loc_lat)
+    season = _get_season(country, lat=loc_lat, lon=loc_lon)
 
     # Build user prompt with stats
     activities_note = (

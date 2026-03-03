@@ -6,12 +6,15 @@ Handles location CRUD, search (text + geospatial), and geo-lookup.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 from ._db import (
     get_db,
@@ -656,6 +659,9 @@ async def geo_lookup(
             locations_collection().insert_one(new_loc)
             new_loc.pop("_id", None)
 
+            # Enrich: resolve seasons for this country if not already known
+            _enrich_location_with_ai(geocoded["country"], lat, lon)
+
             return {
                 "nearest": new_loc,
                 "redirectTo": f"/{slug}",
@@ -684,6 +690,25 @@ class AddLocationByCoords(BaseModel):
 
 class AddLocationBySearch(BaseModel):
     query: str
+
+
+def _enrich_location_with_ai(country_code: str, lat: float, lon: float) -> None:
+    """Trigger AI season resolution for a country if not already in DB.
+
+    Called after creating a community/geolocation location. Non-blocking — if
+    AI is unavailable, season data will be resolved on the next weather request.
+    """
+    try:
+        db = get_db()
+        # Check if country already has season data
+        existing = db["seasons"].find_one({"countryCode": country_code.upper()})
+        if existing:
+            return  # Already have season data for this country
+
+        from ._ai import _resolve_seasons_with_ai
+        _resolve_seasons_with_ai(country_code, lat, lon)
+    except Exception:
+        logger.debug("AI location enrichment skipped for %s", country_code)
 
 
 @router.post("/api/py/locations/add")
@@ -805,6 +830,9 @@ async def add_location(request: Request):
         }
         locations_collection().insert_one(new_loc)
         new_loc.pop("_id", None)
+
+        # Enrich: resolve seasons for this country if not already known
+        _enrich_location_with_ai(geocoded["country"], lat, lon)
 
         return {
             "mode": "created",
