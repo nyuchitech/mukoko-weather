@@ -11,7 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 const HYDRATION_TIMEOUT_MS = 4000;
 const SKIP_DELAY_MS = 1500;
 const SAFETY_TIMEOUT_MS = 15000;
-const FALLBACK_LOCATION = "harare";
+const FALLBACK_LOCATION = "explore";
 
 /**
  * Smart home page redirect — like Apple Weather / Google Weather.
@@ -27,8 +27,8 @@ const FALLBACK_LOCATION = "harare";
  *
  * Fallback chain (when geo fails):
  * 1. First saved location
- * 2. Selected location (default: harare)
- * 3. Harare
+ * 2. Selected location
+ * 3. Explore page
  *
  * Waits for Zustand rehydration before reading persisted state to avoid
  * acting on default values before localStorage is loaded.
@@ -79,7 +79,7 @@ export function HomeRedirect() {
 
     let cancelled = false;
 
-    /** Redirect to the fallback location (saved → selected → harare). */
+    /** Redirect to the fallback location (saved → selected → explore). */
     const redirectToFallback = () => {
       if (cancelled || hasRedirected.current) return;
       hasRedirected.current = true;

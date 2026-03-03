@@ -204,14 +204,14 @@ async def search_locations(
             geocoded = _forward_geocode(q, count=limit)
             results = [
                 {
-                    "slug": _generate_slug(g["name"], g.get("country", "ZW")),
+                    "slug": _generate_slug(g["name"], g.get("country", "")),
                     "name": g["name"],
                     "province": g.get("admin1", ""),
                     "lat": g["lat"],
                     "lon": g["lon"],
                     "elevation": g.get("elevation", 0),
                     "tags": [],
-                    "country": g.get("country", "ZW"),
+                    "country": g.get("country", ""),
                     "source": "geocoded",
                 }
                 for g in geocoded
@@ -350,8 +350,8 @@ def _reverse_geocode(lat: float, lon: float) -> dict | None:
         data = resp.json()
         address = data.get("address", {})
 
-        country_code = address.get("country_code", "zw").upper()
-        country_name = address.get("country", "Zimbabwe")
+        country_code = address.get("country_code", "").upper()
+        country_name = address.get("country", "")
 
         name = _extract_location_name(data, address, country_code)
         admin1 = _normalize_admin1(address, country_code, country_name)
@@ -419,12 +419,15 @@ def _get_elevation(lat: float, lon: float) -> int:
     return 0
 
 
-def _generate_slug(name: str, country: str = "ZW") -> str:
-    """Generate a URL-safe slug from a location name."""
+def _generate_slug(name: str, country: str = "") -> str:
+    """Generate a URL-safe slug from a location name.
+
+    All locations get country-code suffix (e.g., "harare-zw", "nairobi-ke").
+    """
     import unicodedata
     slug = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")
-    if country and country.upper() != "ZW":
+    if country:
         slug = f"{slug}-{country.lower()}"
     return slug[:80]
 
@@ -466,21 +469,18 @@ def _is_valid_coordinates(lat: float, lon: float) -> bool:
 
 # Dedup radius — tight because location names are now specific (POIs, addresses,
 # suburbs). Two different places 2km apart are legitimately different locations.
-DEDUP_RADIUS_ZW_KM = 1
-DEDUP_RADIUS_DEFAULT_KM = 1
+DEDUP_RADIUS_KM = 1
 
 
-def _dedup_radius(country: str | None) -> float:
-    """Zimbabwe locations use a tighter 5km radius; others use 10km."""
-    if country and country.upper() == "ZW":
-        return DEDUP_RADIUS_ZW_KM
-    return DEDUP_RADIUS_DEFAULT_KM
+def _dedup_radius(_country: str | None) -> float:
+    """Get dedup radius for location creation (uniform 1km for all countries)."""
+    return DEDUP_RADIUS_KM
 
 
 def _find_duplicate(
     lat: float,
     lon: float,
-    radius_km: float = DEDUP_RADIUS_DEFAULT_KM,
+    radius_km: float = DEDUP_RADIUS_KM,
     name: str | None = None,
     country: str | None = None,
 ) -> dict | None:

@@ -20,7 +20,7 @@ from py._ai import (
     generate_summary,
     AISummaryRequest,
     LocationInfo,
-    TIER_1_SLUGS,
+    TIER_2_TAGS,
     TTL_TIER_1,
     TTL_TIER_2,
     TTL_TIER_3,
@@ -29,32 +29,31 @@ from py._ai import (
 
 
 # ---------------------------------------------------------------------------
-# _get_ttl — tiered TTL
+# _get_ttl — tiered TTL (data-driven via tags)
 # ---------------------------------------------------------------------------
 
 
 class TestGetTtl:
-    def test_tier_1_major_city(self):
-        assert _get_ttl("harare", []) == TTL_TIER_1
-        assert _get_ttl("harare", []) == 1800  # 30 min
+    def test_tier_1_city_tag(self):
+        assert _get_ttl("any-city", ["city"]) == TTL_TIER_1
+        assert _get_ttl("any-city", ["city"]) == 1800  # 30 min
 
-    def test_tier_1_all_slugs(self):
-        for slug in TIER_1_SLUGS:
-            assert _get_ttl(slug, []) == TTL_TIER_1
+    def test_tier_1_city_overrides_tier_2_tags(self):
+        """Locations with both 'city' and tier-2 tags should get tier 1 TTL."""
+        assert _get_ttl("any-city", ["city", "farming"]) == TTL_TIER_1
 
     def test_tier_2_farming_tag(self):
-        # Use a non-tier-1 slug with a tier-2 tag
-        assert _get_ttl("chiredzi", ["farming"]) == TTL_TIER_2
-        assert _get_ttl("chiredzi", ["farming"]) == 3600  # 60 min
+        assert _get_ttl("some-farm", ["farming"]) == TTL_TIER_2
+        assert _get_ttl("some-farm", ["farming"]) == 3600  # 60 min
 
     def test_tier_2_mining_tag(self):
-        assert _get_ttl("hwange", ["mining"]) == TTL_TIER_2
+        assert _get_ttl("mine-site", ["mining"]) == TTL_TIER_2
 
     def test_tier_2_education_tag(self):
-        assert _get_ttl("some-school", ["education"]) == TTL_TIER_2
+        assert _get_ttl("university", ["education"]) == TTL_TIER_2
 
     def test_tier_2_border_tag(self):
-        assert _get_ttl("beitbridge", ["border"]) == TTL_TIER_2
+        assert _get_ttl("border-post", ["border"]) == TTL_TIER_2
 
     def test_tier_3_default(self):
         assert _get_ttl("small-place", ["tourism"]) == TTL_TIER_3
@@ -63,35 +62,9 @@ class TestGetTtl:
     def test_tier_3_no_tags(self):
         assert _get_ttl("unknown", []) == TTL_TIER_3
 
-    def test_tier_1_overrides_tier_2(self):
-        """Tier 1 slugs should get 30min TTL even with tier 2 tags."""
-        assert _get_ttl("harare", ["farming"]) == TTL_TIER_1
-
-
-# ---------------------------------------------------------------------------
-# TIER_1_SLUGS
-# ---------------------------------------------------------------------------
-
-
-class TestTier1Slugs:
-    def test_contains_major_cities(self):
-        expected = {"harare", "bulawayo", "mutare", "gweru", "masvingo", "victoria-falls"}
-        assert expected.issubset(TIER_1_SLUGS)
-
-    def test_contains_kwekwe(self):
-        assert "kwekwe" in TIER_1_SLUGS
-
-    def test_contains_kadoma(self):
-        assert "kadoma" in TIER_1_SLUGS
-
-    def test_contains_marondera(self):
-        assert "marondera" in TIER_1_SLUGS
-
-    def test_contains_chinhoyi(self):
-        assert "chinhoyi" in TIER_1_SLUGS
-
-    def test_total_count(self):
-        assert len(TIER_1_SLUGS) == 10
+    def test_tier_2_tags_set(self):
+        """Verify the set of tags that qualify for tier 2."""
+        assert TIER_2_TAGS == {"farming", "mining", "education", "border"}
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +137,7 @@ class TestGetClient:
 
 
 # ---------------------------------------------------------------------------
-# _get_season — season lookup
+# _get_season — hemisphere-aware season lookup
 # ---------------------------------------------------------------------------
 
 
@@ -181,56 +154,75 @@ class TestGetSeason:
 
         result = _get_season("ZW")
         assert result["name"] == "Wet season"
-        assert result["shona"] == "Masika"
+        assert result["localName"] == "Masika"
         assert result["description"] == "Heavy rains"
 
     @patch("py._ai.get_db")
     @patch("py._ai.datetime")
-    def test_zimbabwe_fallback_wet(self, mock_dt, mock_db):
+    def test_southern_hemisphere_summer(self, mock_dt, mock_db):
         mock_db.side_effect = Exception("DB down")
         mock_now = MagicMock()
         mock_now.month = 1
         mock_dt.now.return_value = mock_now
 
-        result = _get_season("ZW")
-        assert result["name"] == "Wet season"
-        assert result["shona"] == "Masika"
+        result = _get_season("", lat=-17.0)
+        assert result["name"] == "Summer"
+        assert result["localName"] == "Summer"
 
     @patch("py._ai.get_db")
     @patch("py._ai.datetime")
-    def test_zimbabwe_fallback_post_rain(self, mock_dt, mock_db):
+    def test_southern_hemisphere_autumn(self, mock_dt, mock_db):
         mock_db.side_effect = Exception("DB down")
         mock_now = MagicMock()
         mock_now.month = 4
         mock_dt.now.return_value = mock_now
 
-        result = _get_season("ZW")
-        assert result["name"] == "Post-rain"
-        assert result["shona"] == "Munakamwe"
+        result = _get_season("", lat=-20.0)
+        assert result["name"] == "Autumn"
 
     @patch("py._ai.get_db")
     @patch("py._ai.datetime")
-    def test_zimbabwe_fallback_cool_dry(self, mock_dt, mock_db):
+    def test_southern_hemisphere_winter(self, mock_dt, mock_db):
         mock_db.side_effect = Exception("DB down")
         mock_now = MagicMock()
         mock_now.month = 7
         mock_dt.now.return_value = mock_now
 
-        result = _get_season("ZW")
-        assert result["name"] == "Cool dry"
-        assert result["shona"] == "Chirimo"
+        result = _get_season("", lat=-17.0)
+        assert result["name"] == "Winter"
 
     @patch("py._ai.get_db")
     @patch("py._ai.datetime")
-    def test_zimbabwe_fallback_hot_dry(self, mock_dt, mock_db):
+    def test_southern_hemisphere_spring(self, mock_dt, mock_db):
         mock_db.side_effect = Exception("DB down")
         mock_now = MagicMock()
         mock_now.month = 9
         mock_dt.now.return_value = mock_now
 
-        result = _get_season("ZW")
-        assert result["name"] == "Hot dry"
-        assert result["shona"] == "Zhizha"
+        result = _get_season("", lat=-17.0)
+        assert result["name"] == "Spring"
+
+    @patch("py._ai.get_db")
+    @patch("py._ai.datetime")
+    def test_northern_hemisphere_summer(self, mock_dt, mock_db):
+        mock_db.side_effect = Exception("DB down")
+        mock_now = MagicMock()
+        mock_now.month = 7
+        mock_dt.now.return_value = mock_now
+
+        result = _get_season("", lat=40.0)
+        assert result["name"] == "Summer"
+
+    @patch("py._ai.get_db")
+    @patch("py._ai.datetime")
+    def test_northern_hemisphere_winter(self, mock_dt, mock_db):
+        mock_db.side_effect = Exception("DB down")
+        mock_now = MagicMock()
+        mock_now.month = 1
+        mock_dt.now.return_value = mock_now
+
+        result = _get_season("", lat=40.0)
+        assert result["name"] == "Winter"
 
 
 # ---------------------------------------------------------------------------
@@ -281,14 +273,14 @@ class TestGetCachedSummary:
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         now = datetime.now(timezone.utc)
         mock_coll.find_one.return_value = {
-            "insight": "Sunny weather in Harare.",
+            "insight": "Sunny weather today.",
             "generatedAt": now,
             "weatherSnapshot": {"temperature": 25, "weatherCode": 0},
         }
 
-        result = _get_cached_summary("harare")
+        result = _get_cached_summary("test-location")
         assert result is not None
-        assert result["insight"] == "Sunny weather in Harare."
+        assert result["insight"] == "Sunny weather today."
         assert result["generatedAt"] == now
 
     @patch("py._ai.get_db")
@@ -297,7 +289,7 @@ class TestGetCachedSummary:
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         mock_coll.find_one.return_value = None
 
-        result = _get_cached_summary("harare")
+        result = _get_cached_summary("test-location")
         assert result is None
 
 
@@ -312,10 +304,10 @@ class TestSetCachedSummary:
         mock_coll = MagicMock()
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
 
-        _set_cached_summary("harare", "Sunny weather.", {"temperature": 25}, [])
+        _set_cached_summary("test-loc", "Sunny weather.", {"temperature": 25}, [])
         mock_coll.update_one.assert_called_once()
         call_args = mock_coll.update_one.call_args
-        assert call_args[0][0] == {"locationSlug": "harare"}
+        assert call_args[0][0] == {"locationSlug": "test-loc"}
         assert call_args[1]["upsert"] is True
 
     @patch("py._ai.get_db")
@@ -323,7 +315,7 @@ class TestSetCachedSummary:
         mock_coll = MagicMock()
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
 
-        _set_cached_summary("harare", "Summary.", {"temperature": 25}, [])
+        _set_cached_summary("any-city", "Summary.", {"temperature": 25}, ["city"])
         call_args = mock_coll.update_one.call_args
         update_doc = call_args[0][1]["$set"]
         diff = (update_doc["expiresAt"] - update_doc["generatedAt"]).total_seconds()
@@ -334,7 +326,7 @@ class TestSetCachedSummary:
         mock_coll = MagicMock()
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
 
-        _set_cached_summary("chinhoyi-farms", "Summary.", {"temperature": 25}, ["farming"])
+        _set_cached_summary("farm-area", "Summary.", {"temperature": 25}, ["farming"])
         call_args = mock_coll.update_one.call_args
         update_doc = call_args[0][1]["$set"]
         diff = (update_doc["expiresAt"] - update_doc["generatedAt"]).total_seconds()
@@ -403,7 +395,7 @@ class TestGenerateSummary:
                     "weather_code": [code],
                 },
             },
-            location=LocationInfo(name="Harare", elevation=1490, country="ZW"),
+            location=LocationInfo(name="Nairobi", elevation=1795, country="KE", lat=-1.29, lon=36.82),
             activities=activities or [],
         )
 
@@ -446,12 +438,12 @@ class TestGenerateSummary:
         ))
         mock_cache.return_value = None
         mock_client.return_value = None
-        mock_season.return_value = {"name": "Wet season", "shona": "Masika",
-                                     "description": "The rainy season"}
+        mock_season.return_value = {"name": "Summer", "localName": "Summer",
+                                     "description": "Warm season with possible thunderstorms"}
 
         result = await generate_summary(self._make_request())
-        assert "Masika" in result["insight"]
-        assert "Harare" in result["insight"]
+        assert "Summer" in result["insight"]
+        assert "Nairobi" in result["insight"]
         assert result["cached"] is False
         mock_set.assert_called_once()
 
@@ -473,11 +465,11 @@ class TestGenerateSummary:
         mock_cache.return_value = None
         mock_client.return_value = MagicMock()
         mock_breaker.is_allowed = False  # Circuit open
-        mock_season.return_value = {"name": "Cool dry", "shona": "Chirimo",
-                                     "description": "Clear skies"}
+        mock_season.return_value = {"name": "Winter", "localName": "Winter",
+                                     "description": "Cool and dry"}
 
         result = await generate_summary(self._make_request())
-        assert "Chirimo" in result["insight"]
+        assert "Winter" in result["insight"]
         assert result["cached"] is False
 
     @pytest.mark.asyncio
@@ -498,15 +490,15 @@ class TestGenerateSummary:
         ))
         mock_cache.return_value = None
         mock_breaker.is_allowed = True
-        mock_season.return_value = {"name": "Hot dry", "shona": "Zhizha",
-                                     "description": "Building heat"}
+        mock_season.return_value = {"name": "Spring", "localName": "Spring",
+                                     "description": "Warming temperatures"}
         mock_sys_prompt.return_value = "You are Shamwari."
         mock_prompt.return_value = {"model": "claude-haiku-4-5-20251001", "maxTokens": 400}
 
         # Mock Claude response
         text_block = MagicMock()
         text_block.type = "text"
-        text_block.text = "AI-generated summary for Harare."
+        text_block.text = "AI-generated summary for Nairobi."
         mock_message = MagicMock()
         mock_message.content = [text_block]
         mock_ai_client = MagicMock()
@@ -514,7 +506,7 @@ class TestGenerateSummary:
         mock_client.return_value = mock_ai_client
 
         result = await generate_summary(self._make_request())
-        assert result["insight"] == "AI-generated summary for Harare."
+        assert result["insight"] == "AI-generated summary for Nairobi."
         assert result["cached"] is False
         mock_breaker.record_success.assert_called_once()
         mock_set.assert_called_once()
@@ -537,8 +529,8 @@ class TestGenerateSummary:
         ))
         mock_cache.return_value = None
         mock_breaker.is_allowed = True
-        mock_season.return_value = {"name": "Wet season", "shona": "Masika",
-                                     "description": "Heavy rains"}
+        mock_season.return_value = {"name": "Summer", "localName": "Summer",
+                                     "description": "Warm season"}
         mock_sys_prompt.return_value = "You are Shamwari."
         mock_prompt.return_value = None
 
@@ -547,8 +539,8 @@ class TestGenerateSummary:
         mock_client.return_value = mock_ai_client
 
         result = await generate_summary(self._make_request())
-        assert "Masika" in result["insight"]
-        assert "Harare" in result["insight"]
+        assert "Summer" in result["insight"]
+        assert "Nairobi" in result["insight"]
         mock_breaker.record_failure.assert_called_once()
 
     @pytest.mark.asyncio
@@ -571,8 +563,8 @@ class TestGenerateSummary:
         ))
         mock_cache.return_value = None
         mock_breaker.is_allowed = True
-        mock_season.return_value = {"name": "Wet season", "shona": "Masika",
-                                     "description": "Heavy rains"}
+        mock_season.return_value = {"name": "Summer", "localName": "Summer",
+                                     "description": "Warm season"}
         mock_sys_prompt.return_value = "System prompt."
         mock_prompt.return_value = None
 
@@ -616,8 +608,8 @@ class TestGenerateSummary:
 
         with patch("py._ai._get_season") as mock_season, \
              patch("py._ai._get_client") as mock_client:
-            mock_season.return_value = {"name": "Wet season", "shona": "Masika",
-                                         "description": "Rains"}
+            mock_season.return_value = {"name": "Summer", "localName": "Summer",
+                                         "description": "Warm"}
             mock_client.return_value = None  # No AI client -> fallback
 
             result = await generate_summary(self._make_request())

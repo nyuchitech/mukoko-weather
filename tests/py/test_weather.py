@@ -207,22 +207,23 @@ class TestNormalizeTomorrow:
 
 class TestCreateFallbackWeather:
     @patch("py._weather.datetime")
-    def test_rainy_season_november(self, mock_dt):
+    def test_spring_november_southern(self, mock_dt):
         mock_dt.now.return_value = datetime(2025, 11, 15, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         # Use elevation 1000 to avoid elevation adjustment
         result = _create_fallback_weather(-17.83, 31.05, 1000)
-        # Nov is rainy season: temp=28, code=61
-        assert result["current"]["temperature_2m"] == 28
-        assert result["current"]["weather_code"] == 61
+        # Nov is spring in southern hemisphere: temp=25, code=2
+        assert result["current"]["temperature_2m"] == 25
+        assert result["current"]["weather_code"] == 2
 
     @patch("py._weather.datetime")
-    def test_rainy_season_january(self, mock_dt):
+    def test_summer_january_southern(self, mock_dt):
         mock_dt.now.return_value = datetime(2025, 1, 15, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         result = _create_fallback_weather(-17.83, 31.05, 1000)
+        # Jan is summer in southern hemisphere: temp=28, code=2
         assert result["current"]["temperature_2m"] == 28
-        assert result["current"]["weather_code"] == 61
+        assert result["current"]["weather_code"] == 2
 
     @patch("py._weather.datetime")
     def test_post_rain_april(self, mock_dt):
@@ -249,20 +250,22 @@ class TestCreateFallbackWeather:
         assert result["current"]["weather_code"] == 0
 
     @patch("py._weather.datetime")
-    def test_hot_dry_september(self, mock_dt):
+    def test_spring_september_southern(self, mock_dt):
         mock_dt.now.return_value = datetime(2025, 9, 15, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         result = _create_fallback_weather(-17.83, 31.05, 1000)
-        assert result["current"]["temperature_2m"] == 32
-        assert result["current"]["weather_code"] == 0
+        # Sep is spring in southern hemisphere: temp=25, code=2
+        assert result["current"]["temperature_2m"] == 25
+        assert result["current"]["weather_code"] == 2
 
     @patch("py._weather.datetime")
-    def test_hot_dry_october(self, mock_dt):
+    def test_spring_october_southern(self, mock_dt):
         mock_dt.now.return_value = datetime(2025, 10, 15, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         result = _create_fallback_weather(-17.83, 31.05, 1000)
-        assert result["current"]["temperature_2m"] == 32
-        assert result["current"]["weather_code"] == 0
+        # Oct is spring in southern hemisphere: temp=25, code=2
+        assert result["current"]["temperature_2m"] == 25
+        assert result["current"]["weather_code"] == 2
 
     @patch("py._weather.datetime")
     def test_elevation_adjustment(self, mock_dt):

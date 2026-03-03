@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   LOCATIONS,
-  ZW_LOCATIONS,
+  SEED_LOCATIONS_ZW,
 } from "./locations";
 import { GLOBAL_LOCATIONS } from "./locations-global";
 import { ZIMBABWE_BOUNDS } from "./seed-regions";
@@ -45,7 +45,7 @@ describe("LOCATIONS database", () => {
   });
 
   it("all Zimbabwe coordinates are within Zimbabwe bounds (with padding)", () => {
-    for (const loc of ZW_LOCATIONS) {
+    for (const loc of SEED_LOCATIONS_ZW) {
       expect(loc.lat).toBeGreaterThanOrEqual(ZIMBABWE_BOUNDS.south - 1);
       expect(loc.lat).toBeLessThanOrEqual(ZIMBABWE_BOUNDS.north + 1);
       expect(loc.lon).toBeGreaterThanOrEqual(ZIMBABWE_BOUNDS.west - 1);

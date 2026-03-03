@@ -25,7 +25,7 @@ export interface WeatherLocation {
   lon: number;
   elevation: number;
   tags: string[];
-  /** ISO 3166-1 alpha-2 country code (defaults to "ZW") */
+  /** ISO 3166-1 alpha-2 country code */
   country?: string;
   /** How this location was added */
   source?: "seed" | "community" | "geolocation";
@@ -42,8 +42,8 @@ export interface WeatherLocation {
 export type LocationTag = string;
 
 
-/** Zimbabwe seed locations — part of the global location set. */
-export const ZW_LOCATIONS: WeatherLocation[] = [
+/** Zimbabwe seed locations (ZW) — part of the global seed location set. */
+export const SEED_LOCATIONS_ZW: WeatherLocation[] = [
   // ===== CITIES & TOWNS =====
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },
   { slug: "bulawayo", name: "Bulawayo", province: "Bulawayo", lat: -20.15, lon: 28.58, elevation: 1348, tags: ["city", "education"] },
@@ -157,5 +157,5 @@ export const ZW_LOCATIONS: WeatherLocation[] = [
 ];
 
 /** Combined location array: Zimbabwe seed locations + global locations */
-export const LOCATIONS: WeatherLocation[] = [...ZW_LOCATIONS, ...GLOBAL_LOCATIONS];
+export const LOCATIONS: WeatherLocation[] = [...SEED_LOCATIONS_ZW, ...GLOBAL_LOCATIONS];
 

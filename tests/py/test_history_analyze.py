@@ -454,7 +454,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30)
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             result = await analyze_history(body, request)
 
         assert result["error"] is True
@@ -504,7 +504,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30)
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             result = await analyze_history(body, request)
 
         assert result["analysis"] == "The weather has been warming over the past 30 days."
@@ -546,7 +546,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30)
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             with pytest.raises(HTTPException) as exc_info:
                 await analyze_history(body, request)
         assert exc_info.value.status_code == 429
@@ -585,7 +585,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30)
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             result = await analyze_history(body, request)
 
         assert result["error"] is True
@@ -631,7 +631,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30, activities=["farming", "running"])
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             await analyze_history(body, request)
 
         # Check that the user message content includes activities
@@ -679,7 +679,7 @@ class TestAnalyzeHistoryEndpoint:
         body = AnalyzeRequest(location="harare", days=30, activities=[])
         request = self._make_request()
 
-        with patch("py._ai._get_season", return_value={"name": "Hot", "shona": "Zhizha", "description": "Hot season"}):
+        with patch("py._ai._get_season", return_value={"name": "Spring", "localName": "Spring", "description": "Warming temperatures"}):
             await analyze_history(body, request)
 
         call_args = mock_client.return_value.messages.create.call_args

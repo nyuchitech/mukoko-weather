@@ -58,7 +58,7 @@ weatherRoutes.get("/", async (c) => {
     current: CURRENT_PARAMS,
     hourly: HOURLY_PARAMS,
     daily: DAILY_PARAMS,
-    timezone: "Africa/Harare",
+    timezone: "auto",
     forecast_days: "7",
   });
 

@@ -24,19 +24,16 @@ router = APIRouter()
 # Tiered TTL (matches TypeScript db.ts)
 # ---------------------------------------------------------------------------
 
-TIER_1_SLUGS = {
-    "harare", "bulawayo", "mutare", "gweru", "masvingo",
-    "kwekwe", "kadoma", "marondera", "chinhoyi", "victoria-falls",
-}
 TIER_2_TAGS = {"farming", "mining", "education", "border"}
 
-TTL_TIER_1 = 1800   # 30 min
-TTL_TIER_2 = 3600   # 60 min
-TTL_TIER_3 = 7200   # 120 min
+TTL_TIER_1 = 1800   # 30 min — cities with "city" tag
+TTL_TIER_2 = 3600   # 60 min — locations with industry/education/border tags
+TTL_TIER_3 = 7200   # 120 min — all other locations
 
 
 def _get_ttl(slug: str, tags: list[str]) -> int:
-    if slug in TIER_1_SLUGS:
+    """Data-driven TTL — cities get shortest TTL, industry tags get medium."""
+    if "city" in tags:
         return TTL_TIER_1
     if any(t in TIER_2_TAGS for t in tags):
         return TTL_TIER_2
@@ -138,34 +135,46 @@ def _get_client() -> anthropic.Anthropic:
 # ---------------------------------------------------------------------------
 
 
-def _get_season(country: str = "ZW") -> dict:
-    """Look up the current season from MongoDB, falling back to Zimbabwe seasons."""
+def _get_season(country: str = "", lat: float = 0.0) -> dict:
+    """Look up the current season from MongoDB, falling back to hemisphere-based seasons."""
     try:
-        db = get_db()
-        month = datetime.now(timezone.utc).month
-        doc = db["seasons"].find_one(
-            {"countryCode": country.upper(), "months": month},
-            {"_id": 0},
-        )
-        if doc:
-            return {
-                "name": doc.get("name", ""),
-                "shona": doc.get("localName", doc.get("name", "")),
-                "description": doc.get("description", ""),
-            }
+        if country:
+            db = get_db()
+            month = datetime.now(timezone.utc).month
+            doc = db["seasons"].find_one(
+                {"countryCode": country.upper(), "months": month},
+                {"_id": 0},
+            )
+            if doc:
+                return {
+                    "name": doc.get("name", ""),
+                    "localName": doc.get("localName", doc.get("name", "")),
+                    "description": doc.get("description", ""),
+                }
     except Exception:
         pass
 
-    # Zimbabwe fallback
+    # Hemisphere-aware fallback (no country-specific assumptions)
     month = datetime.now(timezone.utc).month
-    if month in (11, 12, 1, 2, 3):
-        return {"name": "Wet season", "shona": "Masika", "description": "The rainy season brings heavy afternoon thunderstorms."}
-    elif month in (4, 5):
-        return {"name": "Post-rain", "shona": "Munakamwe", "description": "Temperatures moderate as the rains taper off."}
-    elif month in (6, 7, 8):
-        return {"name": "Cool dry", "shona": "Chirimo", "description": "Clear skies and cold mornings with possible frost."}
+    southern = lat < 0
+    if southern:
+        if month in (12, 1, 2):
+            return {"name": "Summer", "localName": "Summer", "description": "Warm season with possible thunderstorms."}
+        elif month in (3, 4, 5):
+            return {"name": "Autumn", "localName": "Autumn", "description": "Cooling temperatures, harvest period."}
+        elif month in (6, 7, 8):
+            return {"name": "Winter", "localName": "Winter", "description": "Cool and dry with possible frost."}
+        else:
+            return {"name": "Spring", "localName": "Spring", "description": "Warming temperatures, early rains possible."}
     else:
-        return {"name": "Hot dry", "shona": "Zhizha", "description": "Building heat and humidity before the rains."}
+        if month in (3, 4, 5):
+            return {"name": "Spring", "localName": "Spring", "description": "Warming temperatures, new growth."}
+        elif month in (6, 7, 8):
+            return {"name": "Summer", "localName": "Summer", "description": "Warmest season with longer days."}
+        elif month in (9, 10, 11):
+            return {"name": "Autumn", "localName": "Autumn", "description": "Cooling temperatures, shorter days."}
+        else:
+            return {"name": "Winter", "localName": "Winter", "description": "Coldest season with shorter days."}
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +243,9 @@ def _set_cached_summary(
 class LocationInfo(BaseModel):
     name: str
     elevation: int = 1200
-    country: str = "ZW"
+    lat: float = 0.0
+    lon: float = 0.0
+    country: str = ""
 
 
 class AISummaryRequest(BaseModel):
@@ -288,8 +299,8 @@ async def generate_summary(body: AISummaryRequest):
         }
 
     # Get season
-    country = location.country if location.country and len(location.country) == 2 else "ZW"
-    season = _get_season(country)
+    country = location.country if location.country and len(location.country) == 2 else ""
+    season = _get_season(country, lat=location.lat)
 
     # Try AI generation
     client = _get_client()
@@ -301,7 +312,7 @@ async def generate_summary(body: AISummaryRequest):
             f"Current conditions in {location.name}: "
             f"{round(temp) if temp is not None else 'N/A'}\u00B0C with "
             f"{humidity if humidity is not None else 'N/A'}% humidity. "
-            f"We are in the {season['shona']} season ({season['name']}). "
+            f"We are in the {season['localName']} season ({season['name']}). "
             f"{season['description']}. Stay informed and plan your day accordingly."
         )
 
@@ -355,7 +366,7 @@ async def generate_summary(body: AISummaryRequest):
 
 Current conditions: {current_data}
 3-day forecast summary: max temps {max_temps}, min temps {min_temps}, weather codes {codes}{insights_prompt}
-Season: {season['shona']} ({season['name']})
+Season: {season['localName']} ({season['name']})
 
 Provide:
 1. A 2-sentence general summary
@@ -375,7 +386,7 @@ Provide:
             f"Current conditions in {location.name}: "
             f"{round(temp) if temp is not None else 'N/A'}\u00B0C with "
             f"{humidity if humidity is not None else 'N/A'}% humidity. "
-            f"We are in the {season['shona']} season ({season['name']}). "
+            f"We are in the {season['localName']} season ({season['name']}). "
             f"{season['description']}. Stay informed and plan your day accordingly."
         )
     else:
@@ -399,7 +410,7 @@ Provide:
                 f"Current conditions in {location.name}: "
                 f"{round(temp) if temp is not None else 'N/A'}\u00B0C with "
                 f"{humidity if humidity is not None else 'N/A'}% humidity. "
-                f"We are in the {season['shona']} season ({season['name']}). "
+                f"We are in the {season['localName']} season ({season['name']}). "
                 f"{season['description']}. Stay informed and plan your day accordingly."
             )
 

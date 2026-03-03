@@ -10,7 +10,7 @@ import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
 import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "../FrostAlertBanner";
 import { WeatherUnavailableBanner } from "../WeatherUnavailableBanner";
-import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
+import type { WeatherData, FrostAlert, Season } from "@/lib/weather";
 import type { WeatherLocation } from "@/lib/locations";
 
 const HourlyForecast = lazy(() => import("@/components/weather/HourlyForecast").then((m) => ({ default: m.HourlyForecast })));
@@ -22,7 +22,7 @@ interface Props {
   location: WeatherLocation;
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
-  season: ZimbabweSeason;
+  season: Season;
 }
 
 export function ForecastDashboard({
@@ -65,7 +65,7 @@ export function ForecastDashboard({
           {location.name} Forecast
         </h1>
         <p className="mt-1 text-base text-text-secondary">
-          {location.province} &middot; {location.elevation}m &middot; {season.shona} ({season.name})
+          {location.province} &middot; {location.elevation}m &middot; {season.localName} ({season.name})
         </p>
 
         <div className="mt-4 mb-4">

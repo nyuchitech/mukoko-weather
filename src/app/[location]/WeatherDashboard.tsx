@@ -23,7 +23,7 @@ import {
 import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
 import { useAppStore } from "@/lib/store";
-import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
+import type { WeatherData, FrostAlert, Season } from "@/lib/weather";
 import type { WeatherLocation } from "@/lib/locations";
 import { type Activity, ACTIVITIES } from "@/lib/activities";
 import { InfoRow } from "@/components/ui/info-row";
@@ -53,7 +53,7 @@ interface WeatherDashboardProps {
   location: WeatherLocation;
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
-  season: ZimbabweSeason;
+  season: Season;
   /** Resolved country name — shown in breadcrumbs for non-ZW locations */
   countryName?: string;
 }
@@ -229,7 +229,7 @@ export function WeatherDashboard({
                       weather={weather}
                       location={location}
                       initialSummary={aiSummary}
-                      season={`${season.shona} (${season.name})`}
+                      season={`${season.localName} (${season.name})`}
                     />
                   </Suspense>
                 </ChartErrorBoundary>
@@ -290,7 +290,7 @@ export function WeatherDashboard({
                     {location.nominatimAddress?.displayName && (
                       <InfoRow label="Address" value={location.nominatimAddress.displayName} />
                     )}
-                    <InfoRow label="Season" value={`${season.shona} (${season.name})`} />
+                    <InfoRow label="Season" value={`${season.localName} (${season.name})`} />
                   </dl>
                 </div>
               </section>

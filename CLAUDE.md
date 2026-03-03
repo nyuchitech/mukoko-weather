@@ -493,7 +493,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
-- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/harare`
+- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/explore`
 - `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
@@ -589,13 +589,12 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 ### Location Data
 
-**Type:** `WeatherLocation` in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
+**Type:** `WeatherLocation` in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
 
-**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`SEED_LOCATIONS_ZW`) plus 167 global cities in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. All location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"harare-zw"`, `"bangkok-th"`).
 
 **Location validation rules (global-first):**
-- **Zimbabwe locations** (`ZW_LOCATIONS`): require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, and `tags`. Coordinates validated within Zimbabwe bounds (south: -22.42, north: -15.61, west: 25.24, east: 33.07).
-- **Global locations** (`GLOBAL_LOCATIONS`): additionally require `country` (ISO 3166-1 alpha-2). Slugs MUST use `{city}-{country_lowercase}` format (e.g., `nairobi-ke`, `bangkok-th`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
+- **All locations**: require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, and `country` (ISO 3166-1 alpha-2). Slugs use `{city}-{country_lowercase}` format (e.g., `nairobi-ke`, `harare-zw`, `bangkok-th`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
 - **Source field:** `"seed"` for curated data, `"community"` for user-submitted, `"geolocation"` for auto-detected.
 
 **Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim (zoom=18, building/POI level) for specific place names, structured addresses, and administrative divisions.
@@ -689,7 +688,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `fetchWeather(lat, lon)` — API call (7-day forecast, no auth required)
 - `checkFrostRisk(hourly)` — frost detection (temps <= 3°C between 10pm-8am)
 - `weatherCodeToInfo(code)` — WMO code to label/icon
-- `getDefaultSeason(date)` — default season fallback using Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe). `getZimbabweSeason` is a backward-compat alias
+- `getDefaultSeason(date, lat)` — hemisphere-aware default season based on latitude. `getZimbabweSeason` is a backward-compat alias
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
 - `synthesizeOpenMeteoInsights(data)` — constructs a `WeatherInsights` object from Open-Meteo data (wind speed, gusts, visibility) for suitability evaluation
@@ -708,7 +707,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), persisted to localStorage, synced to server
 - `setTheme(theme)` — explicitly set a theme preference
 - `toggleTheme()` — cycles through light → dark → system
-- `selectedLocation: string` — current location slug (default: `"harare"`), persisted to localStorage, synced to server
+- `selectedLocation: string` — current location slug (default: `""`), persisted to localStorage, synced to server
 - `setSelectedLocation(slug)` — updates location, queues device sync
 - `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage, synced to server
 - `toggleActivity(id)` — adds/removes an activity selection, queues device sync
@@ -1027,12 +1026,12 @@ The header takes no props — location context comes from the URL path.
 
 ### HomeRedirect (Smart Home Page)
 
-`src/app/HomeRedirect.tsx` — client component that replaces the simple `/` → `/harare` redirect with location-aware routing.
+`src/app/HomeRedirect.tsx` — client component that replaces a static redirect with location-aware routing.
 
 **Redirect logic (priority order):**
 1. **Always attempt geolocation** — browser GPS via `detectUserLocation()` with 3s timeout
 2. **If geolocation succeeds** → redirect to detected location
-3. **If geolocation fails** → fall back to first saved location, then selected location, then `/harare`
+3. **If geolocation fails** → fall back to first saved location, then selected location, then `/explore`
 
 This geo-first approach mirrors Apple Weather / Google Weather behavior — the home page always tries to show your current physical location.
 

@@ -243,26 +243,37 @@ def _fetch_open_meteo(lat: float, lon: float) -> dict | None:
 
 
 def _create_fallback_weather(lat: float, lon: float, elevation: int) -> dict:
-    """Generate seasonal estimate data when all providers fail."""
-    month = datetime.now(timezone.utc).month
+    """Generate seasonal estimate data when all providers fail.
 
-    # Zimbabwe seasonal estimates
-    if month in (11, 12, 1, 2, 3):
-        # Masika (rainy season)
-        temp = 28
-        code = 61
-    elif month in (4, 5):
-        # Munakamwe (post-rain)
-        temp = 22
-        code = 2
-    elif month in (6, 7, 8):
-        # Chirimo (dry/cold)
-        temp = 18
-        code = 0
+    Uses hemisphere-aware seasonal estimates instead of country-specific ones.
+    """
+    month = datetime.now(timezone.utc).month
+    southern = lat < 0
+
+    # Hemisphere-aware seasonal estimates
+    if southern:
+        if month in (12, 1, 2):  # Summer
+            temp, code = 28, 2
+        elif month in (3, 4, 5):  # Autumn
+            temp, code = 22, 2
+        elif month in (6, 7, 8):  # Winter
+            temp, code = 18, 0
+        else:  # Spring
+            temp, code = 25, 2
     else:
-        # Zhizha (hot/dry)
-        temp = 32
-        code = 0
+        if month in (3, 4, 5):  # Spring
+            temp, code = 18, 2
+        elif month in (6, 7, 8):  # Summer
+            temp, code = 28, 2
+        elif month in (9, 10, 11):  # Autumn
+            temp, code = 15, 2
+        else:  # Winter
+            temp, code = 5, 0
+
+    # Tropical adjustment: locations near equator have less seasonal variation
+    if abs(lat) < 15:
+        temp = 28
+        code = 2
 
     # Adjust for elevation
     elevation_adj = max(0, (elevation - 1000)) * 0.006

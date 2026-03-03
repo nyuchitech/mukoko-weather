@@ -25,8 +25,7 @@ from py._locations import (
     search_locations,
     geo_lookup,
     add_location,
-    DEDUP_RADIUS_ZW_KM,
-    DEDUP_RADIUS_DEFAULT_KM,
+    DEDUP_RADIUS_KM,
     MAX_LOCATIONS_LIMIT,
     DEFAULT_LOCATIONS_LIMIT,
     SLUG_RE,
@@ -58,14 +57,14 @@ class TestGenerateSlug:
         assert slug.endswith("-ke")
         assert slug == "nairobi-ke"
 
-    def test_zw_country_no_suffix(self):
+    def test_zw_country_appends_suffix(self):
         slug = _generate_slug("Harare", "ZW")
-        assert slug == "harare"
-        assert not slug.endswith("-zw")
+        assert slug == "harare-zw"
+        assert slug.endswith("-zw")
 
     def test_caps_at_80_chars(self):
         long_name = "A" * 100
-        slug = _generate_slug(long_name, "ZW")
+        slug = _generate_slug(long_name, "KE")
         assert len(slug) <= 80
 
     def test_strips_leading_trailing_hyphens(self):
@@ -74,7 +73,7 @@ class TestGenerateSlug:
         assert not slug.endswith("-")
 
     def test_special_characters_replaced(self):
-        slug = _generate_slug("Mt. Darwin's Place!", "ZW")
+        slug = _generate_slug("Mt. Darwin's Place!", "KE")
         # Special chars become hyphens
         assert "!" not in slug
         assert "'" not in slug
@@ -149,20 +148,21 @@ class TestInferTags:
 
 
 class TestDedupRadius:
-    def test_zimbabwe(self):
-        assert _dedup_radius("ZW") == DEDUP_RADIUS_ZW_KM
-
-    def test_zimbabwe_case_insensitive(self):
-        assert _dedup_radius("zw") == DEDUP_RADIUS_ZW_KM
+    def test_any_country(self):
+        assert _dedup_radius("ZW") == DEDUP_RADIUS_KM
 
     def test_other_country(self):
-        assert _dedup_radius("KE") == DEDUP_RADIUS_DEFAULT_KM
+        assert _dedup_radius("KE") == DEDUP_RADIUS_KM
 
     def test_none_country(self):
-        assert _dedup_radius(None) == DEDUP_RADIUS_DEFAULT_KM
+        assert _dedup_radius(None) == DEDUP_RADIUS_KM
+
+    def test_uniform_radius(self):
+        """All countries get the same dedup radius."""
+        assert _dedup_radius("ZW") == _dedup_radius("KE") == _dedup_radius(None)
 
     def test_empty_string(self):
-        assert _dedup_radius("") == DEDUP_RADIUS_DEFAULT_KM
+        assert _dedup_radius("") == DEDUP_RADIUS_KM
 
 
 # ---------------------------------------------------------------------------
@@ -924,7 +924,7 @@ class TestAddLocation:
         mock_dedup.return_value = None
         mock_elev.return_value = 1400
         # First find_one: slug exists. Second find_one (slug-2): does not exist
-        mock_coll.return_value.find_one.side_effect = [{"slug": "harare"}, None]
+        mock_coll.return_value.find_one.side_effect = [{"slug": "harare-zw"}, None]
         mock_db_inst = MagicMock()
         mock_db.return_value = mock_db_inst
         mock_db_inst.__getitem__ = MagicMock(return_value=MagicMock())
@@ -934,7 +934,7 @@ class TestAddLocation:
 
         result = await add_location(request)
         assert result["mode"] == "created"
-        assert result["location"]["slug"] == "harare-2"
+        assert result["location"]["slug"] == "harare-zw-2"
 
 
 # ---------------------------------------------------------------------------

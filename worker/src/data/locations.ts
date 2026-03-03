@@ -38,7 +38,7 @@ export interface WeatherLocation {
   lon: number;
   elevation: number;
   tags: string[];
-  /** ISO 3166-1 alpha-2 country code (defaults to "ZW") */
+  /** ISO 3166-1 alpha-2 country code */
   country?: string;
   /** How this location was added */
   source?: "seed" | "community" | "geolocation";
@@ -199,10 +199,21 @@ export function findNearestLocation(lat: number, lon: number): WeatherLocation |
   return nearest;
 }
 
-export function getZimbabweSeason(date: Date = new Date()) {
+/** Hemisphere-aware default season based on latitude. */
+export function getDefaultSeason(date: Date = new Date(), lat: number = 0) {
   const month = date.getMonth() + 1;
-  if (month >= 11 || month <= 3) return { name: "Main rains", shona: "Masika", description: "Flooding, road damage, planting" };
-  if (month >= 5 && month <= 8) return { name: "Cool dry", shona: "Chirimo", description: "Frost, cold snaps, veld fires" };
-  if (month >= 9 && month <= 10) return { name: "Hot dry", shona: "Zhizha", description: "Heat stress, UV, water scarcity" };
-  return { name: "Short rains", shona: "Munakamwe", description: "Harvest, late rains" };
+  const isSouthern = lat < 0;
+  if (isSouthern) {
+    if (month >= 12 || month <= 2) return { name: "Summer", localName: "Summer", description: "Warm, wet season" };
+    if (month >= 3 && month <= 5) return { name: "Autumn", localName: "Autumn", description: "Cooling temperatures" };
+    if (month >= 6 && month <= 8) return { name: "Winter", localName: "Winter", description: "Cool, dry season" };
+    return { name: "Spring", localName: "Spring", description: "Warming temperatures" };
+  }
+  if (month >= 3 && month <= 5) return { name: "Spring", localName: "Spring", description: "Warming temperatures" };
+  if (month >= 6 && month <= 8) return { name: "Summer", localName: "Summer", description: "Warm season" };
+  if (month >= 9 && month <= 11) return { name: "Autumn", localName: "Autumn", description: "Cooling temperatures" };
+  return { name: "Winter", localName: "Winter", description: "Cold season" };
 }
+
+/** @deprecated Use getDefaultSeason instead */
+export const getZimbabweSeason = getDefaultSeason;

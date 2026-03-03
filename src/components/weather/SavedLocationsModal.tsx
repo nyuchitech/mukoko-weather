@@ -299,9 +299,9 @@ function SavedLocationsList({
       {slugs.map((slug) => {
         const loc = locationMap[slug];
         const isActive = slug === currentSlug;
-        const countryCode = ((loc?.country as string) ?? "ZW").toUpperCase();
+        const countryCode = ((loc?.country as string) ?? "").toUpperCase();
         const contextLabel = loc?.province
-          ? `${loc.province}, ${countryCode}`
+          ? countryCode ? `${loc.province}, ${countryCode}` : loc.province
           : countryCode;
 
         const label = locationLabels[slug];
@@ -495,9 +495,9 @@ function AddLocationSearch({
       {filteredResults.length > 0 && (
         <ul className="space-y-0.5" aria-label="Search results">
           {filteredResults.map((loc) => {
-            const countryCode = ((loc.country as string) ?? "ZW").toUpperCase();
+            const countryCode = ((loc.country as string) ?? "").toUpperCase();
             const contextLabel = loc.province
-              ? `${loc.province}, ${countryCode}`
+              ? countryCode ? `${loc.province}, ${countryCode}` : loc.province
               : countryCode;
             return (
               <li key={loc.slug}>

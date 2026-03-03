@@ -5,7 +5,7 @@
  *   - weather_cache   : Short-lived weather API response cache (replaces KV WEATHER_CACHE)
  *   - ai_summaries    : Tiered-TTL AI summary cache (replaces KV AI_SUMMARIES)
  *   - weather_history : Historical weather recordings for analytics
- *   - locations       : Locations (single source of truth — Zimbabwe + Africa + ASEAN)
+ *   - locations       : Locations (single source of truth — global seed + community)
  *   - countries       : Country metadata (auto-grown as locations are added)
  *   - provinces       : Province/state metadata (auto-grown as locations are added)
  *   - activities      : User activities for personalized weather insights
@@ -411,11 +411,8 @@ export async function getWeatherForLocation(
 // AI summary cache operations (tiered TTL, replaces kv-cache.ts)
 // ---------------------------------------------------------------------------
 
-// Tier 1: Major cities — 30 min TTL
-const TIER_1_SLUGS = new Set([
-  "harare", "bulawayo", "mutare", "gweru", "masvingo",
-  "kwekwe", "kadoma", "marondera", "chinhoyi", "victoria-falls",
-]);
+// Tier 1: Major cities (by tag) — 30 min TTL
+const TIER_1_TAGS = new Set(["city"]);
 
 // Tier 2: Active areas — 60 min TTL
 const TIER_2_TAGS = new Set(["farming", "mining", "education", "border"]);
@@ -425,10 +422,10 @@ const TTL_TIER_2 = 3600;  // 60 minutes
 const TTL_TIER_3 = 7200;  // 120 minutes
 
 export function getTtlForLocation(
-  locationSlug: string,
+  _locationSlug: string,
   tags: string[] = [],
 ): { seconds: number; tier: 1 | 2 | 3 } {
-  if (TIER_1_SLUGS.has(locationSlug)) return { seconds: TTL_TIER_1, tier: 1 };
+  if (tags.some((t) => TIER_1_TAGS.has(t))) return { seconds: TTL_TIER_1, tier: 1 };
   if (tags.some((t) => TIER_2_TAGS.has(t))) return { seconds: TTL_TIER_2, tier: 2 };
   return { seconds: TTL_TIER_3, tier: 3 };
 }
@@ -569,10 +566,10 @@ export async function syncLocations(
 ): Promise<void> {
   const now = new Date();
   const bulkOps = locations.map((loc) => {
-    // Always store country — ZW seed locations don't set it on the object
+    // Always store country — seed locations may not set it on the object
     // so spreading ...loc would leave the field absent from MongoDB, breaking
-    // all queries that filter by { country: "ZW" } (hierarchy pages, counts, sitemap).
-    const country = loc.country ?? "ZW";
+    // queries that filter by country (hierarchy pages, counts, sitemap).
+    const country = loc.country ?? "";
     const provinceSlug = loc.provinceSlug ??
       generateProvinceSlug(loc.province, country);
     return {
@@ -1349,22 +1346,25 @@ export async function getSeasonFromDb(
 
 /**
  * Get the current season for a given date and country code.
- * Reads from the seasons collection; falls back to the sync ZW logic if DB is unavailable.
+ * Reads from the seasons collection; falls back to hemisphere-aware defaults if DB is unavailable.
  * Server-only — do not import in client components.
  */
 export async function getSeasonForDate(
   date: Date = new Date(),
-  countryCode: string = "ZW",
+  countryCode: string = "",
+  lat: number = 0,
 ): Promise<Season> {
   try {
-    const doc = await getSeasonFromDb(date, countryCode);
-    if (doc) {
-      return { name: doc.name, shona: doc.localName, description: doc.description };
+    if (countryCode) {
+      const doc = await getSeasonFromDb(date, countryCode);
+      if (doc) {
+        return { name: doc.name, localName: doc.localName, description: doc.description };
+      }
     }
   } catch {
     // DB unavailable — fall through to sync fallback
   }
-  return getDefaultSeason(date);
+  return getDefaultSeason(date, lat);
 }
 
 // ---------------------------------------------------------------------------
