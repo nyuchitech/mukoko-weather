@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -183,8 +184,7 @@ def _resolve_seasons_with_ai(
         if text.startswith("["):
             seasons_raw = json.loads(text)
         else:
-            import re as _re
-            match = _re.search(r"\[.*\]", text, _re.DOTALL)
+            match = re.search(r"\[.*\]", text, re.DOTALL)
             if match:
                 seasons_raw = json.loads(match.group())
             else:
@@ -263,12 +263,15 @@ def _hemisphere_fallback(lat: float) -> dict:
 
 
 def _get_season(country: str = "", lat: float = 0.0, lon: float = 0.0) -> dict:
-    """Look up the current season: DB → AI resolution → hemisphere fallback.
+    """Look up the current season: DB → hemisphere fallback (+ background AI warm).
 
     Flow:
     1. Query MongoDB seasons collection by country code + current month
-    2. If not found, ask AI to generate seasons for this country (cached to DB)
-    3. If AI unavailable, fall back to generic hemisphere-based seasons
+    2. If not found, return hemisphere fallback immediately and trigger
+       background AI enrichment so the next request has DB data.
+
+    AI resolution is never synchronous on the request path — it can add
+    5-15s of latency which is unacceptable for the summary endpoint.
     """
     month = datetime.now(timezone.utc).month
 
@@ -286,20 +289,34 @@ def _get_season(country: str = "", lat: float = 0.0, lon: float = 0.0) -> dict:
                     "description": doc.get("description", ""),
                 }
 
-            # Country not in DB — resolve with AI and cache
-            ai_seasons = _resolve_seasons_with_ai(country, lat, lon)
-            if ai_seasons:
-                current = next((s for s in ai_seasons if month in s["months"]), None)
-                if current:
-                    return {
-                        "name": current["name"],
-                        "localName": current.get("localName", current["name"]),
-                        "description": current.get("description", ""),
-                    }
+            # Country not in DB — trigger background AI enrichment for next
+            # request, return hemisphere fallback immediately for this one.
+            _trigger_background_season_resolution(country, lat, lon)
     except Exception:
         pass
 
     return _hemisphere_fallback(lat)
+
+
+def _trigger_background_season_resolution(
+    country_code: str, lat: float, lon: float
+) -> None:
+    """Fire-and-forget AI season resolution in a background thread.
+
+    On Vercel serverless, daemon threads are best-effort — the process may
+    terminate after the response. If it does, the next _get_season call for
+    this country will re-trigger enrichment via the same flow.
+    """
+    import threading
+
+    def _run() -> None:
+        try:
+            _resolve_seasons_with_ai(country_code, lat, lon)
+        except Exception:
+            logger.debug("Background season resolution skipped for %s", country_code)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
 
 
 # ---------------------------------------------------------------------------

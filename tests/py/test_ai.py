@@ -14,6 +14,7 @@ from py._ai import (
     _get_client,
     _get_season,
     _resolve_seasons_with_ai,
+    _trigger_background_season_resolution,
     _hemisphere_fallback,
     _is_stale,
     _get_cached_summary,
@@ -226,37 +227,32 @@ class TestGetSeason:
         result = _get_season("", lat=40.0)
         assert result["name"] == "Winter"
 
-    @patch("py._ai._resolve_seasons_with_ai")
+    @patch("py._ai._trigger_background_season_resolution")
     @patch("py._ai.get_db")
-    def test_db_miss_triggers_ai_resolution(self, mock_db, mock_ai):
-        """When country not in DB, AI resolution is triggered."""
+    def test_db_miss_returns_hemisphere_and_triggers_background(self, mock_db, mock_bg):
+        """When country not in DB, hemisphere fallback is returned immediately
+        and background AI enrichment is triggered for next request."""
         mock_coll = MagicMock()
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         mock_coll.find_one.return_value = None  # Not in DB
 
-        mock_ai.return_value = [
-            {"name": "Monsoon", "localName": "Mùa mưa", "months": [5, 6, 7, 8, 9, 10], "description": "Heavy rains"},
-            {"name": "Dry season", "localName": "Mùa khô", "months": [11, 12, 1, 2, 3, 4], "description": "Cool and dry"},
-        ]
-
-        # Patch the current month to be in monsoon season
         with patch("py._ai.datetime") as mock_dt:
             mock_dt.now.return_value.month = 6
             result = _get_season("VN", lat=21.0, lon=105.8)
 
-        assert result["name"] == "Monsoon"
-        assert result["localName"] == "Mùa mưa"
-        mock_ai.assert_called_once_with("VN", 21.0, 105.8)
+        # Returns hemisphere fallback (northern, June = Summer)
+        assert result["name"] == "Summer"
+        # Background enrichment was triggered
+        mock_bg.assert_called_once_with("VN", 21.0, 105.8)
 
-    @patch("py._ai._resolve_seasons_with_ai")
+    @patch("py._ai._trigger_background_season_resolution")
     @patch("py._ai.get_db")
     @patch("py._ai.datetime")
-    def test_ai_failure_falls_to_hemisphere(self, mock_dt, mock_db, mock_ai):
-        """When both DB and AI fail, hemisphere fallback is used."""
+    def test_db_miss_uses_hemisphere_fallback(self, mock_dt, mock_db, mock_bg):
+        """When country not in DB, hemisphere fallback is used immediately."""
         mock_coll = MagicMock()
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         mock_coll.find_one.return_value = None
-        mock_ai.return_value = None  # AI failed
 
         mock_now = MagicMock()
         mock_now.month = 7
@@ -264,6 +260,7 @@ class TestGetSeason:
 
         result = _get_season("XX", lat=48.0, lon=2.0)
         assert result["name"] == "Summer"  # Northern hemisphere, July
+        mock_bg.assert_called_once_with("XX", 48.0, 2.0)
 
     @patch("py._ai.get_db")
     def test_empty_country_skips_db_and_ai(self, mock_db):
@@ -277,6 +274,46 @@ class TestGetSeason:
         assert result["name"] == "Summer"  # Southern hemisphere, January
         # DB should not be queried when country is empty
         mock_db.return_value.__getitem__.return_value.find_one.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _trigger_background_season_resolution — fire-and-forget AI enrichment
+# ---------------------------------------------------------------------------
+
+
+class TestTriggerBackgroundSeasonResolution:
+    @patch("py._ai._resolve_seasons_with_ai")
+    def test_calls_ai_in_background_thread(self, mock_ai):
+        """Triggers AI resolution in a daemon thread."""
+        import threading
+
+        mock_ai.return_value = [{"name": "Summer", "months": [1, 2, 3]}]
+        initial_count = threading.active_count()
+        _trigger_background_season_resolution("VN", 21.0, 105.8)
+
+        # Wait for thread to complete
+        import time
+        for _ in range(50):
+            if mock_ai.called:
+                break
+            time.sleep(0.05)
+
+        mock_ai.assert_called_once_with("VN", 21.0, 105.8)
+
+    @patch("py._ai._resolve_seasons_with_ai")
+    def test_swallows_exceptions(self, mock_ai):
+        """Background thread doesn't propagate exceptions."""
+        mock_ai.side_effect = RuntimeError("AI unavailable")
+        # Should not raise
+        _trigger_background_season_resolution("XX", 10.0, 20.0)
+
+        import time
+        for _ in range(50):
+            if mock_ai.called:
+                break
+            time.sleep(0.05)
+
+        mock_ai.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

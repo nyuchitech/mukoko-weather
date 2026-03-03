@@ -326,7 +326,7 @@ async def analyze_history(body: AnalyzeRequest, request: Request):
     # Verify location exists and get metadata
     loc = locations_collection().find_one(
         {"slug": location_slug},
-        {"_id": 0, "slug": 1, "name": 1, "elevation": 1, "country": 1, "lat": 1},
+        {"_id": 0, "slug": 1, "name": 1, "elevation": 1, "country": 1, "lat": 1, "lon": 1},
     )
     if not loc:
         raise HTTPException(status_code=404, detail="Unknown location")
