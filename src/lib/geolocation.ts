@@ -1,10 +1,10 @@
 "use client";
 
-import type { ZimbabweLocation } from "./locations";
+import type { WeatherLocation } from "./locations";
 
 export interface GeoResult {
   status: "success" | "created" | "denied" | "unavailable" | "error";
-  location: ZimbabweLocation | null;
+  location: WeatherLocation | null;
   coords: { lat: number; lon: number } | null;
   distanceKm: number | null;
   /** True when the location was just auto-created via reverse geocoding */
@@ -35,7 +35,7 @@ export function detectUserLocation(): Promise<GeoResult> {
           }
 
           const data = await res.json();
-          const nearest: ZimbabweLocation = data.nearest;
+          const nearest: WeatherLocation = data.nearest;
           const isNew: boolean = data.isNew ?? false;
 
           // Calculate distance to nearest for display

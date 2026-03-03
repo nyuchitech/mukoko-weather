@@ -12,7 +12,7 @@ import { SectionSkeleton } from "@/components/weather/SectionSkeleton";
 import { FrostAlertBanner } from "../FrostAlertBanner";
 import { WeatherUnavailableBanner } from "../WeatherUnavailableBanner";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
-import type { ZimbabweLocation } from "@/lib/locations";
+import type { WeatherLocation } from "@/lib/locations";
 
 const AtmosphericDetails = lazy(() =>
   import("@/components/weather/AtmosphericDetails").then((m) => ({
@@ -22,7 +22,7 @@ const AtmosphericDetails = lazy(() =>
 
 interface Props {
   weather: WeatherData;
-  location: ZimbabweLocation;
+  location: WeatherLocation;
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
   season: ZimbabweSeason;

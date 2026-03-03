@@ -35,9 +35,6 @@ export interface WeatherLocation {
   nominatimAddress?: NominatimAddress;
 }
 
-/** @deprecated Use WeatherLocation instead */
-export type ZimbabweLocation = WeatherLocation;
-
 /**
  * Location tag — any string slug from the database `tags` collection.
  * New tags can be added via db-init without code changes.
@@ -45,7 +42,8 @@ export type ZimbabweLocation = WeatherLocation;
 export type LocationTag = string;
 
 
-export const ZW_LOCATIONS: ZimbabweLocation[] = [
+/** Zimbabwe seed locations — part of the global location set. */
+export const ZW_LOCATIONS: WeatherLocation[] = [
   // ===== CITIES & TOWNS =====
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },
   { slug: "bulawayo", name: "Bulawayo", province: "Bulawayo", lat: -20.15, lon: 28.58, elevation: 1348, tags: ["city", "education"] },
@@ -159,5 +157,5 @@ export const ZW_LOCATIONS: ZimbabweLocation[] = [
 ];
 
 /** Combined location array: Zimbabwe seed locations + global locations */
-export const LOCATIONS: ZimbabweLocation[] = [...ZW_LOCATIONS, ...GLOBAL_LOCATIONS];
+export const LOCATIONS: WeatherLocation[] = [...ZW_LOCATIONS, ...GLOBAL_LOCATIONS];
 

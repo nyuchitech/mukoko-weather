@@ -24,7 +24,7 @@ import { FrostAlertBanner } from "./FrostAlertBanner";
 import { WeatherUnavailableBanner } from "./WeatherUnavailableBanner";
 import { useAppStore } from "@/lib/store";
 import type { WeatherData, FrostAlert, ZimbabweSeason } from "@/lib/weather";
-import type { ZimbabweLocation } from "@/lib/locations";
+import type { WeatherLocation } from "@/lib/locations";
 import { type Activity, ACTIVITIES } from "@/lib/activities";
 import { InfoRow } from "@/components/ui/info-row";
 import { SupportBanner } from "@/components/weather/SupportBanner";
@@ -55,7 +55,7 @@ function formatCoords(lat: number, lon: number): string {
 
 interface WeatherDashboardProps {
   weather: WeatherData;
-  location: ZimbabweLocation;
+  location: WeatherLocation;
   usingFallback: boolean;
   frostAlert: FrostAlert | null;
   season: ZimbabweSeason;

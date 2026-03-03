@@ -18,7 +18,7 @@ import { getDb } from "./mongo";
 import { fetchWeather, createFallbackWeather, getDefaultSeason, synthesizeOpenMeteoInsights, type WeatherData, type Season } from "./weather";
 import { fetchWeatherFromTomorrow, TomorrowRateLimitError } from "./tomorrow";
 import { logWarn, logError } from "./observability";
-import type { ZimbabweLocation } from "./locations";
+import type { WeatherLocation } from "./locations";
 import type { Activity, ActivityCategory } from "./activities";
 import { generateProvinceSlug, type Country, type Province } from "./countries";
 import type { RegionDoc } from "./seed-regions";
@@ -63,7 +63,7 @@ export interface WeatherHistoryDoc {
   recordedAt: Date;
 }
 
-export interface LocationDoc extends ZimbabweLocation {
+export interface LocationDoc extends WeatherLocation {
   updatedAt: Date;
 }
 
@@ -565,7 +565,7 @@ export async function setApiKey(provider: string, key: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function syncLocations(
-  locations: ZimbabweLocation[],
+  locations: WeatherLocation[],
 ): Promise<void> {
   const now = new Date();
   const bulkOps = locations.map((loc) => {
@@ -639,7 +639,7 @@ export async function getLocationCount(): Promise<number> {
 
 /** Insert a new community-contributed location */
 export async function createLocation(
-  location: ZimbabweLocation,
+  location: WeatherLocation,
 ): Promise<LocationDoc> {
   const now = new Date();
   const doc = {

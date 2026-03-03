@@ -589,7 +589,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 ### Location Data
 
-**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
+**Type:** `WeatherLocation` in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
 
 **Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 

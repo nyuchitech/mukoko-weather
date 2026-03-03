@@ -48,9 +48,6 @@ export interface WeatherLocation {
   nominatimAddress?: NominatimAddress;
 }
 
-/** @deprecated Use WeatherLocation instead */
-export type ZimbabweLocation = WeatherLocation;
-
 /**
  * Location tag — any string slug from the database `tags` collection.
  * New tags can be added via db-init without code changes.
