@@ -9,7 +9,7 @@ vi.mock("@/lib/store", () => ({
 }));
 
 // Mock React hooks — useMapStyle uses useState and useEffect
-let capturedEffect: (() => void) | null = null;
+let capturedEffect: (() => (() => void) | void) | null = null;
 let stateValue = false;
 vi.mock("react", () => ({
   useState: (init: (() => boolean) | boolean) => {
