@@ -11,13 +11,7 @@ import { Dialog, DialogContent, DialogSheetHandle, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trackEvent } from "@/lib/analytics";
-
-/** Format coordinates with N/S/E/W indicators. */
-function formatCoords(lat: number, lon: number): string {
-  const ns = lat >= 0 ? "N" : "S";
-  const ew = lon >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(4)}\u00B0${ns}, ${Math.abs(lon).toFixed(4)}\u00B0${ew}`;
-}
+import { formatCoords } from "@/lib/utils";
 
 export function SavedLocationsModal() {
   const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
@@ -361,11 +355,6 @@ function SavedLocationsList({
                       )}
                       {loc && loc.lat !== 0 && loc.lon !== 0 && (
                         <span className="block text-base text-text-tertiary font-mono truncate">{formatCoords(loc.lat, loc.lon)}</span>
-                      )}
-                      {loc && loc.lat !== 0 && loc.lon !== 0 && (
-                        <span className="block text-base text-text-tertiary font-mono truncate">
-                          {formatCoords(loc.lat, loc.lon)}
-                        </span>
                       )}
                       {!label && (
                         <span

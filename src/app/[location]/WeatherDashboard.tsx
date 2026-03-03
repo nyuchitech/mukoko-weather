@@ -44,14 +44,9 @@ const MapPreview = lazy(() => import("@/components/weather/map/MapPreview").then
 const AISummaryChat = lazy(() => import("@/components/weather/AISummaryChat").then((m) => ({ default: m.AISummaryChat })));
 const RecentReports = lazy(() => import("@/components/weather/reports/RecentReports").then((m) => ({ default: m.RecentReports })));
 
-const BASE_URL = "https://weather.mukoko.com";
+import { formatCoords } from "@/lib/utils";
 
-/** Format coordinates with N/S/E/W indicators (e.g., "17.8300°S, 31.0500°E"). */
-function formatCoords(lat: number, lon: number): string {
-  const ns = lat >= 0 ? "N" : "S";
-  const ew = lon >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(4)}\u00B0${ns}, ${Math.abs(lon).toFixed(4)}\u00B0${ew}`;
-}
+const BASE_URL = "https://weather.mukoko.com";
 
 interface WeatherDashboardProps {
   weather: WeatherData;

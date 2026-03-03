@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import "./leaflet-css";
 import "./leaflet-icon-fix";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -17,7 +18,20 @@ export default function LeafletMapFull({
   layer,
 }: LeafletMapFullProps) {
   const theme = useAppStore((s) => s.theme);
-  const isDark = theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  // Track OS dark mode changes for "system" theme
+  const [osDark, setOsDark] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setOsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [theme]);
+
+  const isDark = theme === "dark" || (theme === "system" && osDark);
   const mapStyle = isDark ? "dark-v11" : "streets-v12";
 
   return (
