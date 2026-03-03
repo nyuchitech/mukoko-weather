@@ -109,7 +109,7 @@ export default function RootLayout({
     ],
     creator: { "@id": `${BASE_URL}/#org` },
     publisher: { "@id": `${BASE_URL}/#org` },
-    areaServed: { "@type": "AdministrativeArea", name: "World" },
+    areaServed: { "@type": "Place", name: "World" },
     offers: {
       "@type": "Offer",
       price: "0",

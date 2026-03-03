@@ -120,10 +120,12 @@ export function t(
 
 // ── Formatting utilities using Intl APIs ────────────────────────────────
 
+// IETF BCP 47 locale tags — region subtags ensure correct date/number
+// formatting (e.g., DD/MM/YYYY for en-ZW instead of MM/DD/YYYY for en-US).
 const LOCALE_MAP: Record<Locale, string> = {
-  en: "en",
-  sn: "sn",
-  nd: "nd",
+  en: "en-ZW",
+  sn: "sn-ZW",
+  nd: "nd-ZW",
 };
 
 /** Format temperature with unit, e.g. "28°C" */

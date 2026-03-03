@@ -695,20 +695,27 @@ class AddLocationBySearch(BaseModel):
 def _enrich_location_with_ai(country_code: str, lat: float, lon: float) -> None:
     """Trigger AI season resolution for a country if not already in DB.
 
-    Called after creating a community/geolocation location. Non-blocking — if
-    AI is unavailable, season data will be resolved on the next weather request.
+    Called after creating a community/geolocation location. Runs in a
+    background thread so the HTTP response is not blocked by the Claude API
+    call (~5-15s). If AI is unavailable, season data will be resolved on
+    the next weather request via _get_season().
     """
-    try:
-        db = get_db()
-        # Check if country already has season data
-        existing = db["seasons"].find_one({"countryCode": country_code.upper()})
-        if existing:
-            return  # Already have season data for this country
+    import threading
 
-        from ._ai import _resolve_seasons_with_ai
-        _resolve_seasons_with_ai(country_code, lat, lon)
-    except Exception:
-        logger.debug("AI location enrichment skipped for %s", country_code)
+    def _run() -> None:
+        try:
+            db = get_db()
+            existing = db["seasons"].find_one({"countryCode": country_code.upper()})
+            if existing:
+                return  # Already have season data for this country
+
+            from ._ai import _resolve_seasons_with_ai
+            _resolve_seasons_with_ai(country_code, lat, lon)
+        except Exception:
+            logger.debug("AI location enrichment skipped for %s", country_code)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
 
 
 @router.post("/api/py/locations/add")

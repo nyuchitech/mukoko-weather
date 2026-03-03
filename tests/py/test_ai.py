@@ -449,6 +449,30 @@ class TestResolveSeasonsWithAi:
     @patch("py._ai.get_db")
     @patch("py._ai.anthropic_breaker")
     @patch("py._ai._get_client")
+    def test_overlapping_months_rejected(self, mock_client, mock_breaker, mock_db):
+        """If months overlap between seasons (same month in two), reject."""
+        mock_breaker.is_allowed = True
+
+        # Month 6 appears in both seasons — total 13, distinct 12
+        ai_response_json = """[
+            {"name": "A", "localName": "A", "months": [1, 2, 3, 4, 5, 6], "description": "..."},
+            {"name": "B", "localName": "B", "months": [6, 7, 8, 9, 10, 11, 12], "description": "..."}
+        ]"""
+        text_block = MagicMock()
+        text_block.text = ai_response_json
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        mock_ai_client = MagicMock()
+        mock_ai_client.messages.create.return_value = mock_message
+        mock_client.return_value = mock_ai_client
+
+        result = _resolve_seasons_with_ai("XX", 10.0, 20.0)
+        assert result is None
+
+    @patch("py._ai.get_db")
+    @patch("py._ai.anthropic_breaker")
+    @patch("py._ai._get_client")
     def test_json_wrapped_in_markdown_extracted(self, mock_client, mock_breaker, mock_db):
         """AI sometimes wraps JSON in markdown code blocks."""
         mock_breaker.is_allowed = True

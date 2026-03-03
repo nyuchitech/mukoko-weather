@@ -43,7 +43,10 @@ export type LocationTag = string;
 
 
 /** Zimbabwe seed locations (ZW) — part of the global seed location set. */
-export const SEED_LOCATIONS_ZW: WeatherLocation[] = [
+// ZW seed entries — country: "ZW" is injected via .map() at the end so we
+// don't repeat it 98 times, while still ensuring syncLocations writes the
+// correct country code to MongoDB.
+const _ZW_RAW: Omit<WeatherLocation, "country">[] = [
   // ===== CITIES & TOWNS =====
   { slug: "harare", name: "Harare", province: "Harare", lat: -17.83, lon: 31.05, elevation: 1490, tags: ["city", "education"] },
   { slug: "bulawayo", name: "Bulawayo", province: "Bulawayo", lat: -20.15, lon: 28.58, elevation: 1348, tags: ["city", "education"] },
@@ -155,6 +158,12 @@ export const SEED_LOCATIONS_ZW: WeatherLocation[] = [
   { slug: "makuti", name: "Makuti", province: "Mashonaland West", lat: -16.30, lon: 29.22, elevation: 600, tags: ["travel"] },
   { slug: "lion-den", name: "Lion's Den", province: "Mashonaland West", lat: -16.93, lon: 29.65, elevation: 1100, tags: ["travel"] },
 ];
+
+/** Zimbabwe seed locations with country: "ZW" injected. */
+export const SEED_LOCATIONS_ZW: WeatherLocation[] = _ZW_RAW.map((loc) => ({
+  ...loc,
+  country: "ZW",
+}));
 
 /** Combined location array: Zimbabwe seed locations + global locations */
 export const LOCATIONS: WeatherLocation[] = [...SEED_LOCATIONS_ZW, ...GLOBAL_LOCATIONS];

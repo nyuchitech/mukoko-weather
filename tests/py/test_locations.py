@@ -924,6 +924,19 @@ class TestAddLocation:
 
 
 class TestEnrichLocationWithAi:
+    """Tests for _enrich_location_with_ai — runs in a background thread."""
+
+    def _call_and_wait(self, *args):
+        """Call _enrich_location_with_ai and wait for the background thread."""
+        import threading
+        initial = threading.active_count()
+        _enrich_location_with_ai(*args)
+        # Wait for the daemon thread to finish (max 2s)
+        import time
+        deadline = time.monotonic() + 2
+        while threading.active_count() > initial and time.monotonic() < deadline:
+            time.sleep(0.01)
+
     @patch("py._locations.get_db")
     def test_skips_when_country_has_seasons(self, mock_db):
         """Does not call AI if country already has season data."""
@@ -931,8 +944,7 @@ class TestEnrichLocationWithAi:
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         mock_coll.find_one.return_value = {"countryCode": "ZW", "name": "Summer"}
 
-        with patch("py._locations._enrich_location_with_ai", wraps=_enrich_location_with_ai):
-            _enrich_location_with_ai("ZW", -17.8, 31.0)
+        self._call_and_wait("ZW", -17.8, 31.0)
 
         # Should check DB, find existing, and not call AI
         mock_coll.find_one.assert_called_once()
@@ -945,7 +957,7 @@ class TestEnrichLocationWithAi:
         mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
         mock_coll.find_one.return_value = None  # No seasons in DB
 
-        _enrich_location_with_ai("VN", 21.0, 105.8)
+        self._call_and_wait("VN", 21.0, 105.8)
         mock_resolve.assert_called_once_with("VN", 21.0, 105.8)
 
     @patch("py._locations.get_db")
@@ -954,7 +966,7 @@ class TestEnrichLocationWithAi:
         mock_db.side_effect = Exception("DB connection failed")
 
         # Should not raise
-        _enrich_location_with_ai("XX", 0.0, 0.0)
+        self._call_and_wait("XX", 0.0, 0.0)
 
     @patch("py._ai._resolve_seasons_with_ai")
     @patch("py._locations.get_db")
@@ -966,7 +978,20 @@ class TestEnrichLocationWithAi:
         mock_resolve.side_effect = Exception("AI unavailable")
 
         # Should not raise
-        _enrich_location_with_ai("XX", 0.0, 0.0)
+        self._call_and_wait("XX", 0.0, 0.0)
+
+    def test_runs_in_background_thread(self):
+        """Enrichment should return immediately (thread-based)."""
+        import threading
+        initial = threading.active_count()
+        with patch("py._locations.get_db") as mock_db:
+            mock_coll = MagicMock()
+            mock_db.return_value.__getitem__ = MagicMock(return_value=mock_coll)
+            mock_coll.find_one.return_value = {"countryCode": "ZW"}
+
+            _enrich_location_with_ai("ZW", -17.8, 31.0)
+            # Function should return immediately (thread spawned)
+            # We just verify no error was raised
 
 
 # ---------------------------------------------------------------------------

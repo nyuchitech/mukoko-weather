@@ -190,8 +190,9 @@ def _resolve_seasons_with_ai(
             else:
                 return None
 
-        # Validate: every month 1-12 covered exactly once
+        # Validate: every month 1-12 covered exactly once (no gaps, no overlaps)
         all_months: set[int] = set()
+        total_month_count = 0
         hemisphere = "south" if lat < 0 else ("equatorial" if abs(lat) < 10 else "north")
         valid: list[dict] = []
         for s in seasons_raw:
@@ -202,18 +203,20 @@ def _resolve_seasons_with_ai(
             if not name or not months:
                 continue
             all_months.update(months)
+            total_month_count += len(months)
             valid.append({
                 "countryCode": country_code.upper(),
-                "name": name,
-                "localName": s.get("localName", name),
+                "name": name[:100],
+                "localName": s.get("localName", name)[:100],
                 "months": months,
                 "hemisphere": hemisphere,
-                "description": s.get("description", ""),
+                "description": s.get("description", "")[:500],
                 "source": "ai",
             })
 
-        if len(all_months) != 12 or not valid:
-            logger.warning("AI season resolution for %s: incomplete month coverage", country_code)
+        # Reject if not all 12 months covered, or months overlap between seasons
+        if len(all_months) != 12 or total_month_count != 12 or not valid:
+            logger.warning("AI season resolution for %s: incomplete or overlapping month coverage", country_code)
             return None
 
         # Store in MongoDB for future lookups

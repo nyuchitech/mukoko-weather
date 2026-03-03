@@ -566,9 +566,9 @@ export async function syncLocations(
 ): Promise<void> {
   const now = new Date();
   const bulkOps = locations.map((loc) => {
-    // Always store country — seed locations may not set it on the object
-    // so spreading ...loc would leave the field absent from MongoDB, breaking
-    // queries that filter by country (hierarchy pages, counts, sitemap).
+    // ZW seed locations now include country: "ZW" via _ZW_RAW.map(),
+    // global locations always have country set. The ?? "" fallback is a
+    // safety net for any location missing the field.
     const country = loc.country ?? "";
     const provinceSlug = loc.provinceSlug ??
       generateProvinceSlug(loc.province, country);
