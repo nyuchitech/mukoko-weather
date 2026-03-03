@@ -1,6 +1,6 @@
 # mukoko weather
 
-AI-powered weather intelligence for the developing world — real-time forecasts and locally-relevant insights for farming, mining, travel, and daily life. Built in Zimbabwe, scaling globally.
+AI-powered global weather intelligence — real-time forecasts and locally-relevant insights for farming, mining, travel, and daily life. Built in Zimbabwe, serving the world.
 
 **Live:** [weather.mukoko.com](https://weather.mukoko.com)
 
@@ -142,7 +142,7 @@ All data, AI, and CRUD operations run in **Python FastAPI** (`api/py/`), deploye
 | `/api/py/activities` | GET | Activities (by id, category, search, labels, or categories mode) |
 | `/api/py/suitability` | GET | Suitability rules from MongoDB (all or by key; key format validated) |
 | `/api/py/tags` | GET | Tag metadata (all or featured) |
-| `/api/py/regions` | GET | Active supported regions (bounding boxes) |
+| `/api/py/regions` | GET | Region reference data (bounding boxes) |
 | `/api/py/status` | GET | System health checks (MongoDB, Tomorrow.io, Open-Meteo, Anthropic, cache) |
 | `/api/py/history?location=&days=` | GET | Historical weather data for a location |
 | `/api/py/history/analyze` | POST | AI-powered historical weather analysis (server-side aggregation + Claude). Cached 1h. Rate-limited 10 req/hour/IP |

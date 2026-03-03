@@ -68,13 +68,7 @@ export const TAG_LABELS: Record<string, string> = {
   "national-park": "National Parks",
 };
 
-/** Zimbabwe-specific bounds (used for ZW location validation) */
-export const ZIMBABWE_BOUNDS = {
-  north: -15.61, south: -22.42, east: 33.07, west: 25.24,
-  center: { lat: -19.02, lon: 29.15 },
-};
-
-/** Global coordinate bounds (used for non-ZW location validation) */
+/** Global coordinate bounds (WGS 84 validation) */
 export const GLOBAL_BOUNDS = {
   north: 90, south: -90, east: 180, west: -180,
 };

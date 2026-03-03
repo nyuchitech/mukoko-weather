@@ -3,7 +3,7 @@
 import type { ZimbabweLocation } from "./locations";
 
 export interface GeoResult {
-  status: "success" | "created" | "denied" | "unavailable" | "outside-supported" | "error";
+  status: "success" | "created" | "denied" | "unavailable" | "error";
   location: ZimbabweLocation | null;
   coords: { lat: number; lon: number } | null;
   distanceKm: number | null;
@@ -14,7 +14,7 @@ export interface GeoResult {
 /**
  * Request the user's position via the browser Geolocation API
  * and snap to the nearest location via the /api/geo endpoint.
- * If no nearby location exists in a supported region, auto-creates one.
+ * If no nearby location exists, auto-creates one via reverse geocoding.
  */
 export function detectUserLocation(): Promise<GeoResult> {
   return new Promise((resolve) => {
@@ -29,15 +29,6 @@ export function detectUserLocation(): Promise<GeoResult> {
 
         try {
           const res = await fetch(`/api/py/geo?lat=${latitude}&lon=${longitude}&autoCreate=true`);
-          if (res.status === 404) {
-            resolve({
-              status: "outside-supported",
-              location: null,
-              coords: { lat: latitude, lon: longitude },
-              distanceKm: null,
-            });
-            return;
-          }
           if (!res.ok) {
             resolve({ status: "error", location: null, coords: { lat: latitude, lon: longitude }, distanceKm: null });
             return;

@@ -1,6 +1,6 @@
 # Contributing to mukoko weather
 
-Thank you for your interest in contributing to mukoko weather. This project provides free weather intelligence starting with Zimbabwe and expanding globally across ASEAN countries and developing regions. Contributions from the community help us serve more people.
+Thank you for your interest in contributing to mukoko weather. This project provides free global weather intelligence — built in Zimbabwe, serving the world. Contributions from the community help us serve more people.
 
 ## Getting Started
 
@@ -136,7 +136,7 @@ Use `LazySection` from `src/components/weather/LazySection.tsx` for any section 
 1. Add the location to `src/lib/locations.ts` in the `LOCATIONS` array
 2. Include: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, and optionally `country` (ISO alpha-2, defaults to `"ZW"`)
 3. Tags: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`
-4. Verify coordinates are within a supported region (`isInSupportedRegion` in `locations.ts`)
+4. Verify coordinates are valid WGS 84 values (latitude -90 to 90, longitude -180 to 180)
 5. Run the test suite to ensure no regressions
 6. Run `POST /api/db-init` to sync locations to MongoDB
 

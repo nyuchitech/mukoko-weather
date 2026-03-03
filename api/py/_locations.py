@@ -202,7 +202,6 @@ async def search_locations(
         source = "mongodb"
         if q and not tag and not results:
             geocoded = _forward_geocode(q, count=limit)
-            # Only include results within supported regions
             results = [
                 {
                     "slug": _generate_slug(g["name"], g.get("country", "ZW")),
@@ -216,7 +215,6 @@ async def search_locations(
                     "source": "geocoded",
                 }
                 for g in geocoded
-                if _is_in_supported_region(g["lat"], g["lon"])
             ]
             source = "geocoded"
 
@@ -458,72 +456,12 @@ def _infer_tags(geocoded: dict) -> list[str]:
     return tags
 
 
-def _is_in_supported_region(lat: float, lon: float) -> bool:
-    """Check if coordinates are within a supported region from MongoDB.
+def _is_valid_coordinates(lat: float, lon: float) -> bool:
+    """Check if coordinates are valid WGS 84 values.
 
-    Note: The MongoDB bounding-box query does NOT match the Pacific Islands region
-    (west: 130, east: -176) because that region crosses the antimeridian. The
-    standard query ``"east": {"$gte": lon - 1}`` fails for positive longitudes east
-    of 175°E since -176 < 175. The hardcoded fallback below handles this correctly.
+    The app is fully global — any valid latitude/longitude is accepted.
     """
-    try:
-        db = get_db()
-        # Regions are stored with flat top-level fields: south, north, west, east.
-        # The Pacific Islands region (antimeridian-crossing) will never match this
-        # query — it always falls through to _hardcoded_region_check below.
-        region = db["regions"].find_one({
-            "active": True,
-            "south": {"$lte": lat + 1},
-            "north": {"$gte": lat - 1},
-            "west": {"$lte": lon + 1},
-            "east": {"$gte": lon - 1},
-        })
-        if region is not None:
-            return True
-        # Fallback: hardcoded region check when DB returns no match.
-        # Covers all developing-country regions defined in seed-regions.ts,
-        # and is the authoritative check for the Pacific Islands antimeridian region.
-        return _hardcoded_region_check(lat, lon)
-    except Exception:
-        # Fallback on DB error
-        return _hardcoded_region_check(lat, lon)
-
-
-def _hardcoded_region_check(lat: float, lon: float) -> bool:
-    """Hardcoded fallback for supported regions — mirrors seed-regions.ts bounds (+1° padding).
-
-    All bounds include +1° padding to match the MongoDB query padding above.
-    Pacific Islands is always evaluated here (DB query cannot handle antimeridian).
-    """
-    # Africa (full continent, including North Africa)
-    if -36 <= lat <= 39 and -19 <= lon <= 53:
-        return True
-    # ASEAN
-    if -12 <= lat <= 29.5 and 91 <= lon <= 142:
-        return True
-    # South Asia (India, Pakistan, Bangladesh, Sri Lanka, Nepal, Bhutan, Maldives, Afghanistan)
-    if -2 <= lat <= 39.5 and 59 <= lon <= 99:
-        return True
-    # Middle East (Arabian Peninsula, Levant, Iran, Iraq, Turkey)
-    if 11 <= lat <= 43 and 24 <= lon <= 66:
-        return True
-    # Central Asia + Mongolia
-    if 34 <= lat <= 57 and 45 <= lon <= 126:
-        return True
-    # South America
-    if -58 <= lat <= 14.5 and -83 <= lon <= -33:
-        return True
-    # Central America, Mexico & Caribbean
-    if 6 <= lat <= 34 and -123 <= lon <= -58:
-        return True
-    # Eastern Europe (Ukraine, Romania, Moldova, Bulgaria, Serbia, Bosnia, Albania, Georgia, etc.)
-    if 34 <= lat <= 57 and 13 <= lon <= 47:
-        return True
-    # Pacific Islands (bounding box crosses antimeridian: 130°E to 176°W).
-    # DB seed bounds: west=130, east=-176. With +1° padding: west-1=129, east+1=-175.
-    if -26 <= lat <= 21 and (lon >= 129 or lon <= -175):
-        return True
-    return False
+    return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
 # Dedup radius — tight because location names are now specific (POIs, addresses,
@@ -638,13 +576,6 @@ async def geo_lookup(
                 }
         except Exception:
             pass
-
-        # No nearby location — check supported region
-        if not _is_in_supported_region(lat, lon):
-            raise HTTPException(
-                status_code=404,
-                detail="Location is outside supported regions",
-            )
 
         # Auto-create if requested — only NOW do we call external APIs
         if autoCreate:
@@ -779,9 +710,6 @@ async def add_location(request: Request):
 
             results = _forward_geocode(query, count=5)
 
-            # Filter to supported regions
-            supported = [r for r in results if _is_in_supported_region(r["lat"], r["lon"])]
-
             return {
                 "mode": "candidates",
                 "results": [
@@ -794,7 +722,7 @@ async def add_location(request: Request):
                         "lon": r["lon"],
                         "elevation": r.get("elevation", 0),
                     }
-                    for r in supported
+                    for r in results
                 ],
             }
 
@@ -804,9 +732,6 @@ async def add_location(request: Request):
 
         if lat < -90 or lat > 90 or lon < -180 or lon > 180:
             raise HTTPException(status_code=400, detail="Invalid coordinates")
-
-        if not _is_in_supported_region(lat, lon):
-            raise HTTPException(status_code=400, detail="Coordinates are outside supported regions.")
 
         # Rate limit — extract real IP behind Vercel's reverse proxy
         ip = get_client_ip(request) or "unknown"

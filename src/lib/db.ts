@@ -1271,40 +1271,19 @@ export async function getAllRegions(): Promise<RegionDoc[]> {
   return regionsCollection().find({}).toArray();
 }
 
-// Module-level cache for active regions. Regions are nearly static (only change
-// when a new region is added to MongoDB), so we load once per warm function
-// instance and skip repeated DB round-trips on subsequent requests.
-let _regionCache: RegionDoc[] | null = null;
-
 /**
- * Async region check — replaces the synchronous isInSupportedRegion() from locations.ts.
- * Falls back to rejecting all coordinates if the regions collection is empty.
+ * Region check — always returns true (app is fully global).
+ *
+ * Retained for backward compatibility with callers. No geographic
+ * restrictions are enforced — any valid coordinates are accepted.
  */
-export async function isInSupportedRegionFromDb(lat: number, lon: number): Promise<boolean> {
-  // Retry when cache is null OR when it's an empty array (db-init may not have run yet).
-  // An empty array is not a valid permanent sentinel — regions could be added shortly after.
-  if (_regionCache === null || _regionCache.length === 0) {
-    try {
-      _regionCache = await getActiveRegions();
-    } catch {
-      // DB unavailable — do not cache failure, reject to be safe
-      return false;
-    }
-  }
-  const regions = _regionCache;
-  if (regions.length === 0) return false;
-  return regions.some(
-    (r) =>
-      lat >= r.south - r.padding &&
-      lat <= r.north + r.padding &&
-      lon >= r.west - r.padding &&
-      lon <= r.east + r.padding,
-  );
+export async function isInSupportedRegionFromDb(_lat: number, _lon: number): Promise<boolean> {
+  return true;
 }
 
-/** Clear the in-memory region cache (for testing). */
+/** No-op — retained for backward compatibility with tests. */
 export function _clearRegionCache(): void {
-  _regionCache = null;
+  // No-op: region cache removed (app is fully global)
 }
 
 // ---------------------------------------------------------------------------

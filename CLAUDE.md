@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding across the developing world. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Target regions include Africa (54 AU member states), ASEAN/Asia, the Middle East, South & Central America, and Eastern Europe. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search.
+mukoko weather is an AI-powered global weather intelligence platform. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. The app is fully global — any valid coordinates worldwide are accepted. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search from anywhere in the world.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -259,7 +259,7 @@ mukoko-weather/
 │   │   ├── device-sync.test.ts
 │   │   ├── suggested-prompts.ts   # Database-driven suggested prompt generation (fetches from /api/py/ai/prompts)
 │   │   ├── suggested-prompts.test.ts
-│   │   ├── locations.ts           # WeatherLocation type, 98 ZW seed locations, SUPPORTED_REGIONS, search, filtering
+│   │   ├── locations.ts           # WeatherLocation type, 98 ZW seed locations, search, filtering
 │   │   ├── locations.test.ts
 │   │   ├── locations-global.ts    # Global city seed data (capitals + major cities across 54 AU member states + ASEAN countries)
 │   │   ├── countries.ts           # Country/province types, seed data (54 AU + ASEAN), flag emoji, province slug generation
@@ -303,7 +303,7 @@ mukoko-weather/
 │   │   ├── seed-suitability-rules.ts # Seed suitability rules for db-init (condition-based evaluation)
 │   │   ├── seed-categories.ts     # Seed activity categories with mineral color styles for db-init
 │   │   ├── seed-tags.ts           # Seed tag metadata for db-init (powers explore page cards)
-│   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
+│   │   ├── seed-regions.ts        # Region reference data (bounding boxes) for db-init — no restrictions enforced
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
 │   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
 │   │   ├── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
@@ -526,7 +526,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - `/api/py/activities` — GET, activities (by id, category, search query, labels, or categories mode)
 - `/api/py/suitability` — GET, suitability rules from MongoDB (all rules or by key; key validated against `^(activity|category):[a-z0-9-]+$`)
 - `/api/py/tags` — GET, tag metadata (all or featured only)
-- `/api/py/regions` — GET, active supported regions (bounding boxes)
+- `/api/py/regions` — GET, region reference data (bounding boxes, no restrictions enforced)
 - `/api/py/status` — GET, system health checks (MongoDB ping, Tomorrow.io, Open-Meteo, Anthropic, cache)
 - `/api/py/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/py/history/analyze` — POST, AI-powered historical weather analysis. Server-side aggregation (~800 tokens) + Claude analysis. Cached 1h in `history_analysis` collection. Rate-limited 10 req/hour/IP
@@ -590,7 +590,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
 
-**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
 
 **Location validation rules (global-first):**
 - **Zimbabwe locations** (`ZW_LOCATIONS`): require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, and `tags`. Coordinates validated within Zimbabwe bounds (south: -22.42, north: -15.61, west: 25.24, east: 33.07).
@@ -607,7 +607,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Breadcrumbs:** Always three layers — `Home / Country / Province / Location`. Country is always shown (including Zimbabwe). Province is skipped only when identical to location name (e.g., Harare metro). Examples: `Home / Zimbabwe / Mashonaland East / Marondera`, `Home / Singapore / Woodlands / Singapore American School`.
 
-**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for the developing world — Africa, ASEAN/Asia, Middle East, South & Central America, and Eastern Europe. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
+**Global coverage:** The app is fully global — any valid WGS 84 coordinates are accepted. No geographic region restrictions are enforced. Region reference data is retained in `seed-regions.ts` for analytics and map centering but does not block location creation.
 
 **Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name, zoom=18 for POI-level specificity), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
@@ -617,11 +617,11 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Countries & Provinces:** `src/lib/countries.ts` — `Country` type (code, name, region, supported), `Province` type (slug, name, countryCode), 64 seed countries (54 AU + ASEAN), 80+ province definitions, `getFlagEmoji(code)`, `generateProvinceSlug(name, code)`.
 
-Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)` (Atlas Search with fuzzy matching + $text fallback), `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context, seed locations prioritized), `vectorSearchLocations(embedding, options)` (foundation for semantic search — requires embedding pipeline), `getTagCountsAndStats()` ($facet aggregation for tag counts + location stats in one query).
+Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)` (Atlas Search with fuzzy matching + $text fallback), `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context, seed locations prioritized), `vectorSearchLocations(embedding, options)` (foundation for semantic search — requires embedding pipeline), `getTagCountsAndStats()` ($facet aggregation for tag counts + location stats in one query).
 
 ### Activities
 
-`src/lib/activities.ts` defines 50+ activities across 6 broadened categories covering the full scope of African industries and lifestyles. Activities extend the LocationTag system with user-activity categories.
+`src/lib/activities.ts` defines 50+ activities across 6 broadened categories covering industries and lifestyles worldwide. Activities extend the LocationTag system with user-activity categories.
 
 **Categories (broadened labels, same IDs for backward compat):**
 | Category ID | Display Label | Covers |
@@ -994,7 +994,7 @@ The header takes no props — location context comes from the URL path.
 **Saved Locations Modal** (`src/components/weather/SavedLocationsModal.tsx`): A full-screen dialog (100dvh on mobile, auto-sized on desktop) for browsing, managing, and adding saved locations — up to `MAX_SAVED_LOCATIONS` (10).
 
 **Features:**
-- **Current location detection** — geolocation button with 3-state feedback (detecting, denied, outside-supported), option to save detected location
+- **Current location detection** — geolocation button with feedback states (detecting, denied, error), option to save detected location
 - **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal. Shows loading skeleton while fetching location details; falls back to title-cased slug display if API lookup fails
 - **Add location search** — debounced search input (via shared `useDebounce` hook from `@/lib/use-debounce`) calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
 - **Capacity management** — displays count (e.g., "5/10"), disables add button when cap is reached

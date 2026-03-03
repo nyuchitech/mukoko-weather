@@ -203,9 +203,9 @@ function CurrentLocationButton({
           Location access denied. Enable it in your browser settings.
         </p>
       )}
-      {geoState?.status === "outside-supported" && (
+      {geoState?.status === "error" && geoState?.coords && (
         <p className="px-1 text-base text-text-tertiary">
-          Your area isn&apos;t supported yet.
+          Could not detect your location. Try again later.
         </p>
       )}
     </div>

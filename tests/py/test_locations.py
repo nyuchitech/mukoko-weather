@@ -12,8 +12,7 @@ from py._locations import (
     _generate_province_slug,
     _infer_tags,
     _dedup_radius,
-    _is_in_supported_region,
-    _hardcoded_region_check,
+    _is_valid_coordinates,
     _reverse_geocode,
     _forward_geocode,
     _get_elevation,
@@ -167,159 +166,66 @@ class TestDedupRadius:
 
 
 # ---------------------------------------------------------------------------
-# _is_in_supported_region
+# _is_valid_coordinates — app is fully global, only validates WGS 84 bounds
 # ---------------------------------------------------------------------------
 
 
-class TestIsInSupportedRegion:
-    @patch("py._locations.get_db")
-    def test_db_lookup_finds_region(self, mock_db):
-        mock_db.return_value.__getitem__ = MagicMock(
-            return_value=MagicMock(find_one=MagicMock(return_value={"_id": "1"}))
-        )
-        assert _is_in_supported_region(-17.83, 31.05) is True
+class TestIsValidCoordinates:
+    def test_valid_coordinates(self):
+        """Standard coordinates are valid."""
+        assert _is_valid_coordinates(-17.83, 31.05) is True
 
-    @patch("py._locations.get_db")
-    def test_db_lookup_no_region_falls_back_to_hardcoded(self, mock_db):
-        """When DB returns no region match, fall back to hardcoded bounds.
-        Zimbabwe (-17.83, 31.05) is within the Africa hardcoded fallback range,
-        so it should still return True (supported), not False."""
-        mock_db.return_value.__getitem__ = MagicMock(
-            return_value=MagicMock(find_one=MagicMock(return_value=None))
-        )
-        # Zimbabwe is in Africa fallback bounds: -23≤lat≤38, -18≤lon≤52
-        assert _is_in_supported_region(-17.83, 31.05) is True
+    def test_zero_coordinates(self):
+        """Zero coordinates (Gulf of Guinea) are valid."""
+        assert _is_valid_coordinates(0, 0) is True
 
-    @patch("py._locations.get_db")
-    def test_db_lookup_no_region_outside_fallback_rejected(self, mock_db):
-        """When DB returns no region match and coords are outside all fallback bounds,
-        return False."""
-        mock_db.return_value.__getitem__ = MagicMock(
-            return_value=MagicMock(find_one=MagicMock(return_value=None))
-        )
-        # New York — outside Africa and ASEAN fallback bounds
-        assert _is_in_supported_region(40.71, -74.01) is False
+    def test_extreme_north(self):
+        """North Pole is valid."""
+        assert _is_valid_coordinates(90, 0) is True
 
-    @patch("py._locations.get_db")
-    def test_fallback_africa_accepted(self, mock_db):
-        """When DB fails, Africa coordinates should be accepted."""
-        mock_db.side_effect = Exception("DB down")
-        # Central Africa coordinates
-        assert _is_in_supported_region(0, 25) is True
+    def test_extreme_south(self):
+        """South Pole is valid."""
+        assert _is_valid_coordinates(-90, 0) is True
 
-    @patch("py._locations.get_db")
-    def test_fallback_asean_accepted(self, mock_db):
-        """When DB fails, ASEAN coordinates should be accepted."""
-        mock_db.side_effect = Exception("DB down")
-        # Bangkok
-        assert _is_in_supported_region(13.75, 100.5) is True
+    def test_extreme_east(self):
+        """180 degrees east is valid."""
+        assert _is_valid_coordinates(0, 180) is True
 
-    @patch("py._locations.get_db")
-    def test_fallback_outside_regions_rejected(self, mock_db):
-        """When DB fails, coordinates outside Africa/ASEAN should be rejected."""
-        mock_db.side_effect = Exception("DB down")
-        # New York
-        assert _is_in_supported_region(40.71, -74.01) is False
+    def test_extreme_west(self):
+        """180 degrees west is valid."""
+        assert _is_valid_coordinates(0, -180) is True
 
+    def test_new_york_accepted(self):
+        """New York — fully global, all coordinates accepted."""
+        assert _is_valid_coordinates(40.71, -74.01) is True
 
-# ---------------------------------------------------------------------------
-# _hardcoded_region_check — acceptance tests for all 8 regions
-# ---------------------------------------------------------------------------
+    def test_london_accepted(self):
+        """London — fully global, all coordinates accepted."""
+        assert _is_valid_coordinates(51.51, -0.13) is True
 
+    def test_sydney_accepted(self):
+        """Sydney — fully global, all coordinates accepted."""
+        assert _is_valid_coordinates(-33.87, 151.21) is True
 
-class TestHardcodedRegionCheck:
-    """Direct tests for _hardcoded_region_check to verify all region bounds are correct."""
+    def test_tokyo_accepted(self):
+        """Tokyo — fully global, all coordinates accepted."""
+        assert _is_valid_coordinates(35.69, 139.69) is True
 
-    def test_africa_zimbabwe(self):
-        """Zimbabwe — should be in Africa region."""
-        assert _hardcoded_region_check(-17.83, 31.05) is True
+    def test_invalid_latitude_too_high(self):
+        """Latitude > 90 is invalid."""
+        assert _is_valid_coordinates(91, 0) is False
 
-    def test_africa_north_africa_cairo(self):
-        """Cairo (Egypt) — North Africa should now be included."""
-        assert _hardcoded_region_check(30.06, 31.24) is True
+    def test_invalid_latitude_too_low(self):
+        """Latitude < -90 is invalid."""
+        assert _is_valid_coordinates(-91, 0) is False
 
-    def test_asean_singapore(self):
-        """Singapore — ASEAN, this was the original reported bug."""
-        assert _hardcoded_region_check(1.35, 103.82) is True
+    def test_invalid_longitude_too_high(self):
+        """Longitude > 180 is invalid."""
+        assert _is_valid_coordinates(0, 181) is False
 
-    def test_asean_bangkok(self):
-        """Bangkok (Thailand) — core ASEAN."""
-        assert _hardcoded_region_check(13.75, 100.5) is True
-
-    def test_south_asia_mumbai(self):
-        """Mumbai (India) — South Asia region."""
-        assert _hardcoded_region_check(19.08, 72.88) is True
-
-    def test_south_asia_dhaka(self):
-        """Dhaka (Bangladesh) — South Asia region."""
-        assert _hardcoded_region_check(23.72, 90.41) is True
-
-    def test_middle_east_riyadh(self):
-        """Riyadh (Saudi Arabia) — Middle East region."""
-        assert _hardcoded_region_check(24.69, 46.72) is True
-
-    def test_middle_east_istanbul(self):
-        """Istanbul (Turkey) — northern edge of Middle East region."""
-        assert _hardcoded_region_check(41.01, 28.98) is True
-
-    def test_central_asia_almaty(self):
-        """Almaty (Kazakhstan) — Central Asia region."""
-        assert _hardcoded_region_check(43.26, 76.95) is True
-
-    def test_south_america_sao_paulo(self):
-        """São Paulo (Brazil) — South America region."""
-        assert _hardcoded_region_check(-23.55, -46.63) is True
-
-    def test_south_america_buenos_aires(self):
-        """Buenos Aires (Argentina) — South America region."""
-        assert _hardcoded_region_check(-34.6, -58.38) is True
-
-    def test_central_america_mexico_city(self):
-        """Mexico City — Central America + Mexico region."""
-        assert _hardcoded_region_check(19.43, -99.13) is True
-
-    def test_central_america_guatemala_city(self):
-        """Guatemala City — Central America region."""
-        assert _hardcoded_region_check(14.64, -90.51) is True
-
-    def test_pacific_islands_fiji(self):
-        """Fiji (lon ~178°E) — Pacific Islands, east of antimeridian.
-        This coordinate should be accepted by _hardcoded_region_check but NOT
-        by the MongoDB bounding-box query (which cannot handle antimeridian crossing)."""
-        assert _hardcoded_region_check(-18.14, 178.44) is True
-
-    def test_pacific_islands_tonga(self):
-        """Tonga (lon ~-175.2°W) — Pacific Islands, just west of antimeridian.
-        -175.2 <= -175 (the padded east boundary), so this is within range."""
-        assert _hardcoded_region_check(-21.18, -175.20) is True
-
-    def test_pacific_islands_fiji_db_query_limitation(self):
-        """Pacific Islands (Fiji) is NOT matched by the MongoDB bounding-box query
-        due to the antimeridian crossing (east=-176 fails $gte check for lon=178).
-        The hardcoded fallback is the authoritative source for this region."""
-        # Simulate DB returning None (which is what happens for antimeridian points)
-        # and confirm the overall function still returns True via _hardcoded_region_check.
-        with patch("py._locations.get_db") as mock_db:
-            mock_db.return_value.__getitem__ = MagicMock(
-                return_value=MagicMock(find_one=MagicMock(return_value=None))
-            )
-            assert _is_in_supported_region(-18.14, 178.44) is True
-
-    def test_rejected_new_york(self):
-        """New York (USA) — should be rejected."""
-        assert _hardcoded_region_check(40.71, -74.01) is False
-
-    def test_rejected_london(self):
-        """London (UK) — should be rejected."""
-        assert _hardcoded_region_check(51.51, -0.13) is False
-
-    def test_rejected_sydney(self):
-        """Sydney (Australia) — should be rejected (not a developing country region)."""
-        assert _hardcoded_region_check(-33.87, 151.21) is False
-
-    def test_rejected_tokyo(self):
-        """Tokyo (Japan) — should be rejected (developed, not in ASEAN or developing Asia)."""
-        assert _hardcoded_region_check(35.69, 139.69) is False
+    def test_invalid_longitude_too_low(self):
+        """Longitude < -180 is invalid."""
+        assert _is_valid_coordinates(0, -181) is False
 
 
 # ---------------------------------------------------------------------------
@@ -787,35 +693,16 @@ class TestGeoLookup:
         assert result["nearest"]["slug"] == "maputo"
 
     @pytest.mark.asyncio
-    @patch("py._locations._is_in_supported_region")
-    @patch("py._locations._reverse_geocode")
-    @patch("py._locations.locations_collection")
-    async def test_unsupported_region_rejected(self, mock_coll, mock_geocode, mock_region):
-        mock_geocode.return_value = {"country": "US"}
-        mock_find = MagicMock()
-        mock_find.limit.return_value = []
-        mock_coll.return_value.find.return_value = mock_find
-        mock_coll.return_value.find_one.return_value = None
-        mock_region.return_value = False
-
-        with pytest.raises(HTTPException) as exc_info:
-            await geo_lookup(40.71, -74.01)
-        assert exc_info.value.status_code == 404
-        assert "outside supported regions" in exc_info.value.detail
-
-    @pytest.mark.asyncio
     @patch("py._locations._find_duplicate")
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.locations_collection")
-    async def test_duplicate_detection(self, mock_coll, mock_geocode, mock_region, mock_dedup):
+    async def test_duplicate_detection(self, mock_coll, mock_geocode, mock_dedup):
         """Auto-create should return existing location when duplicate found."""
         mock_geocode.return_value = {"country": "ZW", "name": "Harare", "admin1": "Harare"}
         mock_find = MagicMock()
         mock_find.limit.return_value = []
         mock_coll.return_value.find.return_value = mock_find
         mock_coll.return_value.find_one.return_value = None
-        mock_region.return_value = True
         mock_dedup.return_value = {"slug": "harare", "name": "Harare"}
 
         result = await geo_lookup(-17.83, 31.05, autoCreate=True)
@@ -826,10 +713,9 @@ class TestGeoLookup:
     @patch("py._locations.get_db")
     @patch("py._locations._get_elevation")
     @patch("py._locations._find_duplicate")
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.locations_collection")
-    async def test_auto_create_success(self, mock_coll, mock_geocode, mock_region,
+    async def test_auto_create_success(self, mock_coll, mock_geocode,
                                         mock_dedup, mock_elev, mock_db):
         """Auto-create should insert a new location when no duplicate exists."""
         mock_geocode.return_value = {
@@ -845,7 +731,6 @@ class TestGeoLookup:
         mock_find.limit.return_value = []
         mock_coll.return_value.find.return_value = mock_find
         mock_coll.return_value.find_one.side_effect = [None, None]  # No uncapped, no slug collision
-        mock_region.return_value = True
         mock_dedup.return_value = None
         mock_elev.return_value = 1200
         mock_db_inst = MagicMock()
@@ -857,6 +742,27 @@ class TestGeoLookup:
         assert result["nearest"]["name"] == "NewPlace"
         mock_coll.return_value.insert_one.assert_called_once()
 
+    @pytest.mark.asyncio
+    @patch("py._locations._reverse_geocode")
+    @patch("py._locations.locations_collection")
+    async def test_global_coordinates_accepted(self, mock_coll, mock_geocode):
+        """Any valid global coordinates should be accepted (no region restrictions)."""
+        mock_geocode.return_value = {
+            "country": "US", "countryName": "United States",
+            "name": "New York", "admin1": "New York",
+            "lat": 40.71, "lon": -74.01, "elevation": 10,
+        }
+        mock_find = MagicMock()
+        mock_find.limit.return_value = []
+        mock_coll.return_value.find.return_value = mock_find
+        mock_coll.return_value.find_one.return_value = None
+
+        # With autoCreate=false, should raise 404 (no nearby location, not region error)
+        with pytest.raises(HTTPException) as exc_info:
+            await geo_lookup(40.71, -74.01)
+        assert exc_info.value.status_code == 404
+        assert "autoCreate" in exc_info.value.detail
+
 
 # ---------------------------------------------------------------------------
 # add_location endpoint
@@ -865,14 +771,12 @@ class TestGeoLookup:
 
 class TestAddLocation:
     @pytest.mark.asyncio
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations._forward_geocode")
-    async def test_search_mode_returns_candidates(self, mock_geocode, mock_region):
+    async def test_search_mode_returns_candidates(self, mock_geocode):
         mock_geocode.return_value = [
             {"name": "Harare", "country": "ZW", "countryName": "Zimbabwe",
              "admin1": "Harare", "lat": -17.83, "lon": 31.05, "elevation": 1490}
         ]
-        mock_region.return_value = True
 
         request = MagicMock()
         request.json = AsyncMock(return_value={"query": "Harare"})
@@ -892,28 +796,24 @@ class TestAddLocation:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations._forward_geocode")
-    async def test_search_mode_filters_unsupported_regions(self, mock_geocode, mock_region):
-        """Candidates outside supported regions should be filtered."""
+    async def test_search_mode_returns_all_global_results(self, mock_geocode):
+        """All geocode results are returned — no region filtering."""
         mock_geocode.return_value = [
             {"name": "Harare", "country": "ZW", "countryName": "Zimbabwe",
              "admin1": "Harare", "lat": -17.83, "lon": 31.05},
-            {"name": "London", "country": "GB", "countryName": "UK",
+            {"name": "London", "country": "GB", "countryName": "United Kingdom",
              "admin1": "England", "lat": 51.5, "lon": -0.12},
         ]
-        mock_region.side_effect = lambda lat, lon: lat < 0  # Only southern hemisphere supported
 
         request = MagicMock()
         request.json = AsyncMock(return_value={"query": "harare"})
 
         result = await add_location(request)
-        assert len(result["results"]) == 1
-        assert result["results"][0]["name"] == "Harare"
+        assert len(result["results"]) == 2
 
     @pytest.mark.asyncio
-    @patch("py._locations._is_in_supported_region")
-    async def test_coordinates_mode_invalid_coords(self, mock_region):
+    async def test_coordinates_mode_invalid_coords(self):
         request = MagicMock()
         request.json = AsyncMock(return_value={"lat": 91, "lon": 0})
 
@@ -922,23 +822,9 @@ class TestAddLocation:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("py._locations._is_in_supported_region")
-    async def test_coordinates_mode_unsupported_region(self, mock_region):
-        mock_region.return_value = False
-        request = MagicMock()
-        request.json = AsyncMock(return_value={"lat": 40.0, "lon": -74.0})
-
-        with pytest.raises(HTTPException) as exc_info:
-            await add_location(request)
-        assert exc_info.value.status_code == 400
-        assert "outside supported" in exc_info.value.detail
-
-    @pytest.mark.asyncio
     @patch("py._locations.check_rate_limit")
     @patch("py._locations.get_client_ip")
-    @patch("py._locations._is_in_supported_region")
-    async def test_coordinates_mode_rate_limited(self, mock_region, mock_ip, mock_rate):
-        mock_region.return_value = True
+    async def test_coordinates_mode_rate_limited(self, mock_ip, mock_rate):
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": False, "remaining": 0}
 
@@ -953,9 +839,7 @@ class TestAddLocation:
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.check_rate_limit")
     @patch("py._locations.get_client_ip")
-    @patch("py._locations._is_in_supported_region")
-    async def test_coordinates_mode_geocode_fails(self, mock_region, mock_ip, mock_rate, mock_geocode):
-        mock_region.return_value = True
+    async def test_coordinates_mode_geocode_fails(self, mock_ip, mock_rate, mock_geocode):
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
         mock_geocode.return_value = None
@@ -972,10 +856,8 @@ class TestAddLocation:
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.check_rate_limit")
     @patch("py._locations.get_client_ip")
-    @patch("py._locations._is_in_supported_region")
-    async def test_coordinates_mode_duplicate_found(self, mock_region, mock_ip, mock_rate,
+    async def test_coordinates_mode_duplicate_found(self, mock_ip, mock_rate,
                                                      mock_geocode, mock_dedup):
-        mock_region.return_value = True
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
         mock_geocode.return_value = {"country": "ZW", "name": "Harare", "admin1": "Harare",
@@ -996,12 +878,10 @@ class TestAddLocation:
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.check_rate_limit")
     @patch("py._locations.get_client_ip")
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations.locations_collection")
-    async def test_coordinates_mode_creates_location(self, mock_coll, mock_region, mock_ip,
+    async def test_coordinates_mode_creates_location(self, mock_coll, mock_ip,
                                                       mock_rate, mock_geocode, mock_dedup,
                                                       mock_elev, mock_db):
-        mock_region.return_value = True
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
         mock_geocode.return_value = {
@@ -1030,13 +910,11 @@ class TestAddLocation:
     @patch("py._locations._reverse_geocode")
     @patch("py._locations.check_rate_limit")
     @patch("py._locations.get_client_ip")
-    @patch("py._locations._is_in_supported_region")
     @patch("py._locations.locations_collection")
-    async def test_slug_collision_handling(self, mock_coll, mock_region, mock_ip,
+    async def test_slug_collision_handling(self, mock_coll, mock_ip,
                                            mock_rate, mock_geocode, mock_dedup,
                                            mock_elev, mock_db):
         """When slug already exists, should append a numeric suffix."""
-        mock_region.return_value = True
         mock_ip.return_value = "1.2.3.4"
         mock_rate.return_value = {"allowed": True, "remaining": 4}
         mock_geocode.return_value = {

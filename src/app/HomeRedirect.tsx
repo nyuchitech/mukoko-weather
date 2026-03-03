@@ -16,8 +16,8 @@ const FALLBACK_LOCATION = "harare";
 /**
  * Smart home page redirect — like Apple Weather / Google Weather.
  *
- * Waits for geolocation to actually resolve (success, denied, error, or
- * outside-supported) rather than racing against a short timeout. This ensures
+ * Waits for geolocation to actually resolve (success, denied, or error)
+ * rather than racing against a short timeout. This ensures
  * first-time users who need to interact with the browser permission prompt
  * aren't prematurely redirected to the default location.
  *
@@ -116,7 +116,7 @@ export function HomeRedirect() {
         ) {
           router.replace(`/${result.location.slug}`);
         } else {
-          // Geo explicitly failed (denied, error, outside-supported, unavailable)
+          // Geo explicitly failed (denied, error, unavailable)
           // → redirect to fallback immediately, no waiting
           redirectToFallback();
         }
