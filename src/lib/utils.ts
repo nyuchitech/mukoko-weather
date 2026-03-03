@@ -5,11 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/**
- * Returns the appropriate scroll behavior based on the user's
- * prefers-reduced-motion setting. CSS media queries don't affect
- * JS `scrollIntoView` — must check via `matchMedia`.
- */
 /** Format coordinates with N/S/E/W indicators (e.g., "17.8300°S, 31.0500°E"). */
 export function formatCoords(lat: number, lon: number): string {
   const ns = lat >= 0 ? "N" : "S";
@@ -17,6 +12,11 @@ export function formatCoords(lat: number, lon: number): string {
   return `${Math.abs(lat).toFixed(4)}\u00B0${ns}, ${Math.abs(lon).toFixed(4)}\u00B0${ew}`;
 }
 
+/**
+ * Returns the appropriate scroll behavior based on the user's
+ * prefers-reduced-motion setting. CSS media queries don't affect
+ * JS `scrollIntoView` — must check via `matchMedia`.
+ */
 export function getScrollBehavior(): ScrollBehavior {
   return typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches

@@ -66,6 +66,10 @@ async def proxy_map_tile(
     if z < 1 or z > 12:
         raise HTTPException(status_code=400, detail="Zoom out of range")
 
+    max_tile = (1 << z) - 1  # 2^z - 1
+    if x < 0 or x > max_tile or y < 0 or y > max_tile:
+        raise HTTPException(status_code=400, detail="Tile coordinates out of range")
+
     if not TIMESTAMP_RE.match(timestamp):
         raise HTTPException(status_code=400, detail="Invalid timestamp")
 
@@ -117,6 +121,10 @@ async def proxy_base_tile(
 
     if z < 0 or z > 22:
         raise HTTPException(status_code=400, detail="Zoom out of range")
+
+    max_tile = (1 << z) - 1  # 2^z - 1
+    if x < 0 or x > max_tile or y < 0 or y > max_tile:
+        raise HTTPException(status_code=400, detail="Tile coordinates out of range")
 
     try:
         api_key = get_api_key("mapbox")

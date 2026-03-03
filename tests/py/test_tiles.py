@@ -94,6 +94,22 @@ class TestProxyMapTile:
             assert exc_info.value.status_code == 503
 
     @pytest.mark.asyncio
+    async def test_tile_coords_out_of_range_raises_400(self):
+        """At zoom z, valid tile coords are [0, 2^z - 1]."""
+        # z=1 → max tile is 1 (0 and 1 valid), so x=2 is invalid
+        with pytest.raises(HTTPException) as exc_info:
+            await proxy_map_tile(z=1, x=2, y=0, layer="temperature")
+        assert exc_info.value.status_code == 400
+        assert "Tile coordinates" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_negative_tile_coords_raises_400(self):
+        with pytest.raises(HTTPException) as exc_info:
+            await proxy_map_tile(z=5, x=-1, y=0, layer="temperature")
+        assert exc_info.value.status_code == 400
+        assert "Tile coordinates" in exc_info.value.detail
+
+    @pytest.mark.asyncio
     async def test_invalid_timestamp_raises_400(self):
         with pytest.raises(HTTPException) as exc_info:
             await proxy_map_tile(z=5, x=18, y=17, layer="temperature", timestamp="invalid")
@@ -311,6 +327,22 @@ class TestProxyBaseTile:
         assert url.startswith("https://api.mapbox.com/")
         assert "/styles/v1/mapbox/outdoors-v12/tiles/5/18/17" in url
         assert "access_token=mb-key" in url
+
+    @pytest.mark.asyncio
+    async def test_tile_coords_out_of_range_raises_400(self):
+        """At zoom z, valid tile coords are [0, 2^z - 1]."""
+        # z=0 → max tile is 0 (only 0 valid), so x=1 is invalid
+        with pytest.raises(HTTPException) as exc_info:
+            await proxy_base_tile(z=0, x=1, y=0)
+        assert exc_info.value.status_code == 400
+        assert "Tile coordinates" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_negative_tile_coords_raises_400(self):
+        with pytest.raises(HTTPException) as exc_info:
+            await proxy_base_tile(z=5, x=0, y=-1)
+        assert exc_info.value.status_code == 400
+        assert "Tile coordinates" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_default_style_is_streets(self):

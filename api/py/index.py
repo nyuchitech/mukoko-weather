@@ -39,9 +39,9 @@ from ._db import get_db
 # App setup
 # ---------------------------------------------------------------------------
 
-# OpenAPI docs are available in non-production environments (local dev,
-# preview deploys) for schema inspection. Disabled in production for security.
-_is_prod = os.environ.get("VERCEL_ENV") == "production"
+# OpenAPI docs are only available in local dev. Disabled in production and
+# preview deploys (preview URLs are publicly accessible in PRs).
+_is_prod = os.environ.get("VERCEL_ENV") in ("production", "preview")
 
 app = FastAPI(
     title="mukoko weather API",

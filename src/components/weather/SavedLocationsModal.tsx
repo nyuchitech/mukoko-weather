@@ -353,7 +353,7 @@ function SavedLocationsList({
                       {contextLabel && (
                         <span className="block text-base text-text-tertiary truncate">{contextLabel}</span>
                       )}
-                      {loc && loc.lat !== 0 && loc.lon !== 0 && (
+                      {loc && loc.lat != null && loc.lon != null && (
                         <span className="block text-base text-text-tertiary font-mono truncate">{formatCoords(loc.lat, loc.lon)}</span>
                       )}
                       {!label && (
