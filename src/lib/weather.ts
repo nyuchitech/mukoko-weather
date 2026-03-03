@@ -291,8 +291,14 @@ export function getDefaultSeason(date: Date = new Date(), lat: number = 0): Seas
   return { name: "Winter", localName: "Winter", description: "Coldest season with shorter days" };
 }
 
-/** @deprecated Use getDefaultSeason instead */
-export const getZimbabweSeason = getDefaultSeason;
+/**
+ * @deprecated Use getDefaultSeason instead.
+ * Wraps getDefaultSeason with lat=-17 (southern hemisphere) to preserve
+ * backward-compatible Zimbabwe seasonal behavior for un-migrated callers.
+ */
+export function getZimbabweSeason(date: Date = new Date()): Season {
+  return getDefaultSeason(date, -17);
+}
 
 
 export function windDirection(degrees: number): string {

@@ -24,7 +24,7 @@ export function SavedLocationsModal() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const currentSlug = pathname?.split("/").filter(Boolean)[0] || "harare";
+  const currentSlug = pathname?.split("/").filter(Boolean)[0] || "";
   const [showSearch, setShowSearch] = useState(false);
 
   const handleSelectLocation = useCallback((slug: string) => {
@@ -353,7 +353,7 @@ function SavedLocationsList({
                       {contextLabel && (
                         <span className="block text-base text-text-tertiary truncate">{contextLabel}</span>
                       )}
-                      {loc && loc.lat != null && loc.lon != null && (
+                      {loc && loc.lat != null && loc.lon != null && loc.source !== "seed" && (
                         <span className="block text-base text-text-tertiary font-mono truncate">{formatCoords(loc.lat, loc.lon)}</span>
                       )}
                       {!label && (

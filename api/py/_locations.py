@@ -243,7 +243,7 @@ def _extract_location_name(data: dict, address: dict, country_code: str) -> str:
 
     # Most specific: Nominatim's own name for this exact point (POI, building, etc.)
     poi_name = data.get("name", "")
-    if poi_name and poi_name not in (city, country_name, ""):
+    if poi_name and poi_name not in (city, country_name):
         return poi_name
 
     # Next: suburb or neighbourhood — e.g., "Woodlands", "Strathaven"
@@ -472,10 +472,6 @@ def _is_valid_coordinates(lat: float, lon: float) -> bool:
 DEDUP_RADIUS_KM = 1
 
 
-def _dedup_radius(_country: str | None) -> float:
-    """Get dedup radius for location creation (uniform 1km for all countries)."""
-    return DEDUP_RADIUS_KM
-
 
 def _find_duplicate(
     lat: float,
@@ -587,7 +583,7 @@ async def geo_lookup(
                 )
 
             # Duplicate check (1km radius + name/country match)
-            dedup_km = _dedup_radius(geocoded.get("country"))
+            dedup_km = DEDUP_RADIUS_KM
             duplicate = _find_duplicate(
                 lat, lon, dedup_km,
                 name=geocoded["name"], country=geocoded["country"],
@@ -730,7 +726,7 @@ async def add_location(request: Request):
         lat = float(body.get("lat", 0))
         lon = float(body.get("lon", 0))
 
-        if lat < -90 or lat > 90 or lon < -180 or lon > 180:
+        if not _is_valid_coordinates(lat, lon):
             raise HTTPException(status_code=400, detail="Invalid coordinates")
 
         # Rate limit — extract real IP behind Vercel's reverse proxy
@@ -745,9 +741,8 @@ async def add_location(request: Request):
             raise HTTPException(status_code=422, detail="Could not determine location name")
 
         # Duplicate check (1km radius + name/country match)
-        dedup_km = _dedup_radius(geocoded.get("country"))
         duplicate = _find_duplicate(
-            lat, lon, dedup_km,
+            lat, lon, DEDUP_RADIUS_KM,
             name=geocoded["name"], country=geocoded["country"],
         )
         if duplicate:
@@ -757,7 +752,7 @@ async def add_location(request: Request):
                     "slug": duplicate["slug"],
                     "name": duplicate["name"],
                     "province": duplicate.get("province", ""),
-                    "country": duplicate.get("country", "ZW"),
+                    "country": duplicate.get("country", ""),
                 },
                 "message": f"A location already exists nearby: {duplicate['name']}",
             }

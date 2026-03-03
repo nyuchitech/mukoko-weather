@@ -11,7 +11,6 @@ from py._locations import (
     _generate_slug,
     _generate_province_slug,
     _infer_tags,
-    _dedup_radius,
     _is_valid_coordinates,
     _reverse_geocode,
     _forward_geocode,
@@ -25,7 +24,6 @@ from py._locations import (
     search_locations,
     geo_lookup,
     add_location,
-    DEDUP_RADIUS_KM,
     MAX_LOCATIONS_LIMIT,
     DEFAULT_LOCATIONS_LIMIT,
     SLUG_RE,
@@ -140,29 +138,6 @@ class TestInferTags:
     def test_no_name_defaults_to_city(self):
         tags = _infer_tags({})
         assert "city" in tags
-
-
-# ---------------------------------------------------------------------------
-# _dedup_radius
-# ---------------------------------------------------------------------------
-
-
-class TestDedupRadius:
-    def test_any_country(self):
-        assert _dedup_radius("ZW") == DEDUP_RADIUS_KM
-
-    def test_other_country(self):
-        assert _dedup_radius("KE") == DEDUP_RADIUS_KM
-
-    def test_none_country(self):
-        assert _dedup_radius(None) == DEDUP_RADIUS_KM
-
-    def test_uniform_radius(self):
-        """All countries get the same dedup radius."""
-        assert _dedup_radius("ZW") == _dedup_radius("KE") == _dedup_radius(None)
-
-    def test_empty_string(self):
-        assert _dedup_radius("") == DEDUP_RADIUS_KM
 
 
 # ---------------------------------------------------------------------------

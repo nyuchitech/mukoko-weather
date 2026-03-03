@@ -14,6 +14,8 @@ const loadCountry = cache((code: string) => getCountryByCode(code).catch(() => n
 // generateMetadata and the page component both call this for the same country code;
 // cache() ensures a single DB round-trip within one SSR pass. Unlike a module-level
 // Map with TTL, this is scoped to the current request and discarded afterward.
+// Note: cache key includes both countryCode and lat. Each [location] page is a
+// separate SSR request, so cross-hemisphere collisions cannot occur in practice.
 const getCachedSeason = cache((countryCode: string, lat: number = 0) =>
   getSeasonForDate(new Date(), countryCode, lat),
 );

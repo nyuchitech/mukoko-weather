@@ -41,15 +41,15 @@ from ._db import get_db
 
 # OpenAPI docs are only available in local dev. Disabled in production and
 # preview deploys (preview URLs are publicly accessible in PRs).
-_is_prod = os.environ.get("VERCEL_ENV") in ("production", "preview")
+_hide_docs = os.environ.get("VERCEL_ENV") in ("production", "preview")
 
 app = FastAPI(
     title="mukoko weather API",
     version="3.0.0",
     description="Weather intelligence API — schema.org-aligned data models, OpenAPI 3.1 compliant.",
-    docs_url=None if _is_prod else "/api/py/docs",
-    redoc_url=None if _is_prod else "/api/py/redoc",
-    openapi_url=None if _is_prod else "/api/py/openapi.json",
+    docs_url=None if _hide_docs else "/api/py/docs",
+    redoc_url=None if _hide_docs else "/api/py/redoc",
+    openapi_url=None if _hide_docs else "/api/py/openapi.json",
 )
 
 _ALLOWED_ORIGINS = [
