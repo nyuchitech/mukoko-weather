@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-mukoko weather is an AI-powered weather intelligence platform, starting with Zimbabwe and expanding across the developing world. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. Target regions include Africa (54 AU member states), ASEAN/Asia, the Middle East, South & Central America, and Eastern Europe. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search.
+mukoko weather is an AI-powered global weather intelligence platform. It provides real-time weather data, 7-day forecasts, frost alerts, and AI-generated contextual advice for farming, mining, travel, and daily life. The app is fully global — any valid coordinates worldwide are accepted. Current seed data covers 265 total locations (98 Zimbabwe + 167 global) — with new locations added dynamically by the community via geolocation and search from anywhere in the world.
 
 **Live URL:** https://weather.mukoko.com
 
@@ -21,7 +21,7 @@ Social: Twitter @mukokoafrica, Instagram @mukoko.africa
 - **Framework:** Next.js 16.1.6 (App Router, TypeScript 5.9.3)
 - **UI components:** shadcn/ui (new-york style, Lucide icons)
 - **Charts:** Chart.js 4 + react-chartjs-2 (Canvas 2D rendering via `src/components/ui/chart.tsx`)
-- **Maps:** Leaflet + react-leaflet (dynamic import, SSR disabled; Tomorrow.io tile overlays via `/api/map-tiles` proxy)
+- **Maps:** Leaflet + react-leaflet (dynamic import, SSR disabled; Mapbox base tiles + Tomorrow.io weather overlays via `/api/py/map-tiles` proxy)
 - **Styling:** Tailwind CSS 4 with CSS custom properties (Brand System v6)
 - **Markdown:** react-markdown 10 (AI summary rendering)
 - **State:** Zustand 5.0.11 (with `persist` middleware — theme, location, activities, hasOnboarded saved to localStorage; device sync to Python backend)
@@ -259,7 +259,7 @@ mukoko-weather/
 │   │   ├── device-sync.test.ts
 │   │   ├── suggested-prompts.ts   # Database-driven suggested prompt generation (fetches from /api/py/ai/prompts)
 │   │   ├── suggested-prompts.test.ts
-│   │   ├── locations.ts           # WeatherLocation type, 98 ZW seed locations, SUPPORTED_REGIONS, search, filtering
+│   │   ├── locations.ts           # WeatherLocation type, 98 ZW seed locations, search, filtering
 │   │   ├── locations.test.ts
 │   │   ├── locations-global.ts    # Global city seed data (capitals + major cities across 54 AU member states + ASEAN countries)
 │   │   ├── countries.ts           # Country/province types, seed data (54 AU + ASEAN), flag emoji, province slug generation
@@ -303,7 +303,7 @@ mukoko-weather/
 │   │   ├── seed-suitability-rules.ts # Seed suitability rules for db-init (condition-based evaluation)
 │   │   ├── seed-categories.ts     # Seed activity categories with mineral color styles for db-init
 │   │   ├── seed-tags.ts           # Seed tag metadata for db-init (powers explore page cards)
-│   │   ├── seed-regions.ts        # Seed supported regions (bounding boxes) for db-init
+│   │   ├── seed-regions.ts        # Region reference data (bounding boxes) for db-init — no restrictions enforced
 │   │   ├── seed-seasons.ts        # Seed country-specific season definitions for db-init
 │   │   ├── seed-ai-prompts.ts     # Seed AI prompts + suggested prompt rules for db-init
 │   │   ├── seed-ai-prompts.test.ts # Prompt/rule uniqueness, guardrails presence
@@ -493,7 +493,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Philosophy:** The main location page (`/[location]`) is a compact overview — current conditions, AI summary, activity insights, and metric cards. Detail-heavy sections (charts, atmospheric trends, hourly/daily forecasts) live on dedicated sub-route pages. This reduces initial page load weight and prevents mobile OOM crashes from mounting all components simultaneously.
 
-- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/harare`
+- `/` — smart redirect via `HomeRedirect`: always attempts geolocation first (3s timeout), falls back to first saved location → selected location → `/explore`
 - `/[location]` — dynamic weather pages — overview: current conditions, AI summary, activity insights, atmospheric metric cards
 - `/[location]/atmosphere` — 24-hour atmospheric detail charts (humidity, wind, pressure, UV) for a location
 - `/[location]/forecast` — hourly (24h) + daily (7-day) forecast charts + sunrise/sunset for a location
@@ -526,12 +526,13 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - `/api/py/activities` — GET, activities (by id, category, search query, labels, or categories mode)
 - `/api/py/suitability` — GET, suitability rules from MongoDB (all rules or by key; key validated against `^(activity|category):[a-z0-9-]+$`)
 - `/api/py/tags` — GET, tag metadata (all or featured only)
-- `/api/py/regions` — GET, active supported regions (bounding boxes)
+- `/api/py/regions` — GET, region reference data (bounding boxes, no restrictions enforced)
 - `/api/py/status` — GET, system health checks (MongoDB ping, Tomorrow.io, Open-Meteo, Anthropic, cache)
 - `/api/py/history` — GET, historical weather data (query: `location`, `days`)
 - `/api/py/history/analyze` — POST, AI-powered historical weather analysis. Server-side aggregation (~800 tokens) + Claude analysis. Cached 1h in `history_analysis` collection. Rate-limited 10 req/hour/IP
 - `/api/py/explore/search` — POST, AI-powered location search using Claude with `search_locations` + `get_weather` tools. Falls back to text search if AI unavailable. Rate-limited 15 req/hour/IP
-- `/api/py/map-tiles` — GET, tile proxy for Tomorrow.io map layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
+- `/api/py/map-tiles` — GET, tile proxy for Tomorrow.io weather overlay layers (query: `z`, `x`, `y`, `layer`, optional `timestamp`; keeps API key server-side)
+- `/api/py/map-tiles/base` — GET, tile proxy for Mapbox base map tiles (query: `z`, `x`, `y`, optional `style` default `streets-v12`; keeps access token server-side). Styles: `streets-v12`, `dark-v11`, `light-v11`, `outdoors-v12`, `satellite-streets-v12`. 1h CDN cache
 - `/api/py/reports` — POST (submit) / GET (list), community weather reports. Submit rate-limited 5 req/hour/IP, auto-captures weather snapshot for cross-validation
 - `/api/py/reports/upvote` — POST, upvote a community report (IP-based dedup)
 - `/api/py/reports/clarify` — POST, AI-generated follow-up questions for weather report clarification. Rate-limited 10 req/hour/IP
@@ -588,27 +589,39 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 ### Location Data
 
-**Type:** `WeatherLocation` (aliased as `ZimbabweLocation` for backward compat) in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO alpha-2, defaults `"ZW"`), optional `source` (`"seed"` | `"community"` | `"geolocation"`).
+**Type:** `WeatherLocation` in `src/lib/locations.ts`. Fields: `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, optional `country` (ISO 3166-1 alpha-2), optional `source` (`"seed"` | `"community"` | `"geolocation"`), optional `provinceSlug`, optional `nominatimAddress` (`NominatimAddress` — structured address from Nominatim reverse geocoding). Maps to `schema.org/Place` — see Data Standards section below.
 
-**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`ZW_LOCATIONS`) plus 167 global cities across the developing world in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. Global location slugs use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`); Zimbabwe slugs remain short (e.g., `"harare"`).
+**Seed locations:** 265 total seed locations — 98 Zimbabwe locations in `src/lib/locations.ts` (`SEED_LOCATIONS_ZW`) plus 167 global cities in `src/lib/locations-global.ts` (imported as `GLOBAL_LOCATIONS`, merged into `LOCATIONS`). Tags include: `city`, `farming`, `mining`, `tourism`, `education`, `border`, `travel`, `national-park`. **Slug format note:** Global seed locations and all new community locations use `"{city}-{country}"` format (e.g., `"nairobi-ke"`, `"bangkok-th"`). The 98 legacy ZW seed locations use short slugs without the country suffix (e.g., `"harare"`, `"bulawayo"`). A future migration will normalize ZW slugs to `"{city}-zw"` format — until then, both formats coexist and `_generate_slug` in `api/py/_locations.py` appends the suffix for all new locations including ZW.
 
-**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim for name/country/province.
+**Location validation rules (global-first):**
+- **All locations**: require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, and `country` (ISO 3166-1 alpha-2). New locations use `{city}-{country_lowercase}` slug format (e.g., `nairobi-ke`, `bangkok-th`); legacy ZW seed locations use short slugs (e.g., `harare`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
+- **Source field:** `"seed"` for curated data, `"community"` for user-submitted, `"geolocation"` for auto-detected.
 
-**Supported regions:** `SUPPORTED_REGIONS` array defines bounding boxes for the developing world — Africa, ASEAN/Asia, Middle East, South & Central America, and Eastern Europe. `isInSupportedRegion(lat, lon)` checks if coordinates fall within any supported region (with 1° padding).
+**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim — zoom=14 (suburb level) for GPS auto-creation to protect user privacy, zoom=18 (building/POI level) for explicit coordinate submissions where specificity is expected.
 
-**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
+**Structured address storage:** Community/geolocation locations store a `nominatimAddress` object with formal address fields from Nominatim: `road`, `suburb`, `cityDistrict`, `city`, `state`, `stateDistrict`, `county`, `postcode`, `country`, `countryCode`, `displayName`. This enables three-layer breadcrumbs (Country / Province / Location) and contextual display in cards and info panels. TypeScript type: `NominatimAddress` in `src/lib/locations.ts`.
+
+**Location naming:** `_extract_location_name()` in `api/py/_locations.py` prefers the most specific name: POI name (school, hotel, landmark) → suburb/neighbourhood → road name → city/town/village. This produces names like "Singapore American School", "Strathaven", "525 Canberra Drive" instead of generic city names.
+
+**Province normalization:** `_normalize_admin1()` validates the admin1 field. For city-states (`_CITY_STATES` set: SG, MC, VA, GI, SM, AD, LI, MT, BN, DJ, BH, QA, KW), state/province is meaningless (postal codes), so district-level fields are used instead (e.g., "Woodlands" for Singapore). For normal countries, numeric and ≤2-char values are rejected with a fallback chain through state_district, city_district, region, county.
+
+**Breadcrumbs:** Always three layers — `Home / Country / Province / Location`. Country is always shown (including Zimbabwe). Province is skipped only when identical to location name (e.g., Harare metro). Examples: `Home / Zimbabwe / Mashonaland East / Marondera`, `Home / Singapore / Woodlands / Singapore American School`.
+
+**Global coverage:** The app is fully global — any valid WGS 84 coordinates are accepted. No geographic region restrictions are enforced. Region reference data is retained in `seed-regions.ts` for analytics and map centering but does not block location creation.
+
+**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name, zoom=14 default for GPS auto-creation, zoom=18 for explicit add), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
 **Rate limiting:** MongoDB-backed IP rate limiter in Python (`api/py/_db.py` `check_rate_limit`). 5 location creations/hour/IP. Uses atomic `findOneAndUpdate` with TTL index.
 
-**Deduplication:** New locations within 5km (ZW) or 10km (others) of an existing location are rejected.
+**Deduplication:** New locations within 1km of an existing location OR with the same name+country are rejected. The tight 1km radius reflects that location names are now specific (POIs, addresses, suburbs) — two different places 2km apart are legitimately different locations.
 
 **Countries & Provinces:** `src/lib/countries.ts` — `Country` type (code, name, region, supported), `Province` type (slug, name, countryCode), 64 seed countries (54 AU + ASEAN), 80+ province definitions, `getFlagEmoji(code)`, `generateProvinceSlug(name, code)`.
 
-Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)` (Atlas Search with fuzzy matching + $text fallback), `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `isInSupportedRegion(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context, seed locations prioritized), `vectorSearchLocations(embedding, options)` (foundation for semantic search — requires embedding pipeline), `getTagCountsAndStats()` ($facet aggregation for tag counts + location stats in one query).
+Key functions: `getLocationBySlug(slug)`, `searchLocationsFromDb(query, options)` (Atlas Search with fuzzy matching + $text fallback), `getLocationsByTag(tag)`, `findNearestLocation(lat, lon)`, `createLocation(location)`, `findDuplicateLocation(lat, lon, radiusKm)`, `getLocationsForContext(limit)` (bounded DB query for AI context, seed locations prioritized), `vectorSearchLocations(embedding, options)` (foundation for semantic search — requires embedding pipeline), `getTagCountsAndStats()` ($facet aggregation for tag counts + location stats in one query).
 
 ### Activities
 
-`src/lib/activities.ts` defines 50+ activities across 6 broadened categories covering the full scope of African industries and lifestyles. Activities extend the LocationTag system with user-activity categories.
+`src/lib/activities.ts` defines 50+ activities across 6 broadened categories covering industries and lifestyles worldwide. Activities extend the LocationTag system with user-activity categories.
 
 **Categories (broadened labels, same IDs for backward compat):**
 | Category ID | Display Label | Covers |
@@ -675,7 +688,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `fetchWeather(lat, lon)` — API call (7-day forecast, no auth required)
 - `checkFrostRisk(hourly)` — frost detection (temps <= 3°C between 10pm-8am)
 - `weatherCodeToInfo(code)` — WMO code to label/icon
-- `getZimbabweSeason(date)` — Zimbabwe seasonal calendar (Masika, Chirimo, Zhizha, Munakamwe)
+- `getDefaultSeason(date, lat)` — hemisphere-aware default season based on latitude. `getZimbabweSeason` is a backward-compat alias
 - `windDirection(degrees)` — compass direction
 - `uvLevel(index)` — UV severity level
 - `synthesizeOpenMeteoInsights(data)` — constructs a `WeatherInsights` object from Open-Meteo data (wind speed, gusts, visibility) for suitability evaluation
@@ -694,7 +707,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `theme: "light" | "dark" | "system"` — defaults to `"system"` (follows OS `prefers-color-scheme`), persisted to localStorage, synced to server
 - `setTheme(theme)` — explicitly set a theme preference
 - `toggleTheme()` — cycles through light → dark → system
-- `selectedLocation: string` — current location slug (default: `"harare"`), persisted to localStorage, synced to server
+- `selectedLocation: string` — current location slug (default: `""`), persisted to localStorage, synced to server
 - `setSelectedLocation(slug)` — updates location, queues device sync
 - `selectedActivities: string[]` — activity IDs (from `src/lib/activities.ts`), persisted to localStorage, synced to server
 - `toggleActivity(id)` — adds/removes an activity selection, queues device sync
@@ -981,7 +994,7 @@ The header takes no props — location context comes from the URL path.
 **Saved Locations Modal** (`src/components/weather/SavedLocationsModal.tsx`): A full-screen dialog (100dvh on mobile, auto-sized on desktop) for browsing, managing, and adding saved locations — up to `MAX_SAVED_LOCATIONS` (10).
 
 **Features:**
-- **Current location detection** — geolocation button with 3-state feedback (detecting, denied, outside-supported), option to save detected location
+- **Current location detection** — geolocation button with feedback states (detecting, denied, error), option to save detected location
 - **Saved locations list** — displays saved location slugs with province context, checkmark for currently-viewed location, trash icon per location for removal. Shows loading skeleton while fetching location details; falls back to title-cased slug display if API lookup fails
 - **Add location search** — debounced search input (via shared `useDebounce` hook from `@/lib/use-debounce`) calling `/api/py/search`, filters out already-saved slugs, disabled at capacity
 - **Capacity management** — displays count (e.g., "5/10"), disables add button when cap is reached
@@ -1013,12 +1026,12 @@ The header takes no props — location context comes from the URL path.
 
 ### HomeRedirect (Smart Home Page)
 
-`src/app/HomeRedirect.tsx` — client component that replaces the simple `/` → `/harare` redirect with location-aware routing.
+`src/app/HomeRedirect.tsx` — client component that replaces a static redirect with location-aware routing.
 
 **Redirect logic (priority order):**
 1. **Always attempt geolocation** — browser GPS via `detectUserLocation()` with 3s timeout
 2. **If geolocation succeeds** → redirect to detected location
-3. **If geolocation fails** → fall back to first saved location, then selected location, then `/harare`
+3. **If geolocation fails** → fall back to first saved location, then selected location, then `/explore`
 
 This geo-first approach mirrors Apple Weather / Google Weather behavior — the home page always tries to show your current physical location.
 
@@ -1222,7 +1235,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `tests/py/test_data.py` — Data endpoints: activities (by id/category/search/labels/categories), tags (all/featured), regions (active)
 - `tests/py/test_ai_prompts.py` — AI prompts: single/all prompts, suggested rules, module-level caching, DB error graceful degradation
 - `tests/py/test_index.py` — FastAPI app: CORS origins, health endpoint, ConnectionFailure handler, all 16 routers mounted
-- `tests/py/test_tiles.py` — Map tiles: layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers
+- `tests/py/test_tiles.py` — Map tiles: Tomorrow.io weather overlay proxy (layer validation, zoom range, timestamp validation, SSRF protection, proxy behavior, cache headers) + Mapbox base tile proxy (style validation, zoom range, URL construction, dark mode)
 - `tests/py/test_status.py` — System health: MongoDB/Tomorrow.io/Open-Meteo/Anthropic/cache checks, overall status aggregation
 - `tests/py/test_embeddings.py` — Embeddings stub: status endpoint shape
 
@@ -1322,6 +1335,77 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - TypeScript path alias: `@/*` maps to `./src/*` (e.g., `import { t } from "@/lib/i18n"`)
 - CORS is configured in `next.config.ts` for `/api/*` and `/embed/*` routes
 
+## Data Standards & Interoperability
+
+All data models in mukoko weather are aligned with **schema.org** vocabulary and **OpenAPI 3.1** standards. This is mandatory — never deviate from these standards when adding new entities, endpoints, or data fields.
+
+### Schema.org Data Model Mapping
+
+Every data entity MUST map to a schema.org type. The JSON-LD structured data in `src/app/layout.tsx` and `src/app/[location]/page.tsx` already implements these mappings. New entities must follow the same pattern.
+
+**Location → `schema.org/Place`:**
+
+| `WeatherLocation` field | schema.org property | Type | Standard |
+|-------------------------|---------------------|------|----------|
+| `slug` | `identifier` | string | URL-safe slug |
+| `name` | `name` | string | — |
+| `lat` | `geo.latitude` | number | WGS 84 |
+| `lon` | `geo.longitude` | number | WGS 84 |
+| `elevation` | `geo.elevation` | QuantitativeValue | UN/CEFACT unitCode: `MTR` |
+| `province` | `address.addressRegion` | string (PostalAddress) | — |
+| `country` | `address.addressCountry` | string | ISO 3166-1 alpha-2 |
+| `tags` | `additionalType` | string[] | Internal taxonomy |
+
+**Weather data → `schema.org/Observation`:**
+
+| Measurement | schema.org property | unitCode | unitText | Standard |
+|-------------|---------------------|----------|----------|----------|
+| Temperature | `PropertyValue` | `CEL` | °C | UN/CEFACT Rec 20 |
+| Wind speed | `PropertyValue` | `KMH` | km/h | UN/CEFACT Rec 20 |
+| Pressure | `PropertyValue` | `HPA` | hPa | UN/CEFACT Rec 20 |
+| Humidity | `PropertyValue` | `P1` | % | UN/CEFACT Rec 20 |
+| Precipitation | `PropertyValue` | `MMT` | mm | UN/CEFACT Rec 20 |
+| Wind direction | `PropertyValue` | `DD` | ° | UN/CEFACT Rec 20 |
+| Elevation | `QuantitativeValue` | `MTR` | metres | UN/CEFACT Rec 20 |
+| UV index | `PropertyValue` | — | — | WHO UV Index |
+
+**Other entities already mapped:**
+- App → `schema.org/WebApplication` (layout.tsx)
+- Company → `schema.org/Organization` (layout.tsx)
+- Site → `schema.org/WebSite` with `SearchAction` (layout.tsx)
+- Navigation → `schema.org/ItemList` / `SiteNavigationElement` (layout.tsx)
+- Breadcrumbs → `schema.org/BreadcrumbList` (layout.tsx, [location]/page.tsx)
+- FAQs → `schema.org/FAQPage` ([location]/page.tsx, help/page.tsx)
+- Country → `schema.org/Country` ([location]/page.tsx `containedInPlace`)
+
+### ISO Standards (Mandatory)
+
+| Domain | Standard | Usage |
+|--------|----------|-------|
+| Country codes | ISO 3166-1 alpha-2 | `WeatherLocation.country`, `Country.code`, `addressCountry` |
+| Date/time | ISO 8601 | All `time` arrays, `sunrise`/`sunset`, `datePublished`, `dateModified` |
+| Weather codes | WMO 4677 / 4680 | `weather_code` in hourly/daily/current data |
+| Measurement units | UN/CEFACT Rec 20 | All `unitCode` values in JSON-LD PropertyValue |
+| Language tags | IETF BCP 47 | `en-ZW`, `sn-ZW`, `nd-ZW` in i18n formatting |
+| Coordinates | WGS 84 | All `lat`/`lon` values (decimal degrees) |
+
+### OpenAPI Compliance
+
+The Python FastAPI backend auto-generates an **OpenAPI 3.1** specification from Pydantic models and route definitions.
+
+- **Development:** OpenAPI docs are available at `/api/py/docs` (Swagger UI), `/api/py/redoc` (ReDoc), and `/api/py/openapi.json` (raw schema). Disabled in production for security.
+- **Pydantic models** in `api/py/_*.py` files serve as the canonical API contract. All request/response shapes are defined via `BaseModel` subclasses.
+- **New endpoints** MUST define Pydantic request/response models — never use raw `dict` responses without a model.
+- **When adding a new data entity:** (1) identify its schema.org equivalent, (2) define a Pydantic model with field names matching schema.org where practical, (3) document the mapping in this section.
+
+### Rules
+
+1. **Schema.org first** — any new data entity must identify its schema.org equivalent before implementation. If no direct mapping exists, use the closest parent type and document the extension in this section.
+2. **ISO standards always** — country codes are ISO 3166-1, dates are ISO 8601, coordinates are WGS 84, units follow UN/CEFACT Rec 20. No custom formats.
+3. **OpenAPI as contract** — all API endpoints expose their schema via Pydantic models. The auto-generated OpenAPI spec is the source of truth for API consumers.
+4. **JSON-LD in pages** — all public-facing pages include schema.org JSON-LD structured data. New page types must add appropriate schemas.
+5. **Unit codes are explicit** — weather measurements always carry their `unitCode` in JSON-LD output, never bare numbers without context.
+
 ## Premium / Subscription Model
 
 **Business model:** All weather data is free. Premium is a single paid plan that unlocks interactive map layers.
@@ -1344,7 +1428,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 
 **Map data providers:**
 - **Tomorrow.io** — Radar satellite constellation with growing Africa coverage. 60+ data layers including precipitation, cloud, wind. Primary source for all premium map tile layers. API key stored in MongoDB (not env vars).
-- **Base map tiles:** OpenStreetMap (free, no key) via Leaflet
+- **Base map tiles:** Mapbox (raster tiles, proxied via `/api/py/map-tiles/base` to keep access token server-side). Theme-aware: `streets-v12` for light mode, `dark-v11` for dark mode. API key stored in MongoDB `api_keys` collection
 
 **Map technical notes:**
 - Leaflet/react-leaflet must be loaded as a `"use client"` component with `next/dynamic` and `ssr: false` (Leaflet requires the DOM)
