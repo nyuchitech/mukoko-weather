@@ -252,8 +252,9 @@ export async function ensureIndexes(): Promise<void> {
     tagsCollection().createIndex({ slug: 1 }, { unique: true }),
     tagsCollection().createIndex({ featured: 1, order: 1 }),
 
-    // Seasons: by countryCode for date lookups
+    // Seasons: by countryCode for date lookups, TTL for AI-generated entries
     seasonsCollection().createIndex({ countryCode: 1 }),
+    seasonsCollection().createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
 
     // Activity categories: by id (unique), by order for display
     activityCategoriesCollection().createIndex({ id: 1 }, { unique: true }),

@@ -140,6 +140,9 @@ def _get_client() -> anthropic.Anthropic:
 # ---------------------------------------------------------------------------
 
 
+_COUNTRY_CODE_RE = re.compile(r"^[A-Z]{2,3}$")
+
+
 def _resolve_seasons_with_ai(
     country_code: str,
     lat: float = 0.0,
@@ -151,6 +154,11 @@ def _resolve_seasons_with_ai(
     response, and stores the result in MongoDB for future lookups. Returns the
     list of season docs on success, or None if AI is unavailable/invalid.
     """
+    # Validate ISO 3166-1 alpha-2/alpha-3 format to prevent prompt injection
+    if not _COUNTRY_CODE_RE.match(country_code.upper()):
+        logger.warning("Invalid country code rejected: %r", country_code[:20])
+        return None
+
     client = _get_client()
     if not client or not anthropic_breaker.is_allowed:
         return None
@@ -219,10 +227,16 @@ def _resolve_seasons_with_ai(
             logger.warning("AI season resolution for %s: incomplete or overlapping month coverage", country_code)
             return None
 
-        # Store in MongoDB for future lookups
+        # Store in MongoDB for future lookups.
+        # AI-generated seasons get verified=False and a 30-day TTL so they
+        # expire and refresh automatically. Manually verified records
+        # (verified=True) should omit expiresAt to persist permanently.
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         try:
             db = get_db()
             for doc in valid:
+                doc["verified"] = False
+                doc["expiresAt"] = expires_at
                 db["seasons"].update_one(
                     {"countryCode": doc["countryCode"], "name": doc["name"]},
                     {"$set": doc},
@@ -298,22 +312,37 @@ def _get_season(country: str = "", lat: float = 0.0, lon: float = 0.0) -> dict:
     return _hemisphere_fallback(lat)
 
 
+# Countries currently being resolved in background threads — prevents
+# duplicate Claude calls when multiple requests arrive before DB is seeded.
+_resolution_in_progress: set[str] = set()
+
+
 def _trigger_background_season_resolution(
     country_code: str, lat: float, lon: float
 ) -> None:
     """Fire-and-forget AI season resolution in a background thread.
 
-    On Vercel serverless, daemon threads are best-effort — the process may
-    terminate after the response. If it does, the next _get_season call for
-    this country will re-trigger enrichment via the same flow.
+    Uses a module-level in-progress set to prevent duplicate Claude calls
+    for the same country under concurrent traffic. On Vercel serverless,
+    daemon threads are best-effort — the process may terminate after the
+    response. If it does, the next _get_season call for this country will
+    re-trigger enrichment via the same flow.
     """
     import threading
+
+    key = country_code.upper()
+    if key in _resolution_in_progress:
+        return
+
+    _resolution_in_progress.add(key)
 
     def _run() -> None:
         try:
             _resolve_seasons_with_ai(country_code, lat, lon)
         except Exception:
             logger.debug("Background season resolution skipped for %s", country_code)
+        finally:
+            _resolution_in_progress.discard(key)
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
