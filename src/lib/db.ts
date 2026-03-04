@@ -1318,6 +1318,12 @@ export async function getFeaturedTagsFromDb(): Promise<TagDoc[]> {
 // ---------------------------------------------------------------------------
 
 export async function syncSeasons(seasons: SeasonDoc[]): Promise<void> {
+  // Migrate: rename old "shona" field to "localName" on any pre-existing docs
+  await seasonsCollection().updateMany(
+    { shona: { $exists: true }, localName: { $exists: false } },
+    [{ $set: { localName: "$shona" } }, { $unset: "shona" }],
+  );
+
   const bulkOps = seasons.map((s) => ({
     updateOne: {
       filter: { countryCode: s.countryCode, name: s.name },
@@ -1359,7 +1365,10 @@ export async function getSeasonForDate(
     if (countryCode) {
       const doc = await getSeasonFromDb(date, countryCode);
       if (doc) {
-        return { name: doc.name, localName: doc.localName, description: doc.description };
+        // Guard: old pre-migration docs may have "shona" instead of "localName"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const localName = doc.localName || (doc as any).shona as string || doc.name;
+        return { name: doc.name, localName, description: doc.description };
       }
     }
   } catch {

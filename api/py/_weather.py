@@ -270,7 +270,10 @@ def _create_fallback_weather(lat: float, lon: float, elevation: int) -> dict:
         else:  # Winter
             temp, code = 5, 0
 
-    # Tropical adjustment: locations within ±10° of equator have minimal seasonal variation
+    # Tropical adjustment: locations within ±10° of equator have minimal seasonal
+    # variation. Uses code=2 (partly cloudy) year-round — a known simplification
+    # that doesn't distinguish wet/dry or monsoon seasons (e.g., Lagos, Colombo).
+    # This only fires as a last resort when all weather providers fail.
     if abs(lat) < 10:
         temp = 28
         code = 2

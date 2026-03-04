@@ -36,10 +36,19 @@ export interface WeatherLocation {
 }
 
 /**
- * Location tag — any string slug from the database `tags` collection.
- * New tags can be added via db-init without code changes.
+ * Location tag — known seed tags get compile-time validation, while the
+ * `string & {}` escape hatch allows DB-driven tags without code changes.
  */
-export type LocationTag = string;
+export type LocationTag =
+  | "city"
+  | "farming"
+  | "mining"
+  | "tourism"
+  | "education"
+  | "border"
+  | "travel"
+  | "national-park"
+  | (string & {});
 
 
 /** Zimbabwe seed locations (ZW) — part of the global seed location set. */

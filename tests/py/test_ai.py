@@ -16,6 +16,7 @@ from py._ai import (
     _resolve_seasons_with_ai,
     _trigger_background_season_resolution,
     _resolution_in_progress,
+    _resolution_lock,
     _COUNTRY_CODE_RE,
     _hemisphere_fallback,
     _is_stale,

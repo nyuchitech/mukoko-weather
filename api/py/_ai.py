@@ -323,6 +323,7 @@ def _get_season(country: str = "", lat: float = 0.0, lon: float = 0.0) -> dict:
 # Countries currently being resolved in background threads — prevents
 # duplicate Claude calls when multiple requests arrive before DB is seeded.
 _resolution_in_progress: set[str] = set()
+_resolution_lock = __import__("threading").Lock()
 
 
 def _trigger_background_season_resolution(
@@ -330,19 +331,20 @@ def _trigger_background_season_resolution(
 ) -> None:
     """Fire-and-forget AI season resolution in a background thread.
 
-    Uses a module-level in-progress set to prevent duplicate Claude calls
-    for the same country under concurrent traffic. On Vercel serverless,
-    daemon threads are best-effort — the process may terminate after the
-    response. If it does, the next _get_season call for this country will
-    re-trigger enrichment via the same flow.
+    Uses a module-level in-progress set (guarded by a lock to prevent
+    TOCTOU races) to deduplicate concurrent Claude calls for the same
+    country. On Vercel serverless, daemon threads are best-effort — the
+    process may terminate after the response. If it does, the next
+    _get_season call for this country will re-trigger enrichment.
     """
     import threading
 
     key = country_code.upper()
-    if key in _resolution_in_progress:
-        return
+    with _resolution_lock:
+        if key in _resolution_in_progress:
+            return
+        _resolution_in_progress.add(key)
 
-    _resolution_in_progress.add(key)
     logger.info("Starting background season resolution for %s (%.1f, %.1f)", key, lat, lon)
 
     def _run() -> None:
@@ -352,7 +354,8 @@ def _trigger_background_season_resolution(
         except Exception:
             logger.debug("Background season resolution skipped for %s", country_code)
         finally:
-            _resolution_in_progress.discard(key)
+            with _resolution_lock:
+                _resolution_in_progress.discard(key)
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()

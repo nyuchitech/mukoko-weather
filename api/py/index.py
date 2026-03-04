@@ -39,9 +39,13 @@ from ._db import get_db
 # App setup
 # ---------------------------------------------------------------------------
 
-# OpenAPI docs are only available in local dev. Disabled in production and
-# preview deploys (preview URLs are publicly accessible in PRs).
-_hide_docs = os.environ.get("VERCEL_ENV") in ("production", "preview")
+# OpenAPI docs are only available in local dev. Disabled in production,
+# preview deploys (preview URLs are publicly accessible in PRs), and
+# any platform where HIDE_API_DOCS=true (Docker, Railway, Fly.io, etc.).
+_hide_docs = (
+    os.environ.get("VERCEL_ENV") in ("production", "preview")
+    or os.environ.get("HIDE_API_DOCS", "").lower() in ("true", "1", "yes")
+)
 
 app = FastAPI(
     title="mukoko weather API",
