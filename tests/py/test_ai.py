@@ -625,6 +625,27 @@ class TestResolveSeasonsWithAi:
         assert result is None
         mock_breaker.record_failure.assert_called_once()
 
+    @patch("py._ai.anthropic_breaker")
+    @patch("py._ai._get_client")
+    def test_json_parse_error_does_not_trip_breaker(self, mock_client, mock_breaker):
+        """JSON parse errors in the response should NOT trip the circuit breaker."""
+        mock_breaker.is_allowed = True
+
+        text_block = MagicMock()
+        text_block.text = "not valid json at all"
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        mock_ai_client = MagicMock()
+        mock_ai_client.messages.create.return_value = mock_message
+        mock_client.return_value = mock_ai_client
+
+        result = _resolve_seasons_with_ai("XX", 0.0, 0.0)
+        assert result is None
+        # API call succeeded — breaker should record success, not failure
+        mock_breaker.record_success.assert_called_once()
+        mock_breaker.record_failure.assert_not_called()
+
     @patch("py._ai.get_db")
     @patch("py._ai.anthropic_breaker")
     @patch("py._ai._get_client")

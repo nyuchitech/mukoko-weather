@@ -1258,8 +1258,31 @@ class TestReverseGeocodeNominatimAddress:
         assert "displayName" in na
 
     @patch("py._locations._get_http")
-    def test_zoom_18_in_request(self, mock_http):
-        """Verify Nominatim request uses zoom=18."""
+    def test_default_zoom_14_for_privacy(self, mock_http):
+        """Default zoom=14 (suburb level) for GPS auto-creation privacy."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "lat": "-17.83",
+            "lon": "31.05",
+            "name": "Avondale",
+            "address": {
+                "city": "Harare",
+                "state": "Harare",
+                "country": "Zimbabwe",
+                "country_code": "zw",
+            },
+        }
+        mock_http.return_value.get.return_value = mock_resp
+
+        _reverse_geocode(-17.83, 31.05)
+        call_args = mock_http.return_value.get.call_args
+        params = call_args.kwargs.get("params", call_args[1].get("params", {}))
+        assert params.get("zoom") == 14
+
+    @patch("py._locations._get_http")
+    def test_zoom_18_for_explicit_search(self, mock_http):
+        """Explicit zoom=18 for named search queries (POI-level specificity)."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -1275,7 +1298,7 @@ class TestReverseGeocodeNominatimAddress:
         }
         mock_http.return_value.get.return_value = mock_resp
 
-        _reverse_geocode(-17.83, 31.05)
+        _reverse_geocode(-17.83, 31.05, zoom=18)
         call_args = mock_http.return_value.get.call_args
         params = call_args.kwargs.get("params", call_args[1].get("params", {}))
         assert params.get("zoom") == 18

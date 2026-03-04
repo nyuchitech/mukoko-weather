@@ -597,7 +597,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 - **All locations**: require `slug`, `name`, `province`, `lat`, `lon`, `elevation`, `tags`, and `country` (ISO 3166-1 alpha-2). New locations use `{city}-{country_lowercase}` slug format (e.g., `nairobi-ke`, `bangkok-th`); legacy ZW seed locations use short slugs (e.g., `harare`). Coordinates validated within global bounds (-90/90 lat, -180/180 lon).
 - **Source field:** `"seed"` for curated data, `"community"` for user-submitted, `"geolocation"` for auto-detected.
 
-**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim (zoom=18, building/POI level) for specific place names, structured addresses, and administrative divisions.
+**Community locations:** Dynamically created via geolocation auto-detection or `/api/locations/add`. Stored in MongoDB alongside seed locations. Reverse-geocoded via Nominatim — zoom=14 (suburb level) for GPS auto-creation to protect user privacy, zoom=18 (building/POI level) for explicit coordinate submissions where specificity is expected.
 
 **Structured address storage:** Community/geolocation locations store a `nominatimAddress` object with formal address fields from Nominatim: `road`, `suburb`, `cityDistrict`, `city`, `state`, `stateDistrict`, `county`, `postcode`, `country`, `countryCode`, `displayName`. This enables three-layer breadcrumbs (Country / Province / Location) and contextual display in cards and info panels. TypeScript type: `NominatimAddress` in `src/lib/locations.ts`.
 
@@ -609,7 +609,7 @@ All data handling, AI operations, database CRUD, and rule evaluation run in Pyth
 
 **Global coverage:** The app is fully global — any valid WGS 84 coordinates are accepted. No geographic region restrictions are enforced. Region reference data is retained in `seed-regions.ts` for analytics and map centering but does not block location creation.
 
-**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name, zoom=18 for POI-level specificity), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
+**Geocoding:** Handled server-side in Python (`api/py/_locations.py`) — Nominatim for reverse geocoding (coords → name, zoom=14 default for GPS auto-creation, zoom=18 for explicit add), Open-Meteo for forward geocoding (name → candidates), Open-Meteo for elevation lookup. Slug generation creates URL-safe slugs (appends country code for non-ZW locations).
 
 **Rate limiting:** MongoDB-backed IP rate limiter in Python (`api/py/_db.py` `check_rate_limit`). 5 location creations/hour/IP. Uses atomic `findOneAndUpdate` with TTL index.
 

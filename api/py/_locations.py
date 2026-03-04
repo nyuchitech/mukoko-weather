@@ -327,12 +327,15 @@ def _build_nominatim_address(address: dict, country_code: str, display_name: str
     }
 
 
-def _reverse_geocode(lat: float, lon: float) -> dict | None:
+def _reverse_geocode(lat: float, lon: float, *, zoom: int = 14) -> dict | None:
     """Reverse geocode using Nominatim.
 
-    Uses zoom=18 (building/POI level) to get the most specific place name
-    available — landmarks, schools, roads, suburbs. Stores the full
-    structured Nominatim address for contextual display.
+    Args:
+        zoom: Nominatim zoom level (10=city, 14=suburb, 18=building/POI).
+              Defaults to 14 (suburb level) as a privacy-safe default.
+              Use zoom=18 only for explicit named search queries where
+              POI-level specificity is expected. GPS auto-creation uses
+              the default to avoid storing exact home addresses.
     """
     client = _get_http()
     try:
@@ -342,7 +345,7 @@ def _reverse_geocode(lat: float, lon: float) -> dict | None:
                 "lat": str(lat),
                 "lon": str(lon),
                 "format": "jsonv2",
-                "zoom": 18,
+                "zoom": zoom,
                 "accept-language": "en",
             },
             headers={"User-Agent": "mukoko-weather/2.0 (support@mukoko.com)"},
@@ -702,6 +705,8 @@ def _enrich_location_with_ai(country_code: str, lat: float, lon: float) -> None:
     """
     import threading
 
+    logger.info("Starting AI location enrichment for %s (%.1f, %.1f)", country_code, lat, lon)
+
     def _run() -> None:
         try:
             db = get_db()
@@ -767,8 +772,8 @@ async def add_location(request: Request):
         if not rate["allowed"]:
             raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
-        # Reverse geocode first so we know the country for dedup radius
-        geocoded = _reverse_geocode(lat, lon)
+        # Reverse geocode with POI-level zoom — user explicitly chose coords
+        geocoded = _reverse_geocode(lat, lon, zoom=18)
         if not geocoded:
             raise HTTPException(status_code=422, detail="Could not determine location name")
 

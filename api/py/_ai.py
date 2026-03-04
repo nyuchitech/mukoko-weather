@@ -163,6 +163,7 @@ def _resolve_seasons_with_ai(
     if not client or not anthropic_breaker.is_allowed:
         return None
 
+    # --- Anthropic API call (circuit breaker scoped here only) ---
     try:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
@@ -186,7 +187,14 @@ def _resolve_seasons_with_ai(
             }],
         )
         anthropic_breaker.record_success()
+    except Exception:
+        # Only trip breaker on actual Anthropic API failures — not JSON
+        # parse errors, dict key errors, or MongoDB write failures.
+        anthropic_breaker.record_failure()
+        return None
 
+    # --- Response parsing + validation (errors here are soft, not breaker) ---
+    try:
         text = response.content[0].text.strip()
         # Extract JSON array from response
         if text.startswith("["):
@@ -248,7 +256,7 @@ def _resolve_seasons_with_ai(
         return valid
 
     except Exception:
-        anthropic_breaker.record_failure()
+        logger.warning("Season parsing/validation failed for %s", country_code)
         return None
 
 
@@ -335,10 +343,12 @@ def _trigger_background_season_resolution(
         return
 
     _resolution_in_progress.add(key)
+    logger.info("Starting background season resolution for %s (%.1f, %.1f)", key, lat, lon)
 
     def _run() -> None:
         try:
             _resolve_seasons_with_ai(country_code, lat, lon)
+            logger.info("Background season resolution completed for %s", key)
         except Exception:
             logger.debug("Background season resolution skipped for %s", country_code)
         finally:
