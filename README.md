@@ -239,10 +239,10 @@ src/
     explore/                # Shamwari chatbot + AI explore search
     layout/                 # Header (pill icon group), HeaderSkeleton, Footer
     weather/
-      CurrentConditions.tsx  # Large temp display, feels-like, stats grid
+      CurrentConditions.tsx  # Large temp display, feels-like, daily high/low
       HourlyForecast.tsx     # 24-hour hourly forecast
       DailyForecast.tsx      # 7-day forecast cards
-      AtmosphericSummary.tsx # 2x3 compact metric cards
+      AtmosphericSummary.tsx # 7 compact metric cards with gauges (eager-loaded)
       AtmosphericDetails.tsx # 4x 24h atmospheric charts
       LazySection.tsx        # TikTok-style sequential lazy-load
       ChartErrorBoundary.tsx # Error boundary for crash isolation

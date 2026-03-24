@@ -84,19 +84,16 @@ describe("CurrentConditions — share button accessibility", () => {
   });
 });
 
-describe("CurrentConditions — stats grid accessibility", () => {
-  it("stats grid has role=\"list\" for semantic grouping", () => {
-    expect(source).toContain('role="list"');
-    expect(source).toContain('aria-label="Weather statistics"');
-  });
-
-  it("QuickStat items have role=\"listitem\"", () => {
-    expect(source).toContain('role="listitem"');
-  });
-
+describe("CurrentConditions — temperature accessibility", () => {
   it("temperature display has aria-label with unit", () => {
     expect(source).toContain("degrees Celsius");
     expect(source).toContain("aria-label");
+  });
+
+  it("does not render inline stat boxes (consolidated into AtmosphericSummary)", () => {
+    expect(source).not.toContain("QuickStat");
+    expect(source).not.toContain('role="list"');
+    expect(source).not.toContain('role="listitem"');
   });
 });
 

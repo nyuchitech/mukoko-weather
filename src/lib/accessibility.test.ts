@@ -50,8 +50,8 @@ describe("Sections — aria-labelledby", () => {
     expect(weatherDashboard).toContain('aria-label="Breadcrumb"');
   });
 
-  it("WeatherDashboard stats section has aria-label for screen readers", () => {
-    expect(currentConditions).toContain('aria-label="Weather statistics"');
+  it("CurrentConditions no longer contains inline stats (moved to gauge cards)", () => {
+    expect(currentConditions).not.toContain('aria-label="Weather statistics"');
   });
 });
 
@@ -121,12 +121,9 @@ describe("Touch targets — 44px minimum", () => {
 });
 
 describe("Semantic structure — lists", () => {
-  it("CurrentConditions stats grid uses role=\"list\"", () => {
-    expect(currentConditions).toContain('role="list"');
-  });
-
-  it("CurrentConditions stats items use role=\"listitem\"", () => {
-    expect(currentConditions).toContain('role="listitem"');
+  it("CurrentConditions does not render inline stat boxes (moved to AtmosphericSummary gauges)", () => {
+    expect(currentConditions).not.toContain('role="list"');
+    expect(currentConditions).not.toContain('role="listitem"');
   });
 
   it("WeatherDashboard breadcrumb uses <ol> for ordered list", () => {

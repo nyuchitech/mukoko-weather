@@ -191,7 +191,7 @@ export function AISummaryChatSkeleton() {
 
 // ---------------------------------------------------------------------------
 // Atmospheric Summary skeleton
-// Matches: SectionHeader + 2×3 grid of MetricCards
+// Matches: SectionHeader + grid of 7 MetricCards
 // ---------------------------------------------------------------------------
 
 export function AtmosphericSummarySkeleton() {
@@ -204,7 +204,7 @@ export function AtmosphericSummarySkeleton() {
       </div>
       {/* 2×3 grid of metric cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 7 }).map((_, i) => (
           <MetricCardSkeleton key={i} />
         ))}
       </div>
