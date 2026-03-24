@@ -20,7 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/lib/use-debounce";
-import { cn } from "@/lib/utils";
+import { cn, slugToDisplayName } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 
 /** Default category style for unknown categories */
@@ -247,7 +247,7 @@ function SavedTab({
     setEditingSlug(null);
   }, [setLocationLabel]);
 
-  const titleCase = (s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const titleCase = slugToDisplayName;
 
   return (
     <div className="flex flex-col gap-2">

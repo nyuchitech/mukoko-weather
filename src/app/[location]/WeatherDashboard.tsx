@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CurrentConditions } from "@/components/weather/CurrentConditions";
+import { HourlyScrollCards } from "@/components/weather/HourlyScrollCards";
 import { SeasonBadge } from "@/components/weather/SeasonBadge";
 import { LazySection } from "@/components/weather/LazySection";
 import { ChartErrorBoundary } from "@/components/weather/ChartErrorBoundary";
@@ -178,6 +179,9 @@ export function WeatherDashboard({
         <div className="grid gap-8 lg:grid-cols-3 lg:gap-10">
           {/* Primary content — lg:col-span-2 */}
           <div className="min-w-0 space-y-8 lg:col-span-2">
+            <ChartErrorBoundary name="hourly scroll cards">
+              <HourlyScrollCards hourly={weather.hourly} />
+            </ChartErrorBoundary>
             <ChartErrorBoundary name="current conditions">
               <CurrentConditions
                 current={weather.current}

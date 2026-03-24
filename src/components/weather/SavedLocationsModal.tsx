@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogSheetHandle, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trackEvent } from "@/lib/analytics";
-import { formatCoords } from "@/lib/utils";
+import { formatCoords, slugToDisplayName } from "@/lib/utils";
 
 export function SavedLocationsModal() {
   const savedLocationsOpen = useAppStore((s) => s.savedLocationsOpen);
@@ -263,9 +263,9 @@ function SavedLocationsList({
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
             if (data?.location) return [slug, data.location] as const;
-            return [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const;
+            return [slug, { slug, name: slugToDisplayName(slug), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const;
           })
-          .catch(() => [slug, { slug, name: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const),
+          .catch(() => [slug, { slug, name: slugToDisplayName(slug), province: "", lat: 0, lon: 0, elevation: 0, tags: [] }] as const),
       ),
     ).then((entries) => {
       const map: Record<string, WeatherLocation> = {};
