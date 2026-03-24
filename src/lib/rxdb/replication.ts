@@ -10,14 +10,13 @@
 import { replicateRxCollection, type RxReplicationState } from "rxdb/plugins/replication";
 import { preferencesCollection, suitabilityRulesCollection } from "./collections";
 import { getDeviceId } from "./bridge";
-import type { PreferencesDocType, SuitabilityRuleDocType } from "./schemas";
+import type { PreferencesDocType } from "./schemas";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const API_BASE = "/api/py";
-const PREFS_PULL_INTERVAL_MS = 60_000; // 1 min
 const RULES_PULL_INTERVAL_MS = 10 * 60_000; // 10 min
 
 // ---------------------------------------------------------------------------

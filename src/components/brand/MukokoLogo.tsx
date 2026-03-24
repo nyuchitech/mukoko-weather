@@ -1,7 +1,7 @@
 export function MukokoLogo({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`font-heading font-semibold tracking-tight inline-flex items-center gap-1.5 ${className}`}
+      className={`font-heading font-bold tracking-tight inline-flex items-center gap-1.5 ${className}`}
       aria-label="mukoko weather"
     >
       <svg

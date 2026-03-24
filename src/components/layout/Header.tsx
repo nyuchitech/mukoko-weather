@@ -31,9 +31,9 @@ function HomeIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function CompassIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+function CompassIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
     </svg>
@@ -77,8 +77,9 @@ export function Header() {
         role="banner"
       >
         <nav aria-label="Primary navigation" className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:px-6 md:px-8">
-          <div className="flex min-w-0 shrink items-center gap-4">
-            <Link href="/" aria-label="mukoko weather — return to home page">
+          {/* Logo/wordmark — centered on mobile via flex-1 spacer balance */}
+          <div className="flex flex-1 min-w-0 items-center sm:flex-none">
+            <Link href="/" aria-label="mukoko weather — return to home page" className="mx-auto sm:mx-0">
               <MukokoLogo className="text-[16px] sm:text-[20px]" />
             </Link>
           </div>
@@ -114,20 +115,12 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Action pill — 3 distinct quick actions: Explore, Maps, My Weather */}
+          {/* Action pill — 3 quick actions: Maps, Report, My Weather */}
           <div
             className="flex shrink-0 items-center gap-1 rounded-full bg-primary p-1"
             role="toolbar"
             aria-label="Quick actions"
           >
-            <Link
-              href="/explore"
-              prefetch={false}
-              aria-label="Explore locations"
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-background/10 hover:bg-background/20 active:bg-background/30 active:scale-90 transition-all"
-            >
-              <CompassIcon size={18} className="text-primary-foreground" />
-            </Link>
             <Link
               href={`/${selectedLocation || "harare"}/map`}
               prefetch={false}
