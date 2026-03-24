@@ -248,7 +248,7 @@ describe("SavedLocationsModal — custom labels", () => {
 
 describe("SavedLocationsModal — accessibility", () => {
   it("uses minimum 44px touch targets", () => {
-    expect(source).toContain("min-h-[48px]");
+    expect(source).toContain("min-h-[var(--touch-target-min)]");
   });
 
   it("has aria-labels on interactive elements", () => {

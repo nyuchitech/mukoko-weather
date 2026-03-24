@@ -71,8 +71,8 @@ describe("CurrentConditions — share button accessibility", () => {
   });
 
   it("share button meets 44px minimum touch target", () => {
-    expect(source).toContain("min-h-[48px]");
-    expect(source).toContain("min-w-[48px]");
+    expect(source).toContain("min-h-[var(--touch-target-min)]");
+    expect(source).toContain("min-w-[var(--touch-target-min)]");
   });
 
   it("ShareIcon is aria-hidden to avoid duplicate label", () => {

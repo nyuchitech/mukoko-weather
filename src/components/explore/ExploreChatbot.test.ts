@@ -125,7 +125,7 @@ describe("suggested prompts", () => {
   });
 
   it("suggestion buttons meet 44px touch target", () => {
-    expect(source).toContain("min-h-[48px]");
+    expect(source).toContain("min-h-[var(--touch-target-min)]");
   });
 });
 

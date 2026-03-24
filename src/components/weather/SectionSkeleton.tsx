@@ -115,7 +115,7 @@ export function DailyForecastSkeleton() {
       {/* 7 daily rows */}
       <div className="mt-5 space-y-3">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5 min-h-[48px] sm:gap-4">
+          <div key={i} className="flex items-center gap-3 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5 min-h-[var(--touch-target-min)] sm:gap-4">
             {/* Day + date */}
             <div className="flex w-12 shrink-0 flex-col items-center gap-1 sm:w-14">
               <Skeleton className="h-3.5 w-8" />
@@ -178,7 +178,7 @@ export function AISummaryChatSkeleton() {
       aria-label="Loading follow-up chat"
     >
       {/* Collapsed header */}
-      <div className="flex items-center justify-between px-4 py-3 min-h-[48px]">
+      <div className="flex items-center justify-between px-4 py-3 min-h-[var(--touch-target-min)]">
         <div className="flex items-center gap-2">
           <Skeleton className="h-5 w-5 rounded" />
           <Skeleton className="h-5 w-48" />
