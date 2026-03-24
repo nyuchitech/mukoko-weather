@@ -446,6 +446,32 @@ def _generate_province_slug(province: str, country: str) -> str:
     return f"{slug}-{country.lower()}"[:80]
 
 
+def _resolve_slug_collision(slug: str, geocoded: dict) -> str:
+    """Try suburb/road enriched slugs before falling back to numeric suffix."""
+    existing = locations_collection().find_one({"slug": slug})
+    if not existing:
+        return slug
+
+    address = geocoded.get("nominatimAddress", {})
+    # Try suburb-enriched slug
+    suburb = address.get("suburb") or address.get("cityDistrict") or ""
+    if suburb and suburb.lower() != geocoded["name"].lower():
+        enriched = _generate_slug(suburb, geocoded["country"])
+        if not locations_collection().find_one({"slug": enriched}):
+            return enriched
+    # Try road-enriched slug
+    road = address.get("road") or ""
+    if road and road.lower() != geocoded["name"].lower():
+        enriched = _generate_slug(road, geocoded["country"])
+        if not locations_collection().find_one({"slug": enriched}):
+            return enriched
+    # Last resort: numeric suffix
+    suffix = 2
+    while locations_collection().find_one({"slug": f"{slug}-{suffix}"}):
+        suffix += 1
+    return f"{slug}-{suffix}"
+
+
 def _infer_tags(geocoded: dict) -> list[str]:
     """Infer tags from geocoded location data."""
     tags = []
@@ -636,31 +662,7 @@ async def geo_lookup(
                 upsert=True,
             )
 
-            # Handle slug collisions — prefer descriptive slugs over numeric suffixes
-            existing = locations_collection().find_one({"slug": slug})
-            if existing:
-                address = geocoded.get("nominatimAddress", {})
-                # Try suburb-enriched slug
-                suburb = address.get("suburb") or address.get("cityDistrict") or ""
-                if suburb and suburb.lower() != geocoded["name"].lower():
-                    enriched = _generate_slug(suburb, geocoded["country"])
-                    if not locations_collection().find_one({"slug": enriched}):
-                        slug = enriched
-                        existing = None
-                # Try road-enriched slug
-                if existing:
-                    road = address.get("road") or ""
-                    if road and road.lower() != geocoded["name"].lower():
-                        enriched = _generate_slug(road, geocoded["country"])
-                        if not locations_collection().find_one({"slug": enriched}):
-                            slug = enriched
-                            existing = None
-                # Last resort: numeric suffix
-                if existing:
-                    suffix = 2
-                    while locations_collection().find_one({"slug": f"{slug}-{suffix}"}):
-                        suffix += 1
-                    slug = f"{slug}-{suffix}"
+            slug = _resolve_slug_collision(slug, geocoded)
 
             tags = _infer_tags(geocoded)
 
@@ -819,31 +821,7 @@ async def add_location(request: Request):
 
         slug = _generate_slug(geocoded["name"], geocoded["country"])
 
-        # Slug collision handling — prefer descriptive slugs over numeric suffixes
-        existing = locations_collection().find_one({"slug": slug})
-        if existing:
-            address = geocoded.get("nominatimAddress", {})
-            # Try suburb-enriched slug
-            suburb = address.get("suburb") or address.get("cityDistrict") or ""
-            if suburb and suburb.lower() != geocoded["name"].lower():
-                enriched = _generate_slug(suburb, geocoded["country"])
-                if not locations_collection().find_one({"slug": enriched}):
-                    slug = enriched
-                    existing = None
-            # Try road-enriched slug
-            if existing:
-                road = address.get("road") or ""
-                if road and road.lower() != geocoded["name"].lower():
-                    enriched = _generate_slug(road, geocoded["country"])
-                    if not locations_collection().find_one({"slug": enriched}):
-                        slug = enriched
-                        existing = None
-            # Last resort: numeric suffix
-            if existing:
-                suffix = 2
-                while locations_collection().find_one({"slug": f"{slug}-{suffix}"}):
-                    suffix += 1
-                slug = f"{slug}-{suffix}"
+        slug = _resolve_slug_collision(slug, geocoded)
 
         province = geocoded.get("admin1") or geocoded.get("countryName", "")
         province_slug = _generate_province_slug(province, geocoded["country"])

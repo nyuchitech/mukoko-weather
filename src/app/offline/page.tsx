@@ -16,22 +16,22 @@ export default function OfflinePage() {
         <div className="text-6xl" aria-hidden="true">
           ☁️
         </div>
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-2xl font-bold text-text-primary">
           You&apos;re offline
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-text-secondary">
           mukoko weather needs an internet connection to fetch the latest data.
           Previously viewed locations may still be available from cache.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/"
-            className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground"
+            className="inline-flex min-h-[var(--touch-target-min)] items-center justify-center rounded-[var(--radius-button)] bg-primary px-6 text-base font-medium text-primary-foreground"
           >
             Try again
           </Link>
         </div>
-        <p className="text-xs text-muted-foreground/60">
+        <p className="text-xs text-text-tertiary">
           Tip: Save your favourite locations for offline access
         </p>
       </div>

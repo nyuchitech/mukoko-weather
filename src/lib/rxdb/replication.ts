@@ -74,6 +74,9 @@ async function startPrefsReplication(): Promise<void> {
 
     pull: {
       handler: async (lastCheckpoint, batchSize) => {
+        // Checkpoint intentionally discarded — the device profile is a single
+        // small document, not a paginated collection. Every pull fetches the
+        // full profile, so incremental pull optimization doesn't apply here.
         void lastCheckpoint;
         void batchSize;
 

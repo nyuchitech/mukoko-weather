@@ -29,7 +29,6 @@ export function cloudLabel(c: number): string {
   return "Overcast";
 }
 
-/** Describe the feels-like temperature relative to actual */
 /** Map precipitation (mm) to a human-readable intensity label */
 export function precipitationLabel(p: number): string {
   if (p === 0) return "None";

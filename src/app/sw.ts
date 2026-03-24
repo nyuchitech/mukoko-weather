@@ -35,6 +35,17 @@ const serwist = new Serwist({
   navigationPreload: true,
   disableDevLogs: true,
 
+  fallbacks: {
+    entries: [
+      {
+        url: "/offline",
+        matcher({ request }) {
+          return request.destination === "document";
+        },
+      },
+    ],
+  },
+
   runtimeCaching: [
     // Static assets — CacheFirst (immutable, content-hashed by Next.js)
     {

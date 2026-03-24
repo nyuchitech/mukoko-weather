@@ -20,6 +20,7 @@ from py._locations import (
     _build_nominatim_address,
     _find_duplicate,
     _enrich_location_with_ai,
+    _resolve_slug_collision,
     _CITY_STATES,
     list_locations,
     search_locations,
@@ -1395,3 +1396,95 @@ class TestReverseGeocodeNominatimAddress:
         call_args = mock_http.return_value.get.call_args
         params = call_args.kwargs.get("params", call_args[1].get("params", {}))
         assert params.get("zoom") == 18
+
+
+# ---------------------------------------------------------------------------
+# _resolve_slug_collision
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSlugCollision:
+    @patch("py._locations.locations_collection")
+    def test_no_collision_returns_original(self, mock_col):
+        mock_col.return_value.find_one.return_value = None
+        geocoded = {"name": "Harare", "country": "ZW", "nominatimAddress": {}}
+        result = _resolve_slug_collision("harare-zw", geocoded)
+        assert result == "harare-zw"
+
+    @patch("py._locations.locations_collection")
+    def test_suburb_enriched_slug(self, mock_col):
+        """When base slug collides, try suburb-enriched slug."""
+        def find_one_side(query):
+            slug = query.get("slug", "")
+            if slug == "harare-zw":
+                return {"slug": "harare-zw"}  # collision
+            return None  # suburb slug is free
+
+        mock_col.return_value.find_one.side_effect = find_one_side
+        geocoded = {
+            "name": "Harare",
+            "country": "ZW",
+            "nominatimAddress": {"suburb": "Avondale", "road": "King George Rd"},
+        }
+        result = _resolve_slug_collision("harare-zw", geocoded)
+        assert result == "avondale-zw"
+
+    @patch("py._locations.locations_collection")
+    def test_road_enriched_slug_when_suburb_also_collides(self, mock_col):
+        """When both base and suburb collide, try road-enriched slug."""
+        def find_one_side(query):
+            slug = query.get("slug", "")
+            if slug in ("harare-zw", "avondale-zw"):
+                return {"slug": slug}  # both collide
+            return None
+
+        mock_col.return_value.find_one.side_effect = find_one_side
+        geocoded = {
+            "name": "Harare",
+            "country": "ZW",
+            "nominatimAddress": {"suburb": "Avondale", "road": "King George Rd"},
+        }
+        result = _resolve_slug_collision("harare-zw", geocoded)
+        assert result == "king-george-rd-zw"
+
+    @patch("py._locations.locations_collection")
+    def test_numeric_suffix_fallback(self, mock_col):
+        """When all descriptive slugs collide, fall back to numeric suffix."""
+        def find_one_side(query):
+            slug = query.get("slug", "")
+            if slug in ("harare-zw", "avondale-zw", "king-george-rd-zw"):
+                return {"slug": slug}
+            if slug == "harare-zw-2":
+                return {"slug": slug}  # -2 also taken
+            return None
+
+        mock_col.return_value.find_one.side_effect = find_one_side
+        geocoded = {
+            "name": "Harare",
+            "country": "ZW",
+            "nominatimAddress": {"suburb": "Avondale", "road": "King George Rd"},
+        }
+        result = _resolve_slug_collision("harare-zw", geocoded)
+        assert result == "harare-zw-3"
+
+    @patch("py._locations.locations_collection")
+    def test_skips_suburb_when_same_as_name(self, mock_col):
+        """Suburb matching location name should be skipped."""
+        call_count = [0]
+
+        def find_one_side(query):
+            slug = query.get("slug", "")
+            call_count[0] += 1
+            if slug == "avondale-zw":
+                return {"slug": "avondale-zw"}  # collision
+            return None
+
+        mock_col.return_value.find_one.side_effect = find_one_side
+        geocoded = {
+            "name": "Avondale",
+            "country": "ZW",
+            "nominatimAddress": {"suburb": "Avondale", "road": "Main St"},
+        }
+        result = _resolve_slug_collision("avondale-zw", geocoded)
+        # Should skip suburb (same as name) and use road
+        assert result == "main-st-zw"

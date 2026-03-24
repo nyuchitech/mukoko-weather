@@ -154,7 +154,7 @@ export function AtmosphericSummary({ current }: Props) {
         <MetricCard
           icon={<CloudRainIcon size={16} />}
           label="Precipitation"
-          value={`${current.precipitation}`}
+          value={`${current.precipitation}mm`}
           context={precipitationLabel(current.precipitation)}
           gauge={precipitationGauge(current.precipitation)}
         />
