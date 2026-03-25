@@ -177,12 +177,12 @@ mukoko-weather/
 │   │   │   ├── HeaderSkeleton.tsx    # Header loading skeleton
 │   │   │   └── Footer.tsx            # Footer with site stats, copyright, links, Ubuntu philosophy
 │   │   ├── weather/
-│   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, stats grid
+│   │   │   ├── CurrentConditions.tsx  # Large temp display, feels-like, daily high/low
 │   │   │   ├── HourlyForecast.tsx     # 24-hour hourly forecast
 │   │   │   ├── HourlyChart.tsx        # Canvas chart: temperature + rain over 24h
 │   │   │   ├── DailyForecast.tsx      # 7-day forecast cards
 │   │   │   ├── DailyChart.tsx         # Canvas chart: high/low temps over 7 days
-│   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards (humidity, wind, pressure, UV, cloud, feels-like)
+│   │   │   ├── AtmosphericSummary.tsx  # Compact metric cards with gauges (humidity, wind, pressure, UV, cloud, feels-like, precipitation)
 │   │   │   ├── AtmosphericDetails.tsx # Imports chart components for 24h atmospheric views
 │   │   │   ├── LazyAtmosphericDetails.tsx # Lazy-load wrapper (React.lazy + Suspense)
 │   │   │   ├── MetricCard.tsx           # MetricCard + ArcGauge (radial gauge with value display)
@@ -222,7 +222,7 @@ mukoko-weather/
 │   │   │   ├── charts.test.ts         # Tests for chart data preparation
 │   │   │   ├── ActivityInsights.test.ts  # Severity helpers, moon phases, precip types
 │   │   │   ├── ActivityCard.test.ts     # Suitability integration (levels, priority, fallbacks)
-│   │   │   ├── AtmosphericSummary.test.ts # Gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
+│   │   │   ├── AtmosphericSummary.test.ts # Gauge functions (UV, humidity, cloud, wind, pressure, feels-like, precipitation)
 │   │   │   ├── MetricCard.test.ts       # ArcGauge math, SVG geometry, ARIA contract
 │   │   │   ├── DailyForecast.test.ts     # Temperature percent, gradient helpers
 │   │   │   ├── SunTimes.tsx           # Sunrise/sunset display
@@ -414,7 +414,7 @@ Not every component needs every layer. Requirements scale with component weight:
 | **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
 
 **Every component MUST have (at minimum):**
-1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 48px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 56px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
 2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
 3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
 
@@ -697,6 +697,7 @@ Database seed data files are read by `/api/db-init` for one-time bootstrap:
 - `humidityLabel(h)` — Dry / Comfortable / Humid / Very humid
 - `pressureLabel(p)` — Low / Normal / High
 - `cloudLabel(c)` — Clear / Mostly clear / Partly cloudy / Mostly cloudy / Overcast
+- `precipitationLabel(p)` — None / Light / Moderate / Heavy
 - `feelsLikeContext(apparent, actual)` — Cooler than actual / Warmer than actual / Same as actual
 
 **Provider strategy:** The weather API route (`/api/py/weather`) tries MongoDB cache first (15-min TTL), then Tomorrow.io, then Open-Meteo, then seasonal estimates (never fails). The `X-Weather-Provider` response header indicates which provider served the data. The `X-Cache: HIT | MISS` header indicates cache status.
@@ -987,7 +988,7 @@ The header takes no props — location context comes from the URL path.
 - **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming. Auto-scrolls into view after location selection.
 - **Settings** — theme radio group (light/dark/system) with visual indicators.
 
-**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 48px min-height touch targets.
+**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 56px min-height touch targets.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
@@ -1053,14 +1054,16 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 4. **Skeleton fallbacks** — each section has an aspect-matched skeleton placeholder shown before mounting
 5. **Memory pressure monitoring** — `useMemoryPressure()` hook monitors `performance.memory` for JS heap pressure
 
-**Location page — only `CurrentConditions` loads eagerly.** All other sections are lazy:
+**Location page — `CurrentConditions` and `AtmosphericSummary` load eagerly.** All other sections are lazy:
+- `HourlyScrollCards` → `ChartErrorBoundary` (eager)
+- `CurrentConditions` → `ChartErrorBoundary` (eager — big temp, feels-like, daily high/low)
+- `AtmosphericSummary` → `ChartErrorBoundary` (eager — 7 gauge cards: humidity, cloud, wind, pressure, UV, feels-like, precipitation)
 - `RecentReports` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `HourlyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `ActivityInsights` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `DailyForecast` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `AISummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `AISummaryChat` → `LazySection` + `ChartErrorBoundary` + `Suspense` (only when AI summary loaded & not fallback)
-- `AtmosphericSummary` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `SunTimes` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `MapPreview` → `LazySection` + `ChartErrorBoundary` + `Suspense`
 - `SupportBanner` → `LazySection` + `ChartErrorBoundary` (Buy Me a Coffee support card)
@@ -1078,11 +1081,11 @@ All pages use a **TikTok-style sequential mounting** pattern — only ONE sectio
 
 ### Atmospheric Summary (Location Page)
 
-`src/components/weather/AtmosphericSummary.tsx` — a 2×3 grid of compact metric cards replacing the previous 4-chart `AtmosphericDetails` on the location page. Following the Apple Weather / Google Weather pattern of showing current values with contextual labels instead of full charts on the main view.
+`src/components/weather/AtmosphericSummary.tsx` — a grid of 7 compact metric cards with radial arc gauges, rendered eagerly as section 3 on the location page (immediately after `CurrentConditions`). Following the Apple Weather / Google Weather pattern of showing current values with severity-colored gauges and contextual labels.
 
-**Cards shown:** Humidity, Cloud Cover, Wind (with gusts + direction), Pressure, UV Index, Feels Like. Each card has an icon, current value, and contextual label (e.g., "Comfortable", "Very High", "Cooler than actual").
+**Cards shown:** Humidity, Cloud Cover, Wind (with gusts + direction), Pressure, UV Index, Feels Like, Precipitation. Each card has an icon, current value, contextual label (e.g., "Comfortable", "Very High", "Cooler than actual"), and a 270° radial arc gauge color-coded by severity.
 
-**Contextual helpers:** `humidityLabel(h)`, `pressureLabel(p)`, `cloudLabel(c)` — map raw values to human-readable descriptions. UV labels come from `uvLevel()` in `weather.ts`.
+**Contextual helpers:** `humidityLabel(h)`, `pressureLabel(p)`, `cloudLabel(c)`, `precipitationLabel(p)` — map raw values to human-readable descriptions. UV labels come from `uvLevel()` in `weather.ts`.
 
 **Link:** "24h trends →" links to `/${slug}/atmosphere` where the full atmospheric charts live for that location.
 
@@ -1185,7 +1188,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 
 *Library tests:*
 - `src/lib/weather.test.ts` — frost detection, season logic, wind direction, UV levels, fallback weather, synthesizeOpenMeteoInsights
-- `src/lib/weather-labels.test.ts` — humidity/pressure/cloud/feels-like label helpers
+- `src/lib/weather-labels.test.ts` — humidity/pressure/cloud/precipitation/feels-like label helpers
 - `src/lib/locations.test.ts` — location searching, tag filtering, nearest location
 - `src/lib/activities.test.ts` — activity definitions, categories, search, filtering, category styles
 - `src/lib/suitability.test.ts` — suitability rule evaluation, condition matching, metric template resolution
@@ -1255,7 +1258,7 @@ Users can submit real-time ground-truth weather observations, similar to Waze fo
 - `src/components/weather/charts.test.ts` — chart data preparation (hourly + daily + atmospheric), hexWithAlpha
 - `src/components/weather/ActivityInsights.test.ts` — severity helpers, moon phases, precip types
 - `src/components/weather/ActivityCard.test.ts` — suitability integration (levels, priority, fallbacks, severity tokens)
-- `src/components/weather/AtmosphericSummary.test.ts` — gauge functions (UV, humidity, cloud, wind, pressure, feels-like)
+- `src/components/weather/AtmosphericSummary.test.ts` — gauge functions (UV, humidity, cloud, wind, pressure, feels-like, precipitation)
 - `src/components/weather/MetricCard.test.ts` — ArcGauge math, SVG geometry, ARIA contract, exports
 - `src/components/weather/DailyForecast.test.ts` — temperature percent, gradient helpers
 - `src/components/weather/ChartErrorBoundary.test.ts` — error boundary rendering
@@ -1322,7 +1325,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Screen reader utilities** — `.sr-only` CSS class in `globals.css` for visually hidden but screen reader accessible text
 - **Reduced motion** — all entrance animations, stagger delays, and transitions gated by `@media (prefers-reduced-motion: no-preference)`; `prefers-reduced-motion: reduce` disables all animations/transitions globally
 - **High contrast** — `prefers-contrast: more` overrides for maximum contrast; `forced-colors: active` support for Windows High Contrast mode
-- **Touch targets** — all interactive elements have 48px minimum touch targets
+- **Touch targets** — all interactive elements have 56px minimum touch targets
 - **Headings** — all sections use `aria-labelledby` with heading IDs
 - **Decorative elements** — icons marked `aria-hidden="true"`
 - **Skeletons** — all loading states include `role="status"` and `aria-label="Loading"` (`sr-only` span is optional when `aria-label` is present)
