@@ -36,6 +36,27 @@ describe("PWAInstallPrompt — component structure", () => {
     expect(src).toContain("trackEvent");
     expect(src).toContain("pwa_install");
   });
+
+  it("handleDismiss guards against null deferredPrompt to prevent false dismissal after install", () => {
+    // handleDismiss must early-return when deferredPrompt.current is null
+    // (which happens after handleInstall nulls the ref before closing the dialog).
+    // Without this guard, onOpenChange(false) would record a dismissal even on accept.
+    expect(src).toMatch(/const handleDismiss[\s\S]*?if\s*\(\s*!deferredPrompt\.current\s*\)\s*return/);
+  });
+
+  it("handleInstall nulls deferredPrompt before calling setOpen(false)", () => {
+    // handleInstall must null the ref BEFORE closing, so the onOpenChange
+    // handler's handleDismiss call sees null and exits early.
+    const installFn = src.slice(
+      src.indexOf("const handleInstall"),
+      src.indexOf("const handleDismiss"),
+    );
+    const nullIdx = installFn.indexOf("deferredPrompt.current = null");
+    const closeIdx = installFn.indexOf("setOpen(false)");
+    expect(nullIdx).toBeGreaterThan(-1);
+    expect(closeIdx).toBeGreaterThan(-1);
+    expect(nullIdx).toBeLessThan(closeIdx);
+  });
 });
 
 describe("PWAInstallPrompt — accessibility", () => {

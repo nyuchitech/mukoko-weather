@@ -110,6 +110,11 @@ export function PWAInstallPrompt() {
   }, []);
 
   const handleDismiss = useCallback(() => {
+    // Guard: if deferredPrompt is already null, the user accepted the install
+    // (handleInstall nulls the ref before closing the dialog). Without this
+    // check, onOpenChange(false) would incorrectly record a dismissal.
+    if (!deferredPrompt.current) return;
+
     setOpen(false);
     deferredPrompt.current = null;
 
