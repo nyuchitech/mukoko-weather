@@ -1510,7 +1510,11 @@ class TestResolveSlugCollision:
     @patch("py._locations.locations_collection")
     def test_handles_missing_country_key(self, mock_col):
         """Should not raise KeyError when geocoded dict has no 'country' key."""
-        mock_col.return_value.find_one.return_value = {"slug": "test"}
+        # First call: collision on original slug; second call: suburb slug free
+        mock_col.return_value.find_one.side_effect = [
+            {"slug": "test"},  # original slug exists
+            None,              # suburb-enriched slug is available
+        ]
         geocoded = {
             "name": "Test",
             "nominatimAddress": {"suburb": "Downtown"},
