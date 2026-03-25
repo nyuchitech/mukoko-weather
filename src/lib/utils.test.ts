@@ -85,6 +85,11 @@ describe("slugToDisplayName", () => {
   it("handles empty string", () => {
     expect(slugToDisplayName("")).toBe("");
   });
+
+  it("uppercases bare 2-char slug (country code only)", () => {
+    expect(slugToDisplayName("bo")).toBe("BO");
+    expect(slugToDisplayName("sg")).toBe("SG");
+  });
 });
 
 describe("getScrollBehavior", () => {

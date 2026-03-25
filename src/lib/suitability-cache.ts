@@ -52,27 +52,32 @@ export async function fetchSuitabilityRules(): Promise<SuitabilityRuleDoc[]> {
       }
     }
 
-    // Fetch fresh from network (update both in-memory and RxDB)
-    try {
-      const res = await fetch("/api/py/suitability");
-      if (res.ok) {
-        const data = await res.json();
-        const rules = data?.rules;
-        if (rules && rules.length > 0) {
-          cachedRules = rules;
-          cachedRulesAt = Date.now();
+    // Only fetch from network if the cache is stale or empty.
+    // Without this guard, every call would issue a network request even
+    // when RxDB just returned fresh data — defeating the TTL purpose.
+    const cacheIsWarm = cachedRules && cachedRules.length > 0 && Date.now() - cachedRulesAt < RULES_CACHE_TTL;
+    if (!cacheIsWarm) {
+      try {
+        const res = await fetch("/api/py/suitability");
+        if (res.ok) {
+          const data = await res.json();
+          const rules = data?.rules;
+          if (rules && rules.length > 0) {
+            cachedRules = rules;
+            cachedRulesAt = Date.now();
 
-          // Persist to RxDB for offline access (fire-and-forget)
-          cacheSuitabilityRules(
-            rules.map((r: SuitabilityRuleDoc) => ({
-              key: r.key,
-              conditions: JSON.stringify(r.conditions),
-            })),
-          ).catch(() => {});
+            // Persist to RxDB for offline access (fire-and-forget)
+            cacheSuitabilityRules(
+              rules.map((r: SuitabilityRuleDoc) => ({
+                key: r.key,
+                conditions: JSON.stringify(r.conditions),
+              })),
+            ).catch(() => {});
+          }
         }
+      } catch {
+        // Network error — use whatever we got from RxDB
       }
-    } catch {
-      // Network error — use whatever we got from RxDB
     }
 
     return cachedRules ?? [];

@@ -11,6 +11,31 @@ export function SectionSkeleton({ className }: { className?: string } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Hourly Scroll Cards skeleton
+// Matches: card > horizontal row of 7 compact hour items
+// ---------------------------------------------------------------------------
+
+export function HourlyScrollCardsSkeleton() {
+  return (
+    <div
+      className="overflow-hidden rounded-[var(--radius-card)] border border-primary/25 bg-surface-card p-4 shadow-sm sm:p-5"
+      role="status"
+      aria-label="Loading hourly weather"
+    >
+      <div className="flex gap-4 sm:gap-5">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex min-w-[72px] shrink-0 flex-col items-center gap-2.5 rounded-[var(--radius-input)] bg-surface-base px-3.5 py-3.5">
+            <Skeleton className="h-4 w-10" />
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <Skeleton className="h-4 w-8" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Community Reports skeleton
 // Matches: heading + button row, then empty-state text line
 // ---------------------------------------------------------------------------

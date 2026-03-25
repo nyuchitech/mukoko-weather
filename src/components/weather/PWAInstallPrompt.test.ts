@@ -73,9 +73,9 @@ describe("PWAInstallPrompt — accessibility", () => {
     expect(src).toContain("<DialogDescription");
   });
 
-  it("buttons have type='button'", () => {
-    const typeCount = (src.match(/type="button"/g) || []).length;
-    expect(typeCount).toBeGreaterThanOrEqual(2);
+  it("uses Button primitive from ui library", () => {
+    expect(src).toContain("@/components/ui/button");
+    expect(src).toContain("<Button");
   });
 
   it("install button has 56px height touch target", () => {
@@ -93,6 +93,5 @@ describe("PWAInstallPrompt — styling", () => {
   it("uses CSS custom property classes", () => {
     expect(src).toContain("bg-primary");
     expect(src).toContain("text-primary");
-    expect(src).toContain("text-text-secondary");
   });
 });

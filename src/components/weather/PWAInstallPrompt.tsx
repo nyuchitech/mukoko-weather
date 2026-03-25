@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { MukokoLogo } from "@/components/brand/MukokoLogo";
+import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 
 // ---------------------------------------------------------------------------
@@ -169,20 +169,21 @@ export function PWAInstallPrompt() {
 
         {/* Actions — 56px touch targets */}
         <div className="flex flex-col gap-3 pt-2">
-          <button
+          <Button
             onClick={handleInstall}
-            className="flex h-14 items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
-            type="button"
+            size="lg"
+            className="h-14"
           >
             Install app
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleDismiss}
-            className="flex h-14 items-center justify-center rounded-xl text-base font-medium text-text-secondary transition-colors hover:text-text-primary hover:bg-surface-card"
-            type="button"
+            variant="ghost"
+            size="lg"
+            className="h-14"
           >
             Not now
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

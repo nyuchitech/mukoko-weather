@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CloudOff } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Offline — mukoko weather",
@@ -14,9 +15,7 @@ export default function OfflinePage() {
       className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center"
     >
       <div className="mx-auto max-w-md space-y-6">
-        <div className="text-6xl" aria-hidden="true">
-          ☁️
-        </div>
+        <CloudOff className="mx-auto h-16 w-16 text-text-tertiary" aria-hidden="true" />
         <h1 className="text-2xl font-bold text-text-primary">
           You&apos;re offline
         </h1>

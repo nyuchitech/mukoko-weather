@@ -19,6 +19,16 @@ import type { PreferencesDocType } from "./schemas";
 const API_BASE = "/api/py";
 const RULES_PULL_INTERVAL_MS = 10 * 60_000; // 10 min
 
+/** UUID v4 format — validates deviceId before interpolating into URL paths. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateDeviceId(id: string): string {
+  if (!UUID_RE.test(id)) {
+    throw new Error(`Invalid device ID format: ${id.slice(0, 20)}`);
+  }
+  return id;
+}
+
 // ---------------------------------------------------------------------------
 // Replication state
 // ---------------------------------------------------------------------------
@@ -34,7 +44,7 @@ async function startPrefsReplication(): Promise<void> {
   const col = await preferencesCollection();
   if (!col) return;
 
-  const deviceId = getDeviceId();
+  const deviceId = validateDeviceId(getDeviceId());
 
   prefsReplication = replicateRxCollection<PreferencesDocType, unknown>({
     collection: col,
@@ -73,13 +83,10 @@ async function startPrefsReplication(): Promise<void> {
     },
 
     pull: {
-      handler: async (lastCheckpoint, batchSize) => {
-        // Checkpoint intentionally discarded — the device profile is a single
-        // small document, not a paginated collection. Every pull fetches the
-        // full profile, so incremental pull optimization doesn't apply here.
-        void lastCheckpoint;
-        void batchSize;
-
+      // Checkpoint intentionally discarded — the device profile is a single
+      // small document, not a paginated collection. Every pull fetches the
+      // full profile, so incremental pull optimization doesn't apply here.
+      handler: async (_lastCheckpoint, _batchSize) => {
         try {
           const res = await fetch(`${API_BASE}/devices/${deviceId}`);
           if (!res.ok) return { documents: [], checkpoint: null };
@@ -106,7 +113,10 @@ async function startPrefsReplication(): Promise<void> {
         }
       },
       batchSize: 1,
-      stream$: undefined as never, // no real-time stream — poll only
+      // Polling-only replication — no real-time stream. RxDB requires the
+      // stream$ property to exist; EMPTY (completes immediately) satisfies
+      // the Observable contract without the unsafe `as never` cast.
+      stream$: new (await import("rxjs")).Subject(),
     },
   });
 }
