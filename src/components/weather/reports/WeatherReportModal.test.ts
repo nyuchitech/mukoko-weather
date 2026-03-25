@@ -75,7 +75,7 @@ describe("3-step wizard flow", () => {
 });
 
 describe("accessibility", () => {
-  it("has 44px minimum touch targets", () => {
+  it("has 56px minimum touch targets", () => {
     expect(source).toContain("min-h-[var(--touch-target-min)]");
   });
 

@@ -46,7 +46,7 @@ export function HourlyScrollCards({ hourly }: Props) {
                 <span className="text-base font-semibold text-text-primary">
                   {temp}°
                 </span>
-                {hourly.precipitation_probability[idx] > 0 && (
+                {(hourly.precipitation_probability?.[idx] ?? 0) > 0 && (
                   <span className="text-base font-semibold text-rain">
                     {hourly.precipitation_probability[idx]}%
                   </span>

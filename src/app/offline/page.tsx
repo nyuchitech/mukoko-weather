@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Offline — mukoko weather",
   description: "You appear to be offline. Connect to the internet to get the latest weather data.",
+  alternates: { canonical: "https://weather.mukoko.com/offline" },
 };
 
 export default function OfflinePage() {

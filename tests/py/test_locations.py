@@ -1488,3 +1488,32 @@ class TestResolveSlugCollision:
         result = _resolve_slug_collision("avondale-zw", geocoded)
         # Should skip suburb (same as name) and use road
         assert result == "main-st-zw"
+
+    @patch("py._locations.locations_collection")
+    def test_handles_missing_name_key(self, mock_col):
+        """Should not raise KeyError when geocoded dict has no 'name' key."""
+        def find_one_side(query):
+            slug = query.get("slug", "")
+            if slug == "unknown-zw":
+                return {"slug": "unknown-zw"}  # collision
+            return None
+
+        mock_col.return_value.find_one.side_effect = find_one_side
+        geocoded = {
+            "country": "ZW",
+            "nominatimAddress": {"suburb": "Avondale"},
+        }
+        # Should not raise — .get("name", "") provides safe default
+        result = _resolve_slug_collision("unknown-zw", geocoded)
+        assert result == "avondale-zw"
+
+    @patch("py._locations.locations_collection")
+    def test_handles_missing_country_key(self, mock_col):
+        """Should not raise KeyError when geocoded dict has no 'country' key."""
+        mock_col.return_value.find_one.return_value = {"slug": "test"}
+        geocoded = {
+            "name": "Test",
+            "nominatimAddress": {"suburb": "Downtown"},
+        }
+        result = _resolve_slug_collision("test", geocoded)
+        assert isinstance(result, str)

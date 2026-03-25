@@ -12,7 +12,7 @@
  * - role="alert" on error states
  * - role="status" on loading states
  * - sr-only text for screen readers
- * - 44px minimum touch targets on interactive elements
+ * - 56px minimum touch targets on interactive elements
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
@@ -113,8 +113,8 @@ describe("Screen reader text — sr-only", () => {
   });
 });
 
-describe("Touch targets — 44px minimum", () => {
-  it("CurrentConditions share button meets 44px touch target requirement", () => {
+describe("Touch targets — 56px minimum", () => {
+  it("CurrentConditions share button meets 56px touch target requirement", () => {
     expect(currentConditions).toContain("min-h-[var(--touch-target-min)]");
     expect(currentConditions).toContain("min-w-[var(--touch-target-min)]");
   });

@@ -334,7 +334,7 @@ This app targets **WCAG 3.0 APCA/AAA** compliance:
 - Windows High Contrast / `forced-colors` support (uses `Highlight` system color for focus)
 - Semantic HTML with proper heading hierarchy
 - Keyboard-navigable location selector with Escape key support
-- Minimum 44px touch targets for mobile
+- Minimum 56px touch targets for mobile
 - Screen reader utilities (`.sr-only` class) on all loading states and decorative elements
 
 ## SEO

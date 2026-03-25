@@ -53,7 +53,7 @@ describe("HistoryAnalysis", () => {
     expect(source).toContain('id="history-analysis-heading"');
   });
 
-  it("has 44px minimum touch targets on buttons", async () => {
+  it("has 56px minimum touch targets on buttons", async () => {
     const { readFileSync } = await import("fs");
     const { resolve } = await import("path");
     const source = readFileSync(resolve(__dirname, "HistoryAnalysis.tsx"), "utf-8");

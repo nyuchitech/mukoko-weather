@@ -155,25 +155,32 @@ export async function migrateLocalStorageToRxDB(): Promise<void> {
 // Bridge initialization
 // ---------------------------------------------------------------------------
 
-let _bridgeInitialized = false;
+let _initPromise: Promise<void> | null = null;
 let _subscription: { unsubscribe: () => void } | null = null;
 
 /**
  * Initialize the RxDB ↔ Zustand bridge.
  *
- * 1. Migrate legacy localStorage data
- * 2. Ensure a preferences document exists in RxDB
- * 3. Hydrate Zustand from RxDB
- * 4. Subscribe to RxDB changes → keep Zustand in sync (multi-tab)
+ * Uses a promise guard instead of a boolean flag so that:
+ *   - concurrent calls await the same initialization
+ *   - if preferencesCollection() returns null (e.g. private browsing),
+ *     subsequent calls can retry rather than being permanently no-ops
  */
-export async function initRxDBBridge(callbacks: BridgeCallbacks): Promise<void> {
-  if (_bridgeInitialized) return;
-  if (typeof window === "undefined") return;
+export function initRxDBBridge(callbacks: BridgeCallbacks): Promise<void> {
+  if (_initPromise) return _initPromise;
+  if (typeof window === "undefined") return Promise.resolve();
 
-  _bridgeInitialized = true;
+  _initPromise = _doInitBridge(callbacks);
+  return _initPromise;
+}
 
+async function _doInitBridge(callbacks: BridgeCallbacks): Promise<void> {
   const col = await preferencesCollection();
-  if (!col) return;
+  if (!col) {
+    // Allow retry on next call — IndexedDB may become available later
+    _initPromise = null;
+    return;
+  }
 
   // Step 1: Migrate legacy data
   await migrateLocalStorageToRxDB();
@@ -258,7 +265,7 @@ export async function updatePreferences(
 // ---------------------------------------------------------------------------
 
 export function _resetBridge(): void {
-  _bridgeInitialized = false;
+  _initPromise = null;
   if (_subscription) {
     _subscription.unsubscribe();
     _subscription = null;

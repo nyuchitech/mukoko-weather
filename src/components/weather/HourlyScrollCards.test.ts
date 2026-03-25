@@ -58,7 +58,7 @@ describe("HourlyScrollCards — weather data", () => {
   });
 
   it("displays precipitation probability when > 0", () => {
-    expect(source).toContain("precipitation_probability[idx] > 0");
+    expect(source).toContain("precipitation_probability?.[idx]");
   });
 
   it("uses WeatherIcon for condition display", () => {

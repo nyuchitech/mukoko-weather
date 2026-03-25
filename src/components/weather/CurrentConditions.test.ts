@@ -70,7 +70,7 @@ describe("CurrentConditions — share button accessibility", () => {
     expect(source).toContain("aria-label");
   });
 
-  it("share button meets 44px minimum touch target", () => {
+  it("share button meets 56px minimum touch target", () => {
     expect(source).toContain("min-h-[var(--touch-target-min)]");
     expect(source).toContain("min-w-[var(--touch-target-min)]");
   });

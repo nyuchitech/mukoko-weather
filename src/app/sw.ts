@@ -3,7 +3,7 @@
  *
  * Caching strategies:
  *   - Static assets (_next/static): CacheFirst (content-hashed, immutable)
- *   - HTML pages: NetworkFirst (3s timeout, 24h cache)
+ *   - HTML pages: precached by Serwist; offline fallback via `fallbacks` config
  *   - Weather API: NetworkFirst (5s timeout, 15min cache)
  *   - Suitability/activities: StaleWhileRevalidate (1h cache)
  *   - Map tiles: CacheFirst (24h cache)

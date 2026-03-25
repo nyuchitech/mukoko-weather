@@ -414,7 +414,7 @@ Not every component needs every layer. Requirements scale with component weight:
 | **Pages** | WeatherDashboard, HistoryDashboard | page error.tsx | No | loading.tsx | Yes | Yes | Yes |
 
 **Every component MUST have (at minimum):**
-1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 48px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
+1. **Accessibility** — `aria-labelledby` with heading IDs, `aria-hidden` on decorative elements, `role` on skeletons, 56px minimum touch targets, ARIA landmarks on layout components (`role="banner"`, `role="navigation"`, `role="contentinfo"`), `aria-current="page"` on active nav links
 2. **Global styles only** — Tailwind classes backed by CSS custom properties from `globals.css`; NEVER hardcoded hex/rgba/inline styles
 3. **Tests** — co-located `.test.ts` files for all logic, data preparation, utilities
 
@@ -988,7 +988,7 @@ The header takes no props — location context comes from the URL path.
 - **Activities** — category tabs (mineral-colored), search, 2-column activity grid with toggle selection. Uses `CATEGORY_STYLES` for consistent mineral color theming. Auto-scrolls into view after location selection.
 - **Settings** — theme radio group (light/dark/system) with visual indicators.
 
-**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 48px min-height touch targets.
+**Welcome Banner** (`src/components/weather/WelcomeBanner.tsx`): Inline banner shown to first-time visitors (`hasOnboarded === false`) above the weather grid. Replaces the old auto-opening modal approach which caused a disruptive loading sequence. Two buttons: "Personalise" (opens My Weather modal) and "Continue with {locationName}" (marks onboarding complete). Both buttons use 56px min-height touch targets.
 
 **Deferred navigation:** Location and activity selection are unified — picking a location (either manually or via geolocation) highlights it as pending and auto-advances to the Activities tab so the user can also select activities before navigating. The Done/Apply button commits both choices at once. Navigation only occurs on Done/Apply, not on location tap or geolocation detection. Built with shadcn Dialog (Radix), Tabs, Input, Button, and Badge components.
 
@@ -1325,7 +1325,7 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 - **Screen reader utilities** — `.sr-only` CSS class in `globals.css` for visually hidden but screen reader accessible text
 - **Reduced motion** — all entrance animations, stagger delays, and transitions gated by `@media (prefers-reduced-motion: no-preference)`; `prefers-reduced-motion: reduce` disables all animations/transitions globally
 - **High contrast** — `prefers-contrast: more` overrides for maximum contrast; `forced-colors: active` support for Windows High Contrast mode
-- **Touch targets** — all interactive elements have 48px minimum touch targets
+- **Touch targets** — all interactive elements have 56px minimum touch targets
 - **Headings** — all sections use `aria-labelledby` with heading IDs
 - **Decorative elements** — icons marked `aria-hidden="true"`
 - **Skeletons** — all loading states include `role="status"` and `aria-label="Loading"` (`sr-only` span is optional when `aria-label` is present)

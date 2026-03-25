@@ -73,7 +73,7 @@ describe("upvoting", () => {
     expect(source).toContain("Upvote report");
   });
 
-  it("has 44px minimum touch target for upvote", () => {
+  it("has 56px minimum touch target for upvote", () => {
     expect(source).toContain("min-h-[var(--touch-target-min)]");
     expect(source).toContain("min-w-[var(--touch-target-min)]");
   });

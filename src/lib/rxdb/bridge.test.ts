@@ -33,14 +33,19 @@ const mockUpsert = vi.fn();
 const mockPatch = vi.fn();
 const mockSubscribe = vi.fn(() => ({ unsubscribe: vi.fn() }));
 
+let _mockCollectionReturnNull = false;
+
 vi.mock("./collections", () => ({
-  preferencesCollection: vi.fn(async () => ({
-    findOne: (id: string) => ({
-      exec: () => mockFindOneExec(id),
-      $: { subscribe: mockSubscribe },
-    }),
-    upsert: mockUpsert,
-  })),
+  preferencesCollection: vi.fn(async () => {
+    if (_mockCollectionReturnNull) return null;
+    return {
+      findOne: (id: string) => ({
+        exec: () => mockFindOneExec(id),
+        $: { subscribe: mockSubscribe },
+      }),
+      upsert: mockUpsert,
+    };
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -296,6 +301,36 @@ describe("bridge — updatePreferences", () => {
         hasOnboarded: true,
         updatedAt: expect.any(Number),
       }),
+    );
+  });
+});
+
+describe("bridge — initRxDBBridge retry on null collection", () => {
+  beforeEach(async () => {
+    localStorageMock.clear();
+    _mockCollectionReturnNull = false;
+    const bridge = await import("./bridge");
+    bridge._resetBridge();
+    vi.clearAllMocks();
+  });
+
+  it("allows retry when preferencesCollection returns null", async () => {
+    _mockCollectionReturnNull = true;
+    const callbacks = makeCallbacks();
+    const { initRxDBBridge } = await import("./bridge");
+
+    // First call — collection unavailable, should not permanently block
+    await initRxDBBridge(callbacks);
+    expect(callbacks.applyToStore).not.toHaveBeenCalled();
+
+    // Now collection becomes available
+    _mockCollectionReturnNull = false;
+    mockFindOneExec.mockResolvedValue({ theme: "dark", selectedLocation: "harare", savedLocations: [], locationLabels: {}, selectedActivities: [], hasOnboarded: true });
+
+    // Second call should succeed
+    await initRxDBBridge(callbacks);
+    expect(callbacks.applyToStore).toHaveBeenCalledWith(
+      expect.objectContaining({ theme: "dark" }),
     );
   });
 });

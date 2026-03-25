@@ -453,16 +453,17 @@ def _resolve_slug_collision(slug: str, geocoded: dict) -> str:
         return slug
 
     address = geocoded.get("nominatimAddress", {})
+    location_name = geocoded.get("name", "").lower()
     # Try suburb-enriched slug
     suburb = address.get("suburb") or address.get("cityDistrict") or ""
-    if suburb and suburb.lower() != geocoded["name"].lower():
-        enriched = _generate_slug(suburb, geocoded["country"])
+    if suburb and suburb.lower() != location_name:
+        enriched = _generate_slug(suburb, geocoded.get("country", ""))
         if not locations_collection().find_one({"slug": enriched}):
             return enriched
     # Try road-enriched slug
     road = address.get("road") or ""
-    if road and road.lower() != geocoded["name"].lower():
-        enriched = _generate_slug(road, geocoded["country"])
+    if road and road.lower() != location_name:
+        enriched = _generate_slug(road, geocoded.get("country", ""))
         if not locations_collection().find_one({"slug": enriched}):
             return enriched
     # Last resort: numeric suffix

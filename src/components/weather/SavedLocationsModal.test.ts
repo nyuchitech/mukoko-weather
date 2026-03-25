@@ -247,7 +247,7 @@ describe("SavedLocationsModal — custom labels", () => {
 });
 
 describe("SavedLocationsModal — accessibility", () => {
-  it("uses minimum 44px touch targets", () => {
+  it("uses minimum 56px touch targets", () => {
     expect(source).toContain("min-h-[var(--touch-target-min)]");
   });
 
