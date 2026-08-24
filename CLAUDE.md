@@ -1367,6 +1367,8 @@ _Library tests:_
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility), getScrollBehavior reduced-motion detection
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
+- `src/lib/places.test.ts` — resolver pure logic (normalizeName, inferNameFromSlug, adapters, `adaptSeedToLocationDoc`, `nearestSeedLocation`, seed-slug uniqueness)
+- `src/lib/places-resolver.test.ts` — `resolveLocationSlug` with a mocked placesGeo collection: seed fallback on no-match / DB throw, genuine unknown slugs still 404, real placesGeo docs still win, city-state country-doc acceptance, `CITY_STATE_COUNTRIES` parity with `api/py/_locations.py`
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
 - `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
@@ -1813,6 +1815,8 @@ Mukoko-weather sits on the shared **Nyuchi Platform cluster** (27 databases). Mu
 | `poiTypeFromPlace(doc)`                  | Extract a single POI type (school/hospital/market/park)    |
 | `searchPlaces(query, bbox?)`             | Searches `places.places` POIs for the explore/search flows |
 | `adaptPlacesGeoToLocationDoc(doc, hint)` | Adapter — placesGeo doc → legacy `LocationDoc` shape       |
+| `adaptSeedToLocationDoc(seed)`            | Adapter — static seed entry → `AdaptedLocation` (`_id: "seed:<slug>"`) |
+| `nearestSeedLocation(lat, lon, maxKm?)`   | Haversine scan over the static seed — coordinate fallback when placesGeo has no city/town/village nearby (default 250 km) |
 
 **POI-nearest refinement (create-on-demand):** After a GPS/coords reverse-geocode, `geo_lookup` / `add_location` (`api/py/_locations.py` `_match_nearby_poi` → `_places_geo.find_nearest_place`) query `places.places` for the nearest POI within **≤250 m** (`POI_MATCH_RADIUS_KM`). If a named POI is that close, its name replaces the raw reverse-geocode name (richer + consistent with the platform POI catalog) and its type is stamped onto `sourceProvenance.mukokoPoiType` and surfaced as `poiType` on the location payload (so the location page + AI summary can mention "school", "hospital", "market", "park"). This is deliberately tight — NOT a coarse distance-snap to far-away places. The whole lookup is wrapped in try/except and falls back to the reverse-geocode on any miss, empty result, or missing 2dsphere index. TS mirror: `nearestPlace` / `poiTypeFromPlace` in `src/lib/places.ts`; the adapter surfaces `poiType` from `sourceProvenance.mukokoPoiType`.
 
@@ -1834,6 +1838,10 @@ Resolution chain for `/harare`:
        tags     ← doc.sourceProvenance.mukokoTags      OR  static seed
        slug     ← the requested CLEAN slug (NOT the hash-suffixed platform slug)
 ```
+
+**Advertised means renderable (seed fallback).** The browse/advertise surfaces (`sitemap.ts`, `/explore/[tag]`, `GET /api/py/search`, and `not-found.tsx`'s own "try one of these cities" list) all enumerate the static `LOCATIONS` catalog, while rendering resolves through `places.placesGeo`. When those two disagreed, a slug the app itself advertised rendered "Location not found" — Google indexed the sitemap's 265 URLs, users searched and clicked, and the 404 page suggested 20 more slugs that could 404 in turn. `resolveLocationSlug` therefore falls back to the static seed on EVERY miss path (no placesGeo document, no name match, or a thrown DB error), since the seed already carries name/lat/lon/elevation/province/country/tags — everything a weather page needs. placesGeo is an *enrichment*, never a *gate*: a real document still wins when one exists, and a slug the app does NOT ship still 404s correctly. A transient Mongo failure now degrades to seed data instead of presenting as a permanent 404.
+
+**City-states.** `places.placesGeo` carries Singapore, Monaco, Gibraltar and friends only as `geoType: "country"` documents, which both `resolveLocationSlug` and `nearestPlacesGeo` filter out — so those slugs were unresolvable and their coordinates matched nothing. The resolver now accepts a country-level document when the seed's country code is in `CITY_STATE_COUNTRIES` (`src/lib/places.ts`, mirrors `_CITY_STATES` in `api/py/_locations.py` — keep the two in sync). The check keys off the COUNTRY CODE deliberately: the normalised name being matched is itself derived from the seed's name, so a name-equality check there is always true and would let a country document hijack any slug.
 
 `src/lib/db.ts → getLocationFromDb(slug)` now delegates straight to `resolveLocationSlug` and packages the response as a `LocationDoc`, so every existing caller (`src/app/[location]/*` server components, sitemap, etc.) keeps working with no changes.
 

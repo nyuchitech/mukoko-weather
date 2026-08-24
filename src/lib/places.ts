@@ -203,6 +203,15 @@ const GEO_TYPE_RANK: Record<string, number> = {
   province: 3,
 };
 
+/**
+ * Countries where the city IS the country, so `places.placesGeo` carries the
+ * name only on a `geoType: "country"` document. Mirrors `_CITY_STATES` in
+ * `api/py/_locations.py` — keep the two in sync.
+ */
+export const CITY_STATE_COUNTRIES = new Set([
+  "SG", "MC", "VA", "GI", "SM", "AD", "LI", "MT", "BN", "DJ", "BH", "QA", "KW",
+]);
+
 function rankGeoType(geoType: string | undefined): number {
   if (!geoType) return 99;
   return GEO_TYPE_RANK[geoType] ?? 50;
@@ -255,6 +264,79 @@ export async function adaptPlacesGeoToLocationDoc(
 }
 
 // ---------------------------------------------------------------------------
+// Static-seed fallback — the app's own advertised slugs must always render
+// ---------------------------------------------------------------------------
+
+/**
+ * Adapt a static seed entry to the AdaptedLocation shape.
+ *
+ * The seed already carries everything a weather page needs to render
+ * (name, lat/lon, elevation, province, country, tags), so a seed slug never
+ * has to depend on a matching `placesGeo` document existing.
+ *
+ * `_id` is synthesised as `seed:<slug>` — stable and obviously non-platform,
+ * so nothing mistakes it for a real placesGeo `_id` and tries to patch it.
+ */
+export function adaptSeedToLocationDoc(seed: WeatherLocation): AdaptedLocation {
+  return {
+    ...seed,
+    _id: `seed:${seed.slug}`,
+    source: seed.source ?? "seed",
+    updatedAt: new Date(),
+  };
+}
+
+/** Great-circle distance in km between two WGS 84 points. */
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Nearest static seed location to (lat, lon), or null when none is within
+ * `maxKm`.
+ *
+ * This is the coordinate-lookup counterpart to the seed fallback in
+ * `resolveLocationSlug`: `nearestPlacesGeo` only sees `city`/`town`/`village`
+ * documents, so a visitor whose region has no such entry (every city-state,
+ * and any region the platform geography hasn't covered yet) would otherwise
+ * resolve to nothing at all. A 265-entry in-memory scan is far cheaper than
+ * the round-trip it backs up.
+ *
+ * The generous default radius suits IP geolocation, which is only accurate to
+ * the ISP/datacentre centroid anyway.
+ */
+export function nearestSeedLocation(
+  lat: number,
+  lon: number,
+  maxKm: number = 250,
+): AdaptedLocation | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  let best: WeatherLocation | null = null;
+  let bestKm = Infinity;
+
+  for (const loc of LOCATIONS) {
+    const km = haversineKm(lat, lon, loc.lat, loc.lon);
+    if (km < bestKm) {
+      bestKm = km;
+      best = loc;
+    }
+  }
+
+  if (!best || bestKm > maxKm) return null;
+  return adaptSeedToLocationDoc(best);
+}
+
+// ---------------------------------------------------------------------------
 // Resolver — clean URL slug → AdaptedLocation | null
 // ---------------------------------------------------------------------------
 
@@ -282,11 +364,16 @@ export async function resolveLocationSlug(
 ): Promise<AdaptedLocation | null> {
   if (!slug) return null;
 
+  // The static seed entry for this slug, if we ship one. Captured up front so
+  // every miss/failure path below can fall back to it instead of 404ing.
+  const seed = SLUG_INDEX.get(slug);
+  const seedFallback = () => (seed ? adaptSeedToLocationDoc(seed) : null);
+
   let coll;
   try {
     coll = placesGeoCollection();
   } catch {
-    return null;
+    return seedFallback();
   }
 
   // 1) Exact match on stamped mukokoSlug.
@@ -295,19 +382,15 @@ export async function resolveLocationSlug(
       "sourceProvenance.mukokoSlug": slug,
     })) as unknown as PlacesGeoDoc | null;
     if (stamped) {
-      return adaptPlacesGeoToLocationDoc(stamped, {
-        cleanSlug: slug,
-        seed: SLUG_INDEX.get(slug),
-      });
+      return adaptPlacesGeoToLocationDoc(stamped, { cleanSlug: slug, seed });
     }
   } catch {
     // Continue to fallback strategies.
   }
 
   // 2 + 3) Name lookup — prefer seed name, fall back to inferred name.
-  const seed = SLUG_INDEX.get(slug);
   const candidateName = seed?.name ?? inferNameFromSlug(slug);
-  if (!candidateName) return null;
+  if (!candidateName) return seedFallback();
 
   const normalised = normalizeName(candidateName);
 
@@ -322,16 +405,30 @@ export async function resolveLocationSlug(
       .limit(20)
       .toArray()) as unknown as PlacesGeoDoc[];
   } catch {
-    return null;
+    return seedFallback();
   }
 
   // Filter strictly by normalised name (handles diacritics) and exclude
   // country-level entries — `/harare` should never resolve to a country.
+  //
+  // City-states are the deliberate exception: for Singapore, Monaco, Gibraltar
+  // and friends the city IS the country, so the only placesGeo document that
+  // will ever carry the name is the `country` one. Excluding it unconditionally
+  // left every city-state slug unresolvable. Note the test must key off the
+  // seed's COUNTRY CODE, not a seed-name-vs-candidate-name comparison: the
+  // normalised name we match on is itself derived from the seed's name, so a
+  // name equality check here is always true and would let a country document
+  // hijack any slug.
+  const seedIsCityState =
+    !!seed?.country && CITY_STATE_COUNTRIES.has(seed.country.toUpperCase());
+
   const matches = candidates.filter(
-    (c) => c.geoType !== "country" && normalizeName(c.name) === normalised,
+    (c) =>
+      normalizeName(c.name) === normalised &&
+      (c.geoType !== "country" || seedIsCityState),
   );
 
-  if (matches.length === 0) return null;
+  if (matches.length === 0) return seedFallback();
 
   // Dedup discipline: prefer better geoType, then higher data confidence.
   matches.sort((a, b) => {
