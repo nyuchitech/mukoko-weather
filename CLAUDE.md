@@ -1473,7 +1473,9 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 2. **Run Python tests** — `python -m pytest tests/py/ -v` must pass with zero failures. If you changed Python backend behavior, add or update tests.
 3. **Run lint** — `npm run lint` must have zero errors (warnings are acceptable).
 4. **Run the org lint checks** — the `Lint` workflow (a thin caller of `nyuchi/.github`'s `reusable-lint.yml`) runs five BLOCKING jobs that `npm run lint` does not cover: actionlint, JSON validity, prettier, markdownlint, yamllint. CI never auto-fixes. At minimum, before pushing:
-   - `npx prettier --check <your changed files>` — repo-wide `--check` currently reports a large pre-existing backlog, so check YOUR files rather than the whole tree, and never `--write` the repo wholesale in an unrelated PR.
+   - `npx prettier@3.9.4 --check "**/*.{md,mdx,json,jsonc}"` — reproduce the CI job **exactly**: same glob, same pinned version. Two traps, both of which have cost real time:
+     - **The glob covers markdown and JSON only** — TypeScript formatting is NOT enforced by this check (ESLint covers TS). A bare `prettier --check .` reports ~264 unformatted `.ts`/`.tsx` files that CI never looks at; do not reformat them chasing a check that does not read them.
+     - **Pin the version.** Prettier's output changes between minors, so a different local version flags files CI considers clean (3.8.1 flags `docs/mongodb-schema-map.md`; CI's 3.9.4 does not). "Fixing" such a file would make it non-conformant under the version that actually gates the merge.
    - `npx markdownlint-cli2 "**/*.md"` — must be 0 errors repo-wide. Note `MD049` expects **underscore** emphasis (`_like this_`), not asterisks.
 5. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
 6. **Run build** — `npm run build` must compile and generate all pages successfully.
