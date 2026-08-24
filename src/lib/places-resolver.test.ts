@@ -82,7 +82,10 @@ describe("resolveLocationSlug — seed fallback", () => {
       geoType: "city",
       geo: { type: "Point", coordinates: [31.05, -17.83] },
       isoCode: "ZW",
-      sourceProvenance: { mukokoSlug: "harare", mukokoProvince: "Harare Metropolitan" },
+      sourceProvenance: {
+        mukokoSlug: "harare",
+        mukokoProvince: "Harare Metropolitan",
+      },
     });
     const loc = await resolveLocationSlug("harare");
     expect(loc?._id).toBe("platform-uuid");
@@ -128,7 +131,21 @@ describe("CITY_STATE_COUNTRIES", () => {
   it("mirrors the _CITY_STATES set in api/py/_locations.py", async () => {
     const { CITY_STATE_COUNTRIES } = await import("./places");
     expect([...CITY_STATE_COUNTRIES].sort()).toEqual(
-      ["SG", "MC", "VA", "GI", "SM", "AD", "LI", "MT", "BN", "DJ", "BH", "QA", "KW"].sort(),
+      [
+        "SG",
+        "MC",
+        "VA",
+        "GI",
+        "SM",
+        "AD",
+        "LI",
+        "MT",
+        "BN",
+        "DJ",
+        "BH",
+        "QA",
+        "KW",
+      ].sort(),
     );
   });
 });

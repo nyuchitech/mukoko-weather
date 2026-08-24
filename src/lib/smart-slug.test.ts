@@ -32,7 +32,13 @@ describe("slugifyName", () => {
   });
 
   it("never emits the delimiter", () => {
-    for (const input of ["A -- B", "x---y", "a__b", "!!!", "Foo -- Bar -- Baz"]) {
+    for (const input of [
+      "A -- B",
+      "x---y",
+      "a__b",
+      "!!!",
+      "Foo -- Bar -- Baz",
+    ]) {
       expect(slugifyName(input)).not.toContain(SMART_SLUG_DELIMITER);
     }
   });
@@ -61,7 +67,9 @@ describe("nameFromSlugSegment", () => {
 describe("buildSmartSlug", () => {
   it("joins a slugified name to a geohash", () => {
     const slug = buildSmartSlug("Harare", -17.8292, 31.0522);
-    expect(slug).toBe(`harare${SMART_SLUG_DELIMITER}${encodeGeohash(-17.8292, 31.0522)}`);
+    expect(slug).toBe(
+      `harare${SMART_SLUG_DELIMITER}${encodeGeohash(-17.8292, 31.0522)}`,
+    );
   });
 
   it("is deterministic for the same name and coordinate", () => {
@@ -156,7 +164,9 @@ describe("legacy slug safety — the reason the delimiter is `--`", () => {
   it("documents that some seed slugs really are alphabet-valid geohashes", () => {
     // If this ever drops to zero the hazard is gone, but the guard above should
     // stay regardless — new seed entries could reintroduce it at any time.
-    const alsoValidGeohashes = LOCATIONS.filter((l) => isGeohash(l.slug)).map((l) => l.slug);
+    const alsoValidGeohashes = LOCATIONS.filter((l) => isGeohash(l.slug)).map(
+      (l) => l.slug,
+    );
     expect(alsoValidGeohashes).toContain("gweru");
     expect(alsoValidGeohashes.length).toBeGreaterThan(0);
   });
@@ -171,7 +181,13 @@ describe("legacy slug safety — the reason the delimiter is `--`", () => {
 
 describe("isSmartSlug / isLegacySlug", () => {
   it("are exact complements", () => {
-    for (const slug of ["harare", "harare--ksy4dd7", "nairobi-ke", "x--aaa", ""]) {
+    for (const slug of [
+      "harare",
+      "harare--ksy4dd7",
+      "nairobi-ke",
+      "x--aaa",
+      "",
+    ]) {
       if (!slug) continue;
       expect(isSmartSlug(slug)).toBe(!isLegacySlug(slug));
     }

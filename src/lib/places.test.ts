@@ -296,7 +296,9 @@ describe("nearestSeedLocation (coordinate fallback when placesGeo has no city)",
   });
 
   it("respects a custom radius", () => {
-    expect(nearestSeedLocation(1.3521, 103.8198, 1000)?.slug).toBe("singapore-sg");
+    expect(nearestSeedLocation(1.3521, 103.8198, 1000)?.slug).toBe(
+      "singapore-sg",
+    );
     expect(nearestSeedLocation(1.3521, 103.8198, 0)).toBeNull();
   });
 

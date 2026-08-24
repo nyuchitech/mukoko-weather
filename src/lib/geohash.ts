@@ -40,7 +40,10 @@ export const DEFAULT_GEOHASH_PRECISION = 7;
  * Approximate cell dimensions per precision, in metres. Indexed by length.
  * Used for choosing a search radius when enriching a decoded coordinate.
  */
-export const GEOHASH_CELL_METRES: Record<number, { width: number; height: number }> = {
+export const GEOHASH_CELL_METRES: Record<
+  number,
+  { width: number; height: number }
+> = {
   1: { width: 5_009_400, height: 4_992_600 },
   2: { width: 1_252_300, height: 624_100 },
   3: { width: 156_500, height: 156_000 },
@@ -177,7 +180,8 @@ export function decodeGeohash(geohash: string): DecodedGeohash | null {
   // Half the cell diagonal, as a great-circle-ish approximation. Latitude
   // degrees are ~111 km throughout; longitude degrees shrink with latitude.
   const latSpanKm = (latMax - latMin) * 111.32;
-  const lonSpanKm = (lonMax - lonMin) * 111.32 * Math.cos((lat * Math.PI) / 180);
+  const lonSpanKm =
+    (lonMax - lonMin) * 111.32 * Math.cos((lat * Math.PI) / 180);
   const errorKm = Math.sqrt(latSpanKm * latSpanKm + lonSpanKm * lonSpanKm) / 2;
 
   return {

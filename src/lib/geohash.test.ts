@@ -24,9 +24,12 @@ describe("encodeGeohash — published reference values", () => {
     { lat: 42.6, lon: -5.6, precision: 5, expected: "ezs42" },
     { lat: 51.5074, lon: -0.1278, precision: 6, expected: "gcpvj0" },
     { lat: -33.8688, lon: 151.2093, precision: 6, expected: "r3gx2f" },
-  ])("encodes ($lat, $lon) at precision $precision to $expected", ({ lat, lon, precision, expected }) => {
-    expect(encodeGeohash(lat, lon, precision)).toBe(expected);
-  });
+  ])(
+    "encodes ($lat, $lon) at precision $precision to $expected",
+    ({ lat, lon, precision, expected }) => {
+      expect(encodeGeohash(lat, lon, precision)).toBe(expected);
+    },
+  );
 
   it("produces exactly `precision` characters", () => {
     for (let p = 1; p <= 9; p++) {
@@ -43,7 +46,12 @@ describe("encodeGeohash — published reference values", () => {
   });
 
   it("uses only the reduced alphabet (no a, i, l or o)", () => {
-    for (const [lat, lon] of [[-17.8, 31.0], [1.35, 103.8], [51.5, -0.13], [-33.9, 151.2]]) {
+    for (const [lat, lon] of [
+      [-17.8, 31.0],
+      [1.35, 103.8],
+      [51.5, -0.13],
+      [-33.9, 151.2],
+    ]) {
       expect(encodeGeohash(lat, lon, 9)).not.toMatch(/[ailo]/);
     }
   });
@@ -70,8 +78,14 @@ describe("decodeGeohash", () => {
   });
 
   it("round-trips real app coordinates within the cell's stated error", () => {
-    for (const [lat, lon] of [[-17.8292, 31.0522], [1.3521, 103.8198], [-20.1594, 28.5886]]) {
-      const decoded = decodeGeohash(encodeGeohash(lat, lon, DEFAULT_GEOHASH_PRECISION))!;
+    for (const [lat, lon] of [
+      [-17.8292, 31.0522],
+      [1.3521, 103.8198],
+      [-20.1594, 28.5886],
+    ]) {
+      const decoded = decodeGeohash(
+        encodeGeohash(lat, lon, DEFAULT_GEOHASH_PRECISION),
+      )!;
       // Original coordinate must lie inside the decoded cell.
       expect(lat).toBeGreaterThanOrEqual(decoded.bounds.latMin);
       expect(lat).toBeLessThanOrEqual(decoded.bounds.latMax);
@@ -95,7 +109,10 @@ describe("decodeGeohash", () => {
   });
 
   it("is case-insensitive", () => {
-    expect(decodeGeohash("EZS42")!.lat).toBeCloseTo(decodeGeohash("ezs42")!.lat, 6);
+    expect(decodeGeohash("EZS42")!.lat).toBeCloseTo(
+      decodeGeohash("ezs42")!.lat,
+      6,
+    );
   });
 
   it("returns null for anything that is not a geohash", () => {
@@ -174,7 +191,9 @@ describe("geohashCommonPrefixLength", () => {
 
 describe("GEOHASH_CELL_METRES", () => {
   it("shrinks monotonically as precision increases", () => {
-    const lengths = Object.keys(GEOHASH_CELL_METRES).map(Number).sort((a, b) => a - b);
+    const lengths = Object.keys(GEOHASH_CELL_METRES)
+      .map(Number)
+      .sort((a, b) => a - b);
     for (let i = 1; i < lengths.length; i++) {
       expect(GEOHASH_CELL_METRES[lengths[i]].width).toBeLessThan(
         GEOHASH_CELL_METRES[lengths[i - 1]].width,
