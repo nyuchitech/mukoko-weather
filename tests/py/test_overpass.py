@@ -144,7 +144,8 @@ class TestReverseName:
         with patch.object(_overpass, "_get_http", return_value=_client(payload=payload)):
             out = reverse_name(-17.8, 31.0)
         assert set(out) == {
-            "name", "poiType", "country", "countryName", "admin1", "lat", "lon", "elevation",
+            "name", "osmRef", "poiType", "country", "countryName",
+            "admin1", "lat", "lon", "elevation",
         }
 
     def test_admin_only_result_when_nothing_named_is_nearby(self):
@@ -265,3 +266,98 @@ class TestReverseGeocodeIntegration:
 
         assert out["name"] == "Strathaven"
         nominatim_client.get.assert_called_once()
+
+
+class TestOsmRef:
+    """The map's own id for a feature — the identity of a place."""
+
+    def test_builds_short_refs_for_each_element_type(self):
+        from py._overpass import osm_ref
+
+        assert osm_ref({"type": "node", "id": 1234567}) == "n1234567"
+        assert osm_ref({"type": "way", "id": 890123}) == "w890123"
+        assert osm_ref({"type": "relation", "id": 45678}) == "r45678"
+
+    def test_returns_none_for_unusable_elements(self):
+        from py._overpass import osm_ref
+
+        assert osm_ref({"type": "area", "id": 1}) is None
+        assert osm_ref({"type": "node"}) is None
+        assert osm_ref({}) is None
+
+    def test_reverse_name_carries_the_ref_of_the_chosen_feature(self):
+        payload = {"elements": [
+            {"type": "way", "id": 111, "tags": {"highway": "residential", "name": "Canberra Link"}},
+            {"type": "node", "id": 222, "tags": {"amenity": "school", "name": "Canberra Primary"}},
+        ]}
+        with patch.object(_overpass, "_get_http", return_value=_client(payload=payload)):
+            out = reverse_name(1.4491, 103.8203)
+        # The ref must belong to the feature that won the ranking, not the first
+        # element in the response.
+        assert out["name"] == "Canberra Primary"
+        assert out["osmRef"] == "n222"
+
+    def test_admin_only_result_carries_no_ref(self):
+        payload = {"elements": [
+            {"type": "area", "id": 9, "tags": {"admin_level": "4", "name": "North West"}},
+        ]}
+        with patch.object(_overpass, "_get_http", return_value=_client(payload=payload)):
+            assert reverse_name(1.44, 103.82)["osmRef"] is None
+
+    def test_neighbouring_features_get_distinct_refs(self):
+        """The requirement coordinate-derived identity cannot meet.
+
+        Canberra Residences and Visionaire are metres apart. Any cell coarse
+        enough to absorb GPS jitter merges them; the map keeps them separate.
+        """
+        from py._overpass import osm_ref
+
+        residences = osm_ref({"type": "way", "id": 111222})
+        visionaire = osm_ref({"type": "way", "id": 111223})
+        assert residences != visionaire
+
+
+class TestPlaceSlug:
+    def test_builds_a_place_slug_from_a_ref(self):
+        from py._geohash import build_place_slug
+
+        assert build_place_slug("Canberra Residences", "w890123") == (
+            "canberra-residences--osm-w890123"
+        )
+
+    def test_two_neighbours_get_two_slugs(self):
+        from py._geohash import build_place_slug
+
+        a = build_place_slug("Canberra Residences", "w111222")
+        b = build_place_slug("Visionaire", "w111223")
+        assert a != b
+
+    def test_same_feature_always_yields_the_same_slug(self):
+        from py._geohash import build_place_slug
+
+        # Stability across visits — the property a random suffix never had and
+        # a fine-grained coordinate cell cannot have.
+        assert build_place_slug("Canberra Plaza", "w42") == build_place_slug("Canberra Plaza", "w42")
+
+    def test_rejects_unusable_refs_so_callers_fall_back(self):
+        from py._geohash import build_place_slug
+
+        assert build_place_slug("Somewhere", "") == ""
+        assert build_place_slug("Somewhere", "x123") == ""
+        assert build_place_slug("Somewhere", "n") == ""
+
+    def test_normalises_case_and_rejects_leading_zeros(self):
+        from py._geohash import normalise_osm_ref
+
+        assert normalise_osm_ref("W890123") == "w890123"
+        assert normalise_osm_ref("  n42  ") == "n42"
+        # Two spellings of one id would be two identities for one place.
+        assert normalise_osm_ref("n0042") is None
+
+    def test_place_ref_prefix_cannot_be_spelled_by_a_geohash(self):
+        from py._geohash import OSM_REF_PREFIX
+
+        # The geohash alphabet excludes a/i/l/o, so `osm-` is unreachable from
+        # it. That is what makes the two slug forms unambiguous without a flag.
+        assert "o" in OSM_REF_PREFIX
+        assert not set(OSM_REF_PREFIX) <= set("0123456789bcdefghjkmnpqrstuvwxyz")

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Optional
 
 # Base-32 alphabet, excluding a/i/l/o to avoid look-alike confusion.
 _BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
@@ -118,3 +119,47 @@ def build_smart_slug(
         return ""
     prefix = slugify_name(name) or "place"
     return f"{prefix}{SMART_SLUG_DELIMITER}{geohash}"
+
+
+# ---------------------------------------------------------------------------
+# Place slugs — identity from the map, not from the coordinate
+# ---------------------------------------------------------------------------
+
+#: Prefix marking a map-feature ref in a slug. Contains an ``o``, which the
+#: geohash alphabet excludes, so a place ref and a geohash can never be
+#: confused for one another and no discriminator flag is needed.
+OSM_REF_PREFIX = "osm-"
+
+_OSM_REF_RE = re.compile(r"^([nwr])([0-9]{1,19})$")
+
+
+def normalise_osm_ref(ref: str) -> Optional[str]:
+    """Canonicalise an OSM ref (``"W890123"`` -> ``"w890123"``), else None.
+
+    A leading zero is rejected: it would spell one feature two ways, and two
+    spellings of an id is two identities for one place.
+    """
+    if not ref:
+        return None
+    match = _OSM_REF_RE.match(ref.strip().lower())
+    if not match:
+        return None
+    letter, digits = match.groups()
+    if len(digits) > 1 and digits.startswith("0"):
+        return None
+    return f"{letter}{digits}"
+
+
+def build_place_slug(name: str, osm_ref: str) -> str:
+    """Build ``{name}--osm-{ref}`` for a named feature the map already knows.
+
+    Preferred over :func:`build_smart_slug` whenever a ref is available: the
+    identity then belongs to the map, so it survives GPS jitter and later name
+    improvements, and two adjacent features stay two places. Returns "" when the
+    ref is unusable so callers fall back to a coordinate slug.
+    """
+    canonical = normalise_osm_ref(osm_ref)
+    if not canonical:
+        return ""
+    prefix = slugify_name(name) or "place"
+    return f"{prefix}{SMART_SLUG_DELIMITER}{OSM_REF_PREFIX}{canonical}"

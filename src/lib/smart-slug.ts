@@ -33,35 +33,56 @@
 
 import {
   DEFAULT_GEOHASH_PRECISION,
-  decodeGeohash,
   encodeGeohash,
-  isGeohash,
   type GeohashBounds,
 } from "./geohash";
+import {
+  formatPlaceRefSegment,
+  parseRefSegment,
+  type LocationRef,
+} from "./place-ref";
 
 /** Separator between the human name and the geohash. Never occurs in a slugified name. */
 export const SMART_SLUG_DELIMITER = "--";
 
-/** Longest geohash we accept in a URL. Beyond ~9 the extra precision is noise. */
-const MAX_GEOHASH_LENGTH = 12;
+/** Validate an OSM ref for slug construction; returns the canonical form or null. */
+function parseOsmRefForBuild(ref: string): string | null {
+  const match = /^([nwr])([0-9]{1,19})$/.exec((ref ?? "").toLowerCase());
+  if (!match) return null;
+  const [, letter, digits] = match;
+  if (digits.length > 1 && digits.startsWith("0")) return null;
+  return `${letter}${digits}`;
+}
+
+/**
+ * Longest ref segment we accept. Comfortably fits `osm-` plus a 19-digit OSM id
+ * and any sane geohash; anything longer is not a ref we minted.
+ */
+const MAX_REF_SEGMENT_LENGTH = 32;
 
 /** Maximum length of the name portion, so the whole slug stays a sane URL. */
 const MAX_NAME_LENGTH = 60;
 
 export interface ParsedSmartSlug {
-  /** The slugified name portion, e.g. "mbare-musika". Empty when the slug is geohash-only. */
+  /** The slugified name portion, e.g. "mbare-musika". */
   nameSlug: string;
   /** Human-readable name recovered from `nameSlug`, e.g. "Mbare Musika". */
   name: string;
-  /** The geohash segment, e.g. "ksy4dd7". */
-  geohash: string;
-  /** Centre of the geohash cell. */
-  lat: number;
-  lon: number;
-  /** The cell — the coordinate is known only to within these bounds. */
-  bounds: GeohashBounds;
-  /** Half the cell diagonal in km; a natural radius for "enrich from near here". */
-  errorKm: number;
+  /**
+   * What the slug identifies — a map feature (`kind: "place"`) or a bare
+   * coordinate (`kind: "spot"`). This is the identity; everything else on this
+   * object is presentation.
+   */
+  ref: LocationRef;
+  /** The geohash segment. Present only for a spot — a place has no coordinate in its URL. */
+  geohash?: string;
+  /** Centre of the geohash cell. Spot only. */
+  lat?: number;
+  lon?: number;
+  /** The cell bounds. Spot only. */
+  bounds?: GeohashBounds;
+  /** Half the cell diagonal in km. Spot only. */
+  errorKm?: number;
 }
 
 /**
@@ -123,6 +144,24 @@ export function buildSmartSlug(
 }
 
 /**
+ * Build the slug for a PLACE — a named feature the map already knows about.
+ *
+ * The identity is the map's, so this slug is stable across visits, across GPS
+ * jitter, and across any later improvement to the feature's name. Two adjacent
+ * features produce two different slugs, which is precisely what lets a person
+ * save Canberra Residences and Visionaire as separate places.
+ *
+ * Returns "" when the ref is unusable, so callers fall back to a spot slug
+ * rather than emitting a URL that identifies nothing.
+ */
+export function buildPlaceSlug(name: string, osmRef: string): string {
+  const parsed = parseOsmRefForBuild(osmRef);
+  if (!parsed) return "";
+  const prefix = slugifyName(name) || "place";
+  return `${prefix}${SMART_SLUG_DELIMITER}${formatPlaceRefSegment(parsed)}`;
+}
+
+/**
  * Parse a smart slug into its name and decoded coordinate.
  *
  * Returns null for anything that isn't a smart slug — including every legacy
@@ -132,27 +171,36 @@ export function buildSmartSlug(
 export function parseSmartSlug(slug: string): ParsedSmartSlug | null {
   if (!slug || !slug.includes(SMART_SLUG_DELIMITER)) return null;
 
-  // Split on the LAST delimiter: a name may legitimately contain one (rare, but
-  // "foo--bar--ksy4dd7" should treat "foo--bar" as the name).
+  // Split on the LAST delimiter: a name may legitimately contain one.
   const idx = slug.lastIndexOf(SMART_SLUG_DELIMITER);
   const nameSlug = slug.slice(0, idx);
-  const geohash = slug.slice(idx + SMART_SLUG_DELIMITER.length).toLowerCase();
+  const segment = slug.slice(idx + SMART_SLUG_DELIMITER.length);
 
-  if (!geohash || geohash.length > MAX_GEOHASH_LENGTH) return null;
-  if (!isGeohash(geohash)) return null;
+  if (!segment || segment.length > MAX_REF_SEGMENT_LENGTH) return null;
 
-  const decoded = decodeGeohash(geohash);
-  if (!decoded) return null;
+  const ref = parseRefSegment(segment);
+  if (!ref) return null;
 
-  return {
+  const base = {
     nameSlug,
     name: nameFromSlugSegment(nameSlug),
-    geohash,
-    lat: decoded.lat,
-    lon: decoded.lon,
-    bounds: decoded.bounds,
-    errorKm: decoded.errorKm,
+    ref,
   };
+
+  // A place carries no coordinate in its URL — the map holds that, and our
+  // records cache it. A spot IS its coordinate.
+  if (ref.kind === "spot") {
+    return {
+      ...base,
+      geohash: ref.geohash,
+      lat: ref.lat,
+      lon: ref.lon,
+      bounds: ref.bounds,
+      errorKm: ref.errorKm,
+    };
+  }
+
+  return base;
 }
 
 /** True when `slug` is a parseable smart slug. */

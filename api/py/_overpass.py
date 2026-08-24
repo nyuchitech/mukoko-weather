@@ -36,6 +36,8 @@ so callers degrade rather than fail.
 
 from __future__ import annotations
 
+from typing import Optional
+
 import httpx
 
 # Public Overpass instance. Both mirrors accept the same QL.
@@ -136,6 +138,35 @@ def _feature_type(tags: dict) -> str | None:
             return str(value)
     place = tags.get("place")
     return str(place) if place else None
+
+
+# OSM element type -> the single letter used in a place ref. Matches the
+# `n`/`w`/`r` convention OSM itself uses in permalinks and editor URLs.
+_OSM_TYPE_LETTER = {"node": "n", "way": "w", "relation": "r"}
+
+
+def osm_ref(element: dict) -> Optional[str]:
+    """Build a stable place reference from an OSM element, e.g. ``"n1234567"``.
+
+    This is the identity of a *place*, and it comes from the map rather than
+    from us. Two things follow, and both are the point:
+
+    * The same feature keeps the same ref across visits, GPS jitter, and any
+      later improvement to its name — so a revisit joins the existing record
+      instead of forking a new one.
+    * Two features metres apart have *different* refs. Canberra Plaza and
+      Canberra MRT are neighbours on the map and stay separate places here,
+      which no coordinate-derived identity can express: a precision coarse
+      enough to absorb GPS jitter necessarily merges them, and one fine enough
+      to separate them changes on every fix.
+
+    Returns ``None`` for an element with no usable type/id.
+    """
+    letter = _OSM_TYPE_LETTER.get(str(element.get("type", "")))
+    element_id = element.get("id")
+    if not letter or element_id is None:
+        return None
+    return f"{letter}{element_id}"
 
 
 def _build_query(lat: float, lon: float, radius_m: int) -> str:
@@ -248,6 +279,8 @@ def reverse_name(
         # name the point from another source and keep this admin context.
         return {
             "name": province,
+            # No nearby feature means no map identity to borrow.
+            "osmRef": None,
             "poiType": None,
             "country": country_code,
             "countryName": country_name,
@@ -263,6 +296,8 @@ def reverse_name(
 
     return {
         "name": tags.get("name:en") or tags.get("name") or "",
+        # The map's own id for this feature — the place's identity.
+        "osmRef": osm_ref(best),
         "poiType": _feature_type(tags),
         "country": country_code,
         "countryName": country_name,

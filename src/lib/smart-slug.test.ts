@@ -4,6 +4,7 @@
 import { describe, it, expect } from "vitest";
 import {
   SMART_SLUG_DELIMITER,
+  buildPlaceSlug,
   buildSmartSlug,
   isLegacySlug,
   isSmartSlug,
@@ -82,7 +83,7 @@ describe("buildSmartSlug", () => {
     const slug = buildSmartSlug("Singapore American School", 1.4382, 103.8);
     const parsed = parseSmartSlug(slug)!;
     expect(parsed.name).toBe("Singapore American School");
-    expect(parsed.lat).toBeCloseTo(1.4382, 2);
+    expect(parsed.lat!).toBeCloseTo(1.4382, 2);
   });
 
   it("still yields a usable URL for an unnamed coordinate", () => {
@@ -109,10 +110,10 @@ describe("parseSmartSlug", () => {
 
   it("exposes the cell bounds and error radius", () => {
     const parsed = parseSmartSlug("harare--ksy4dd7")!;
-    expect(parsed.bounds.latMin).toBeLessThan(parsed.lat);
-    expect(parsed.bounds.latMax).toBeGreaterThan(parsed.lat);
-    expect(parsed.errorKm).toBeGreaterThan(0);
-    expect(parsed.errorKm).toBeLessThan(0.2);
+    expect(parsed.bounds!.latMin).toBeLessThan(parsed.lat!);
+    expect(parsed.bounds!.latMax).toBeGreaterThan(parsed.lat!);
+    expect(parsed.errorKm!).toBeGreaterThan(0);
+    expect(parsed.errorKm!).toBeLessThan(0.2);
   });
 
   it("splits on the LAST delimiter so a name may contain one", () => {
@@ -175,7 +176,7 @@ describe("legacy slug safety — the reason the delimiter is `--`", () => {
     // Proof the hazard is real, not theoretical.
     const gweru = LOCATIONS.find((l) => l.slug === "gweru")!;
     const asCoordinate = parseSmartSlug(`x--${gweru.slug}`)!;
-    expect(Math.abs(asCoordinate.lat - gweru.lat)).toBeGreaterThan(50);
+    expect(Math.abs(asCoordinate.lat! - gweru.lat)).toBeGreaterThan(50);
   });
 });
 
@@ -191,5 +192,54 @@ describe("isSmartSlug / isLegacySlug", () => {
       if (!slug) continue;
       expect(isSmartSlug(slug)).toBe(!isLegacySlug(slug));
     }
+  });
+});
+
+describe("place slugs — identity from the map", () => {
+  it("builds a place slug from a map ref", () => {
+    expect(buildPlaceSlug("Canberra Residences", "w890123")).toBe(
+      "canberra-residences--osm-w890123",
+    );
+  });
+
+  it("gives two neighbouring buildings two distinct slugs", () => {
+    // The requirement that broke the coordinate-cell model.
+    const residences = buildPlaceSlug("Canberra Residences", "w111222");
+    const visionaire = buildPlaceSlug("Visionaire", "w111223");
+    expect(residences).not.toBe(visionaire);
+  });
+
+  it("is stable for the same feature regardless of GPS jitter", () => {
+    // No coordinate goes into a place slug, so jitter cannot move it.
+    expect(buildPlaceSlug("Canberra Plaza", "w42")).toBe(
+      buildPlaceSlug("Canberra Plaza", "w42"),
+    );
+  });
+
+  it("parses back to a place ref, carrying no coordinate", () => {
+    const parsed = parseSmartSlug("canberra-residences--osm-w890123")!;
+    expect(parsed.name).toBe("Canberra Residences");
+    expect(parsed.ref.kind).toBe("place");
+    // A place's coordinate lives on the map and in our cache, never in the URL.
+    expect(parsed.lat).toBeUndefined();
+    expect(parsed.geohash).toBeUndefined();
+  });
+
+  it("still parses spot slugs, which DO carry a coordinate", () => {
+    const parsed = parseSmartSlug("west-paddock--ksy4dd7")!;
+    expect(parsed.ref.kind).toBe("spot");
+    expect(parsed.lat).toBeCloseTo(-17.83, 1);
+  });
+
+  it("returns empty for an unusable ref so callers fall back to a spot slug", () => {
+    expect(buildPlaceSlug("Somewhere", "")).toBe("");
+    expect(buildPlaceSlug("Somewhere", "x1")).toBe("");
+  });
+
+  it("keeps a place slug distinguishable from a spot slug", () => {
+    expect(isSmartSlug("canberra-residences--osm-w890123")).toBe(true);
+    expect(isSmartSlug("west-paddock--ksy4dd7")).toBe(true);
+    // And neither is mistakable for a legacy catalog slug.
+    expect(isLegacySlug("harare")).toBe(true);
   });
 });

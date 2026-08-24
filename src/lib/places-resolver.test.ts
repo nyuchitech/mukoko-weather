@@ -253,3 +253,127 @@ describe("resolveSmartSlug — coordinate-first, no place record required", () =
     expect(loc?._id).toBe("seed:gweru");
   });
 });
+
+describe("resolvePlaceSlug — identity from the map", () => {
+  beforeEach(() => {
+    findOneImpl = async () => null;
+    findArrayImpl = async () => [];
+  });
+
+  it("resolves by the map ref, not by proximity", async () => {
+    findOneImpl = async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      if (f["sourceProvenance.mukokoOsmRef"] !== "w890123") return null;
+      return {
+        _id: "platform-uuid",
+        name: "Canberra Residences",
+        geoType: "city",
+        geo: { type: "Point", coordinates: [103.8203, 1.4491] },
+        isoCode: "SG",
+        sourceProvenance: {
+          mukokoOsmRef: "w890123",
+          mukokoProvince: "Sembawang",
+        },
+      };
+    };
+    const loc = await resolveLocationSlug("canberra-residences--osm-w890123");
+    expect(loc?._id).toBe("platform-uuid");
+    expect(loc?.name).toBe("Canberra Residences");
+    expect(loc?.province).toBe("Sembawang");
+  });
+
+  it("does NOT return a neighbour's record for a different ref", async () => {
+    // The join must be exact. Returning the nearest record here is what
+    // collapsed Canberra Residences and Visionaire into one place.
+    findOneImpl = async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      if (f["sourceProvenance.mukokoOsmRef"] === "w111222") {
+        return {
+          _id: "residences",
+          name: "Canberra Residences",
+          geo: { type: "Point", coordinates: [103.8203, 1.4491] },
+          sourceProvenance: { mukokoOsmRef: "w111222" },
+        };
+      }
+      return null;
+    };
+    // Visionaire is metres away but a different feature — must not resolve to
+    // the Residences record.
+    const loc = await resolveLocationSlug("visionaire--osm-w111223");
+    expect(loc).toBeNull();
+  });
+
+  it("two neighbouring places resolve to two distinct records", async () => {
+    const byRef: Record<string, Record<string, unknown>> = {
+      w111222: {
+        _id: "residences",
+        name: "Canberra Residences",
+        geo: { type: "Point", coordinates: [103.8203, 1.4491] },
+        sourceProvenance: { mukokoOsmRef: "w111222" },
+      },
+      w111223: {
+        _id: "visionaire",
+        name: "Visionaire",
+        geo: { type: "Point", coordinates: [103.8205, 1.4492] },
+        sourceProvenance: { mukokoOsmRef: "w111223" },
+      },
+    };
+    findOneImpl = async (filter: unknown) => {
+      const ref = (filter as Record<string, string>)[
+        "sourceProvenance.mukokoOsmRef"
+      ];
+      return byRef[ref] ?? null;
+    };
+
+    const a = await resolveLocationSlug("canberra-residences--osm-w111222");
+    const b = await resolveLocationSlug("visionaire--osm-w111223");
+    expect(a?._id).toBe("residences");
+    expect(b?._id).toBe("visionaire");
+    expect(a?._id).not.toBe(b?._id);
+  });
+
+  it("falls back to a record stamped with the slug itself", async () => {
+    findOneImpl = async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      if (f["sourceProvenance.mukokoSlug"] !== "canberra-plaza--osm-w42")
+        return null;
+      return {
+        _id: "legacy-stamped",
+        name: "Canberra Plaza",
+        geo: { type: "Point", coordinates: [103.82, 1.443] },
+        sourceProvenance: { mukokoSlug: "canberra-plaza--osm-w42" },
+      };
+    };
+    expect((await resolveLocationSlug("canberra-plaza--osm-w42"))?._id).toBe(
+      "legacy-stamped",
+    );
+  });
+
+  it("a spot slug still renders with no record at all", async () => {
+    // Places need the map; spots do not. A paddock with nothing mapped on it
+    // must still produce a working weather page.
+    const loc = await resolveLocationSlug("west-paddock--ksy4dd7");
+    expect(loc?.name).toBe("West Paddock");
+    expect(loc?.lat).toBeCloseTo(-17.83, 1);
+  });
+
+  it("a spot near a known place borrows its context but not its identity", async () => {
+    findOneImpl = async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      if (f["sourceProvenance.mukokoSlug"]) return null;
+      return {
+        _id: "nearby-city",
+        name: "Harare",
+        geoType: "city",
+        geo: { type: "Point", coordinates: [31.05, -17.83] },
+        isoCode: "ZW",
+        sourceProvenance: { mukokoProvince: "Harare Metropolitan" },
+      };
+    };
+    const loc = await resolveLocationSlug("west-paddock--ksy4dd7");
+    expect(loc?.province).toBe("Harare Metropolitan");
+    expect(loc?.name).toBe("West Paddock");
+    // Crucially it did NOT adopt the city's identity.
+    expect(loc?._id).toBe("geo:ksy4dd7");
+  });
+});

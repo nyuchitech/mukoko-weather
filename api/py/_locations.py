@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-from ._geohash import build_smart_slug
+from ._geohash import build_place_slug, build_smart_slug, normalise_osm_ref
 from ._db import (
     get_db,
     get_client_ip,
@@ -698,12 +698,23 @@ def _create_location_from_coords(lat: float, lon: float, *, source: str) -> dict
     if not elevation:
         elevation = _get_elevation(lat, lon)
 
-    # Smart slug: `{name}--{geohash}` carries the coordinate in the URL, so the
-    # page can render before (or without) any place record existing. Falls back
-    # to the legacy `{name}-{country}` form only if the coordinate is unusable.
-    # See src/lib/smart-slug.ts for the resolution side.
-    slug = build_smart_slug(geocoded["name"], lat, lon) or _generate_slug(
-        geocoded["name"], geocoded["country"],
+    # Identity comes from the map when the map knows this feature.
+    #
+    #   place  `{name}--osm-w890123`  a named OSM feature. Stable across visits
+    #          and across GPS jitter, and DISTINCT from its neighbours — which
+    #          is what lets a person save Canberra Residences and Visionaire
+    #          separately even though they are metres apart.
+    #   spot   `{name}--{geohash}`    a bare coordinate, for somewhere the map
+    #          has nothing on (a paddock, a farm boundary).
+    #
+    # Coordinate-derived identity cannot do the first job: a cell coarse enough
+    # to absorb GPS jitter also merges neighbouring places, and one fine enough
+    # to separate them changes on every fix. See src/lib/place-ref.ts.
+    osm_ref = geocoded.get("osmRef")
+    slug = (
+        (build_place_slug(geocoded["name"], osm_ref) if osm_ref else "")
+        or build_smart_slug(geocoded["name"], lat, lon)
+        or _generate_slug(geocoded["name"], geocoded["country"])
     )
     try:
         slug = _resolve_slug_collision(slug, geocoded)

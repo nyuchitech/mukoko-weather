@@ -1846,7 +1846,40 @@ Resolution chain for `/harare`:
        slug     ← the requested CLEAN slug (NOT the hash-suffixed platform slug)
 ```
 
-### Smart slugs — `{name}--{geohash}`
+### Location identity — places vs spots
+
+**A place is identified by the map, not by its coordinate.** This is the correction that matters most: our source of truth for what exists is OpenStreetMap.
+
+A location slug is `{name}--{ref}`, and there are exactly two kinds of ref because there are exactly two kinds of thing a person points at:
+
+| Form      | Example                             | Identity                 | For                              |
+| --------- | ----------------------------------- | ------------------------ | -------------------------------- |
+| **Place** | `/canberra-residences--osm-w890123` | the map's own feature id | anything OSM knows about         |
+| **Spot**  | `/west-paddock--ksy4dd7`            | the geohash cell         | a coordinate with no map feature |
+
+**Why a coordinate cannot identify a place.** The obvious design — round the coordinate to a cell, call that the identity — cannot work, and the reason is only visible once you try it:
+
+- A cell coarse enough to absorb GPS jitter (±15 m is routine) is also coarse enough to swallow neighbouring places. Canberra Plaza and Canberra MRT are ~100 m apart and would merge into one record.
+- A cell fine enough to separate them (~5 m) is finer than the jitter, so the same doorway lands in a different cell on every visit — identity stops being stable, which is the exact bug the cell was introduced to fix.
+
+Those requirements point in opposite directions, so **no precision setting satisfies both**. Identity has to come from somewhere other than the coordinate. OSM already assigns every feature a stable id, already distinguishes Canberra Residences from Visionaire, and is maintained by people who care about exactly that — so `osm_ref()` in `api/py/_overpass.py` carries `{n|w|r}{id}` through as the identity.
+
+**Multiple places legitimately share one coordinate.** Two condos in adjacent towers, a mall and the MRT station beneath it — on the map they are separate features, so here they are separate saveable places. `refsIdentifySameThing()` in `src/lib/place-ref.ts` is the join rule and is deliberately strict: **proximity is never sufficient to merge.** A place and a spot never merge either, even at identical coordinates — the paddock and the farmhouse standing on it are different things to a person.
+
+**Where the geohash still belongs.** Demoted from identity to two jobs it is genuinely good at: a spatial index (`what is near me`, which is how candidates get offered), and the identity of a **spot**. Spots are not an edge case for this app — a farm boundary or grazing paddock in rural Zimbabwe frequently has nothing mapped on it, and those users still need a saveable, shareable weather URL.
+
+**The two forms cannot be confused.** The geohash alphabet excludes `a`, `i`, `l`, `o`. The place prefix is `osm-`, which contains an `o` and a `-`. A geohash therefore cannot spell the prefix — no discriminator flag or length heuristic needed, the alphabets simply do not overlap.
+
+| Module                                                       | Role                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `src/lib/place-ref.ts`                                       | `parseOsmRef` / `parseRefSegment` / `refsIdentifySameThing` — refs and the join rule |
+| `api/py/_overpass.py` → `osm_ref()`                          | Extracts the map's feature id from an Overpass element                               |
+| `api/py/_geohash.py` → `build_place_slug()`                  | Mints `{name}--osm-{ref}` at creation                                                |
+| `src/lib/places.ts` → `resolvePlaceSlug` / `resolveSpotSlug` | Resolution, split by ref kind                                                        |
+
+**Resolution differs by kind.** A spot renders from the slug alone and cannot fail. A place resolves by exact ref match against our records, which are a **cache of the map, not the source of truth** — a miss means we have not stored that feature yet, and the fix is an OSM backfill by ref (not yet implemented; a miss currently returns null).
+
+### Smart slugs — the `{name}--{ref}` grammar
 
 **The place no longer has to exist before the URL means anything.** Platform slugs used a random 6-hex suffix (`harare-a1b2c3`), which carries no information: the only way to learn where `a1b2c3` is, is to look it up, so a record had to exist before a URL could resolve. A **smart slug** embeds the coordinate instead — `harare--ksy4dd7` decodes to a 153 m box locally, with no database and no network — so the render path is self-sufficient and the database becomes an _enrichment_, not a gate.
 
