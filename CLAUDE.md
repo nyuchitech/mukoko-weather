@@ -1367,6 +1367,8 @@ _Library tests:_
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility), getScrollBehavior reduced-motion detection
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
+- `src/lib/geohash.test.ts` — geohash encode/decode against published reference vectors, determinism, precision/error bounds, neighbours (interior, pole, antimeridian), case-insensitivity
+- `src/lib/smart-slug.test.ts` — build/parse round-trip, `--` delimiter safety against every shipped seed slug (the `/gweru` → Arctic hazard), legacy-slug complement
 - `src/lib/places.test.ts` — resolver pure logic (normalizeName, inferNameFromSlug, adapters, `adaptSeedToLocationDoc`, `nearestSeedLocation`, seed-slug uniqueness)
 - `src/lib/places-resolver.test.ts` — `resolveLocationSlug` with a mocked placesGeo collection: seed fallback on no-match / DB throw, genuine unknown slugs still 404, real placesGeo docs still win, city-state country-doc acceptance, `CITY_STATE_COUNTRIES` parity with `api/py/_locations.py`
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
@@ -1403,6 +1405,8 @@ _Python backend tests (pytest):_
 - `tests/py/test_db_helpers.py` — `get_client_ip` (x-forwarded-for, x-real-ip, client.host, None), `check_rate_limit` (allow/deny/boundary/composite-key/None-result)
 - `tests/py/test_chat.py` — `_build_chat_system_prompt` (location list, count, activities, fallback vs DB template, 20-location cap), SLUG_RE, KNOWN_TAGS, tool helpers (search, list_by_tag, get_weather cache, tool dispatch)
 - `tests/py/test_weather.py` — Weather proxy: Tomorrow.io/Open-Meteo fallback chain, seasonal estimates, cache operations, normalization, circuit breaker integration
+- `tests/py/test_geohash.py` — Python geohash mirror: published reference vectors, cross-language parity with the TS suite, slugify/delimiter safety, smart-slug determinism and collision behaviour
+- `tests/py/test_overpass.py` — Overpass naming: feature ranking, `is_in` admin extraction (incl. city-states with no admin_level 4), degrade-don't-fail on every failure path, `_reverse_geocode` Overpass-primary / Nominatim-fallback integration
 - `tests/py/test_locations.py` — Location CRUD: slug generation, geocoding, deduplication, region validation, search/filter, geo lookup, add location
 - `tests/py/test_ai.py` — AI summaries: tiered TTL, client singleton, season lookup, staleness detection, caching, system prompt, generate endpoint with fallback
 - `tests/py/test_reports.py` — Community reports: cross-validation, IP hashing, fallback questions, submit/list/upvote/clarify endpoints, rate limiting
@@ -1838,6 +1842,41 @@ Resolution chain for `/harare`:
        tags     ← doc.sourceProvenance.mukokoTags      OR  static seed
        slug     ← the requested CLEAN slug (NOT the hash-suffixed platform slug)
 ```
+
+### Smart slugs — `{name}--{geohash}`
+
+**The place no longer has to exist before the URL means anything.** Platform slugs used a random 6-hex suffix (`harare-a1b2c3`), which carries no information: the only way to learn where `a1b2c3` is, is to look it up, so a record had to exist before a URL could resolve. A **smart slug** embeds the coordinate instead — `harare--ksy4dd7` decodes to a 153 m box locally, with no database and no network — so the render path is self-sufficient and the database becomes an *enrichment*, not a gate.
+
+| Module | Role |
+| ------ | ---- |
+| `src/lib/geohash.ts` | `encodeGeohash` / `decodeGeohash` / `geohashNeighbors` / `GEOHASH_CELL_METRES`. Standard geohash, base-32 excluding a/i/l/o. Pinned to published reference vectors. |
+| `src/lib/smart-slug.ts` | `buildSmartSlug` / `parseSmartSlug` / `slugifyName` / `isLegacySlug`. |
+| `api/py/_geohash.py` | Python mirror — `encode_geohash` / `build_smart_slug`. Minting only; decoding lives in TS on the render path. |
+| `src/lib/places.ts → resolveSmartSlug` | Coordinate-first resolution. |
+
+**Precision is 7 characters ≈ a 153 m × 153 m box** (`DEFAULT_GEOHASH_PRECISION`, mirrored as `DEFAULT_PRECISION` in Python). Fine enough to tell a school from the street outside it; coarse enough not to mint a URL per metre of GPS jitter. Both implementations are pinned to the **same published reference vectors** (`u4pruydqqvj`, `ezs42`, `gcpvj0`, `r3gx2f`) plus shared app vectors — change one, change both.
+
+**The delimiter is `--`, and this is not cosmetic.** The geohash alphabet excludes a/i/l/o, but plenty of ordinary words survive that filter. **Six existing seed slugs are themselves valid geohash strings** — `gweru`, `kwekwe`, `chegutu`, `guruve`, `gutu`, `ngundu`. Read as a geohash, `gweru` decodes to **82.95° N in the Arctic Ocean**. With a single-dash delimiter a name segment of the right length and alphabet would be silently mistaken for a coordinate and render the wrong hemisphere's weather. Slugification collapses every run of non-alphanumerics to one dash, so `--` cannot occur in a generated name — which is also why **there is deliberately no bare-geohash URL form**. `src/lib/smart-slug.test.ts` guards this against every shipped slug.
+
+**Resolution order** in `resolveLocationSlug`: smart slug first (purely local, and a slug containing `--` can never be a legacy catalog slug) → legacy placesGeo chain → static-seed fallback. `resolveSmartSlug` cannot fail for a syntactically valid smart slug; it enriches in four descending steps — exact stamped placesGeo doc → nearest placesGeo within the cell radius → nearest static seed for country/province → the slug alone. Enrichment never overrides the URL's own coordinate and name: the slug is the more specific statement of what the visitor asked for.
+
+**Creation mints smart slugs** — `add_location` calls `build_smart_slug(name, lat, lon)`, falling back to the legacy `{name}-{country}` form only when the coordinate is unusable. Because a smart-slug collision means the same name inside the same 153 m cell (i.e. genuinely the same place), the suburb/road enrichment in `_resolve_slug_collision` is now a rarely-taken path rather than routine.
+
+**Legacy slugs are untouched.** `harare`, `nairobi-ke` and the other 264 shipped slugs contain no `--`, keep resolving through the catalog path, and stay canonical for SEO.
+
+### Naming a bare coordinate — Overpass, not Nominatim
+
+`api/py/_overpass.py` names coordinates from OSM directly. Nominatim's `/reverse` returns a *postal-address* view, and `_extract_location_name` had to reconstruct "what is actually here" from address fields. Overpass answers that question natively, and one round trip covers both halves:
+
+- `nwr(around:250,lat,lon)[name]` — nearby named features with raw OSM tags, ranked so a school beats the street it fronts (`_FEATURE_KEYS`, then `place=*` by specificity via `_PLACE_RANK`).
+- `is_in(lat,lon)` — the administrative areas *containing* the point, giving country (`ISO3166-1`) and province (`admin_level` 4). This is the GeoJSON admin-boundary lookup, except OSM holds the polygons and does the point-in-polygon server-side — **no boundary dataset to ship, version or keep current**.
+
+`_reverse_geocode` tries Overpass first and falls back to Nominatim whenever it fails *or returns no name*. Two constraints worth keeping in mind:
+
+- **Creation only, never the render path.** Overpass is a shared community resource; queries take seconds and are instance-rate-limited. Putting it in front of a page render would trade a 404 for a timeout. Smart slugs already make rendering self-sufficient; Overpass produces the good name that gets *stored*, which upgrades the next visitor's local enrichment. Timeouts are deliberately short (5 s server / 6 s client) because a user is waiting on this.
+- **`name` is never the country.** An admin-only result names the point after its province at best (`"Matabeleland North"`), never its country — otherwise a spot in a Harare suburb gets labelled "Zimbabwe". Empty `name` is the signal for the caller to fall back while keeping the admin context.
+
+Tests must not reach Overpass: `tests/py/conftest.py` has an autouse fixture making it unreachable by default, so existing Nominatim-path assertions keep their exact semantics. Tests wanting the Overpass path patch `py._overpass._get_http` themselves.
 
 **Advertised means renderable (seed fallback).** The browse/advertise surfaces (`sitemap.ts`, `/explore/[tag]`, `GET /api/py/search`, and `not-found.tsx`'s own "try one of these cities" list) all enumerate the static `LOCATIONS` catalog, while rendering resolves through `places.placesGeo`. When those two disagreed, a slug the app itself advertised rendered "Location not found" — Google indexed the sitemap's 265 URLs, users searched and clicked, and the 404 page suggested 20 more slugs that could 404 in turn. `resolveLocationSlug` therefore falls back to the static seed on EVERY miss path (no placesGeo document, no name match, or a thrown DB error), since the seed already carries name/lat/lon/elevation/province/country/tags — everything a weather page needs. placesGeo is an *enrichment*, never a *gate*: a real document still wins when one exists, and a slug the app does NOT ship still 404s correctly. A transient Mongo failure now degrades to seed data instead of presenting as a permanent 404.
 

@@ -132,3 +132,107 @@ describe("CITY_STATE_COUNTRIES", () => {
     );
   });
 });
+
+describe("resolveSmartSlug — coordinate-first, no place record required", () => {
+  beforeEach(() => {
+    findOneImpl = async () => null;
+    findArrayImpl = async () => [];
+  });
+
+  it("renders a coordinate that exists in NO database at all", async () => {
+    // The whole point of the redesign: an empty placesGeo must not stop a page.
+    const loc = await resolveLocationSlug("mbare-musika--ksy4d6r");
+    expect(loc).not.toBeNull();
+    expect(loc?.name).toBe("Mbare Musika");
+    expect(loc?.lat).toBeCloseTo(-17.8, 0);
+    expect(loc?.lon).toBeCloseTo(31.0, 0);
+  });
+
+  it("renders when the database THROWS on every call", async () => {
+    findOneImpl = async () => {
+      throw new Error("cluster unreachable");
+    };
+    findArrayImpl = async () => {
+      throw new Error("cluster unreachable");
+    };
+    const loc = await resolveLocationSlug("harare--ksy4dd7");
+    expect(loc?.name).toBe("Harare");
+    expect(loc?.lat).toBeCloseTo(-17.83, 1);
+  });
+
+  it("carries a geohash-derived _id, never a fake placesGeo id", async () => {
+    const loc = await resolveLocationSlug("harare--ksy4dd7");
+    expect(loc?._id).toBe("geo:ksy4dd7");
+  });
+
+  it("works for a coordinate anywhere on Earth, mapped or not", async () => {
+    // Middle of the Pacific — no city, no seed, no placesGeo. Still renders.
+    const { buildSmartSlug } = await import("./smart-slug");
+    const slug = buildSmartSlug("Point Nemo", -48.876, -123.393);
+    const loc = await resolveLocationSlug(slug);
+    expect(loc).not.toBeNull();
+    expect(loc?.name).toBe("Point Nemo");
+    expect(loc?.lat).toBeCloseTo(-48.876, 1);
+  });
+
+  it("prefers an exact placesGeo document stamped with the slug", async () => {
+    findOneImpl = async () => ({
+      _id: "platform-uuid",
+      name: "Mbare Musika",
+      slug: "mbare-musika-9f8e7d",
+      geoType: "city",
+      geo: { type: "Point", coordinates: [31.043, -17.849] },
+      isoCode: "ZW",
+      sourceProvenance: {
+        mukokoSlug: "mbare-musika--ksy4d6r",
+        mukokoProvince: "Harare",
+        mukokoElevation: 1480,
+        mukokoPoiType: "market",
+      },
+    });
+    const loc = await resolveLocationSlug("mbare-musika--ksy4d6r");
+    expect(loc?._id).toBe("platform-uuid");
+    expect(loc?.province).toBe("Harare");
+    expect(loc?.elevation).toBe(1480);
+    expect(loc?.poiType).toBe("market");
+  });
+
+  it("takes regional context from a nearby placesGeo entry but keeps the slug's own name", async () => {
+    // The URL is the more specific statement of what the visitor asked for;
+    // placesGeo supplies the surroundings.
+    findArrayImpl = async () => [];
+    findOneImpl = async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      if (f["sourceProvenance.mukokoSlug"]) return null; // no exact match
+      return {
+        _id: "nearby-uuid",
+        name: "Harare",
+        geoType: "city",
+        geo: { type: "Point", coordinates: [31.05, -17.83] },
+        isoCode: "ZW",
+        sourceProvenance: { mukokoProvince: "Harare Metropolitan" },
+      };
+    };
+    const loc = await resolveLocationSlug("some-shop--ksy4dd7");
+    expect(loc?.name).toBe("Some Shop");
+    expect(loc?.province).toBe("Harare Metropolitan");
+    expect(loc?.country).toBe("ZW");
+  });
+
+  it("falls back to the nearest shipped seed for country/province context", async () => {
+    // Nothing in placesGeo, but the coordinate is near Harare, so the country
+    // and province are a sound regional approximation.
+    const loc = await resolveLocationSlug("unnamed-spot--ksy4dd7");
+    expect(loc?.name).toBe("Unnamed Spot");
+    expect(loc?.country).toBe("ZW");
+    expect(loc?.province).toBeTruthy();
+  });
+
+  it("leaves legacy slugs to the catalog path untouched", async () => {
+    // `gweru` is alphabet-valid as a geohash; it must NOT be read as one.
+    const loc = await resolveLocationSlug("gweru");
+    expect(loc?.name).toBe("Gweru");
+    expect(loc?.lat).toBeCloseTo(-19.45, 1);
+    expect(loc?._id).toBe("seed:gweru");
+  });
+});

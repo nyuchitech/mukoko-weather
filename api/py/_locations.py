@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+from ._geohash import build_smart_slug
 from ._db import (
     get_db,
     get_client_ip,
@@ -346,6 +347,43 @@ def _build_nominatim_address(address: dict, country_code: str, display_name: str
 
 
 def _reverse_geocode(lat: float, lon: float, *, zoom: int = 14) -> dict | None:
+    """Name a coordinate: Overpass first, Nominatim as fallback.
+
+    Overpass queries OSM directly, so it answers "what is actually at this
+    point" instead of reconstructing it from a postal address, and its
+    ``is_in`` lookup returns the enclosing admin boundaries (country, province)
+    in the same round trip. See ``api/py/_overpass.py`` for why that replaces
+    shipping our own GeoJSON boundary dataset.
+
+    Nominatim still backs it up: Overpass returns nothing for genuinely empty
+    coordinates and its public instances are routinely busy, and neither case
+    should cost the user their location. A missing ``nominatimAddress`` on the
+    Overpass path is expected — that field is Nominatim's structured-address
+    view and has no Overpass equivalent; downstream consumers already treat it
+    as optional.
+    """
+    from ._overpass import reverse_name as _overpass_reverse_name
+
+    try:
+        via_overpass = _overpass_reverse_name(lat, lon)
+    except Exception:
+        via_overpass = None
+
+    # Only accept it when it actually produced a name — admin context alone is
+    # thinner than what Nominatim would give us for the same point.
+    if via_overpass and via_overpass.get("name"):
+        result = dict(via_overpass)
+        result["admin1"] = _normalize_admin1(
+            {"state": result.get("admin1", "")},
+            result.get("country", ""),
+            result.get("countryName", ""),
+        )
+        return result
+
+    return _reverse_geocode_nominatim(lat, lon, zoom=zoom)
+
+
+def _reverse_geocode_nominatim(lat: float, lon: float, *, zoom: int = 14) -> dict | None:
     """Reverse geocode using Nominatim.
 
     Args:
@@ -660,7 +698,13 @@ def _create_location_from_coords(lat: float, lon: float, *, source: str) -> dict
     if not elevation:
         elevation = _get_elevation(lat, lon)
 
-    slug = _generate_slug(geocoded["name"], geocoded["country"])
+    # Smart slug: `{name}--{geohash}` carries the coordinate in the URL, so the
+    # page can render before (or without) any place record existing. Falls back
+    # to the legacy `{name}-{country}` form only if the coordinate is unusable.
+    # See src/lib/smart-slug.ts for the resolution side.
+    slug = build_smart_slug(geocoded["name"], lat, lon) or _generate_slug(
+        geocoded["name"], geocoded["country"],
+    )
     try:
         slug = _resolve_slug_collision(slug, geocoded)
     except SlugCollisionError as exc:

@@ -41,6 +41,8 @@
 
 import { placesGeoCollection, placesCollection } from "./db";
 import { LOCATIONS, type WeatherLocation, type NominatimAddress } from "./locations";
+import { parseSmartSlug, type ParsedSmartSlug } from "./smart-slug";
+import { GEOHASH_CELL_METRES } from "./geohash";
 
 // ---------------------------------------------------------------------------
 // Types — platform shape vs. mukoko shape
@@ -337,6 +339,114 @@ export function nearestSeedLocation(
 }
 
 // ---------------------------------------------------------------------------
+// Coordinate-first resolution — a smart slug never needs a place to exist
+// ---------------------------------------------------------------------------
+
+/**
+ * Widen a geohash cell into a search radius for enrichment lookups.
+ *
+ * We look a little beyond the cell itself (2× the half-diagonal, floored at
+ * 250 m) because the named feature a visitor means is often just outside the
+ * box their GPS fix landed in.
+ */
+function enrichmentRadiusKm(parsed: ParsedSmartSlug): number {
+  const cell = GEOHASH_CELL_METRES[parsed.geohash.length];
+  const fromCell = cell ? (Math.max(cell.width, cell.height) / 1000) * 2 : parsed.errorKm * 2;
+  return Math.max(0.25, fromCell);
+}
+
+/**
+ * Resolve a smart slug (`{name}--{geohash}`) to a renderable location.
+ *
+ * This path CANNOT fail for a syntactically valid smart slug: the coordinate
+ * comes out of the slug itself, so worst case we render the name the URL
+ * carries at the coordinate the URL encodes. The database is consulted only to
+ * improve on that:
+ *
+ *   1. An exact placesGeo document stamped with this slug → full platform
+ *      metadata (province, elevation, tags, POI type).
+ *   2. Otherwise the nearest placesGeo entry within the cell's radius → its
+ *      name and country, with the seed filling remaining gaps.
+ *   3. Otherwise the nearest static seed entry → country/province/elevation as
+ *      a regional approximation, but the slug's own name is kept, since the URL
+ *      is more specific about what the visitor asked for than a city 40 km away.
+ *   4. Otherwise the slug alone.
+ *
+ * Naming a bare coordinate that none of the above covers is deliberately NOT
+ * done here — an Overpass/Nominatim round-trip does not belong on the render
+ * path. That happens at creation time, and the resulting placesGeo document is
+ * what upgrades step 2 for the next visitor.
+ */
+export async function resolveSmartSlug(
+  slug: string,
+): Promise<AdaptedLocation | null> {
+  const parsed = parseSmartSlug(slug);
+  if (!parsed) return null;
+
+  // The coordinate is already known — everything below is enrichment.
+  const base: AdaptedLocation = {
+    _id: `geo:${parsed.geohash}`,
+    slug,
+    name: parsed.name || "Selected location",
+    province: "",
+    lat: parsed.lat,
+    lon: parsed.lon,
+    elevation: 0,
+    tags: ["city"],
+    source: "geolocation",
+    updatedAt: new Date(),
+  };
+
+  // 1) Exact placesGeo match on the stamped slug.
+  try {
+    const stamped = (await placesGeoCollection().findOne({
+      "sourceProvenance.mukokoSlug": slug,
+    })) as unknown as PlacesGeoDoc | null;
+    if (stamped) {
+      const adapted = await adaptPlacesGeoToLocationDoc(stamped, { cleanSlug: slug });
+      // Trust the slug's coordinate over a stale stored one only if the stored
+      // doc has none; otherwise the platform record is canonical.
+      return adapted.lat || adapted.lon ? adapted : { ...adapted, lat: parsed.lat, lon: parsed.lon };
+    }
+  } catch {
+    // DB unavailable — the slug still carries everything we need.
+  }
+
+  // 2) Nearest placesGeo entry around the cell.
+  try {
+    const near = await nearestPlacesGeo(parsed.lat, parsed.lon, enrichmentRadiusKm(parsed));
+    if (near) {
+      const adapted = await adaptPlacesGeoToLocationDoc(near, { cleanSlug: slug });
+      return {
+        ...adapted,
+        // Keep the URL's coordinate and name — the slug is the more specific
+        // statement of intent; placesGeo supplies the surrounding context.
+        lat: parsed.lat,
+        lon: parsed.lon,
+        name: parsed.name || adapted.name,
+      };
+    }
+  } catch {
+    // Ignore — fall through to the local approximations.
+  }
+
+  // 3) Nearest shipped seed entry, for regional context only.
+  const seedNear = nearestSeedLocation(parsed.lat, parsed.lon);
+  if (seedNear) {
+    return {
+      ...base,
+      province: seedNear.province,
+      country: seedNear.country,
+      elevation: seedNear.elevation,
+      tags: seedNear.tags,
+    };
+  }
+
+  // 4) The slug alone. Still a working weather page.
+  return base;
+}
+
+// ---------------------------------------------------------------------------
 // Resolver — clean URL slug → AdaptedLocation | null
 // ---------------------------------------------------------------------------
 
@@ -363,6 +473,13 @@ export async function resolveLocationSlug(
   slug: string,
 ): Promise<AdaptedLocation | null> {
   if (!slug) return null;
+
+  // A smart slug carries its own coordinate, so it resolves without the
+  // database entirely. Checked first because it is purely local and because a
+  // slug containing `--` can never be a legacy catalog slug (slugification
+  // collapses character runs).
+  const smart = await resolveSmartSlug(slug);
+  if (smart) return smart;
 
   // The static seed entry for this slug, if we ship one. Captured up front so
   // every miss/failure path below can fall back to it instead of 404ing.
