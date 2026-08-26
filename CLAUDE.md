@@ -1367,6 +1367,10 @@ _Library tests:_
 - `src/lib/map-layers.test.ts` — map layer config, default layer, getMapLayerById
 - `src/lib/utils.test.ts` — Tailwind class merging (cn utility), getScrollBehavior reduced-motion detection
 - `src/lib/i18n.test.ts` — translations, formatting, interpolation
+- `src/lib/geohash.test.ts` — geohash encode/decode against published reference vectors, determinism, precision/error bounds, neighbours (interior, pole, antimeridian), case-insensitivity
+- `src/lib/smart-slug.test.ts` — build/parse round-trip, `--` delimiter safety against every shipped seed slug (the `/gweru` → Arctic hazard), legacy-slug complement
+- `src/lib/places.test.ts` — resolver pure logic (normalizeName, inferNameFromSlug, adapters, `adaptSeedToLocationDoc`, `nearestSeedLocation`, seed-slug uniqueness)
+- `src/lib/places-resolver.test.ts` — `resolveLocationSlug` with a mocked placesGeo collection: seed fallback on no-match / DB throw, genuine unknown slugs still 404, real placesGeo docs still win, city-state country-doc acceptance, `CITY_STATE_COUNTRIES` parity with `api/py/_locations.py`
 - `src/lib/db.test.ts` — database operations (CRUD, TTL, API keys, activities, suitability rules, Atlas Search time-based recovery, Vector Search embedding guard, $facet aggregation)
 - `src/lib/suitability-cache.test.ts` — suitability cache TTL, reset, category styles
 - `src/lib/geolocation.test.ts` — browser geolocation API wrapper, auto-creation statuses
@@ -1401,6 +1405,8 @@ _Python backend tests (pytest):_
 - `tests/py/test_db_helpers.py` — `get_client_ip` (x-forwarded-for, x-real-ip, client.host, None), `check_rate_limit` (allow/deny/boundary/composite-key/None-result)
 - `tests/py/test_chat.py` — `_build_chat_system_prompt` (location list, count, activities, fallback vs DB template, 20-location cap), SLUG_RE, KNOWN_TAGS, tool helpers (search, list_by_tag, get_weather cache, tool dispatch)
 - `tests/py/test_weather.py` — Weather proxy: Tomorrow.io/Open-Meteo fallback chain, seasonal estimates, cache operations, normalization, circuit breaker integration
+- `tests/py/test_geohash.py` — Python geohash mirror: published reference vectors, cross-language parity with the TS suite, slugify/delimiter safety, smart-slug determinism and collision behaviour
+- `tests/py/test_overpass.py` — Overpass naming: feature ranking, `is_in` admin extraction (incl. city-states with no admin_level 4), degrade-don't-fail on every failure path, `_reverse_geocode` Overpass-primary / Nominatim-fallback integration
 - `tests/py/test_locations.py` — Location CRUD: slug generation, geocoding, deduplication, region validation, search/filter, geo lookup, add location
 - `tests/py/test_ai.py` — AI summaries: tiered TTL, client singleton, season lookup, staleness detection, caching, system prompt, generate endpoint with fallback
 - `tests/py/test_reports.py` — Community reports: cross-validation, IP hashing, fallback questions, submit/list/upvote/clarify endpoints, rate limiting
@@ -1466,10 +1472,15 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
 1. **Run TypeScript tests** — `npm test` must pass with zero failures. If you changed behavior, add or update tests.
 2. **Run Python tests** — `python -m pytest tests/py/ -v` must pass with zero failures. If you changed Python backend behavior, add or update tests.
 3. **Run lint** — `npm run lint` must have zero errors (warnings are acceptable).
-4. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
-5. **Run build** — `npm run build` must compile and generate all pages successfully.
-6. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
-7. **Update documentation** — If your change affects any of the following, update the corresponding docs:
+4. **Run the org lint checks** — the `Lint` workflow (a thin caller of `nyuchi/.github`'s `reusable-lint.yml`) runs five BLOCKING jobs that `npm run lint` does not cover: actionlint, JSON validity, prettier, markdownlint, yamllint. CI never auto-fixes. At minimum, before pushing:
+   - `npx prettier@3.9.4 --check "**/*.{md,mdx,json,jsonc}"` — reproduce the CI job **exactly**: same glob, same pinned version. Two traps, both of which have cost real time:
+     - **The glob covers markdown and JSON only** — TypeScript formatting is NOT enforced by this check (ESLint covers TS). A bare `prettier --check .` reports ~264 unformatted `.ts`/`.tsx` files that CI never looks at; do not reformat them chasing a check that does not read them.
+     - **Pin the version.** Prettier's output changes between minors, so a different local version flags files CI considers clean (3.8.1 flags `docs/mongodb-schema-map.md`; CI's 3.9.4 does not). "Fixing" such a file would make it non-conformant under the version that actually gates the merge.
+   - `npx markdownlint-cli2 "**/*.md"` — must be 0 errors repo-wide. Note `MD049` expects **underscore** emphasis (`_like this_`), not asterisks.
+5. **Run type check** — `npx tsc --noEmit` must pass with zero errors.
+6. **Run build** — `npm run build` must compile and generate all pages successfully.
+7. **Update tests** — Any new utility function, CSS class mapping, API behavior, or component logic must have corresponding tests.
+8. **Update documentation** — If your change affects any of the following, update the corresponding docs:
    - Public API or routes → update README.md API section
    - Project structure (new files/directories) → update README.md project structure
    - Tech stack (new dependencies) → update README.md tech stack table and CLAUDE.md tech stack
@@ -1477,8 +1488,8 @@ Before every commit, you MUST complete ALL of these steps. Do not skip any.
    - Styling patterns or tokens → update CLAUDE.md Styling section
    - AI summary format or prompt → update CLAUDE.md AI Summaries section
    - Developer workflow → update CONTRIBUTING.md
-8. **Verify no hardcoded styles** — No new hardcoded hex colors, rgba(), or inline `style={{}}` in components.
-9. **Verify layered architecture** — New components follow the Layered Component Architecture (see above): error boundary, lazy loading, skeleton, accessibility, global styles, tests.
+9. **Verify no hardcoded styles** — No new hardcoded hex colors, rgba(), or inline `style={{}}` in components.
+10. **Verify layered architecture** — New components follow the Layered Component Architecture (see above): error boundary, lazy loading, skeleton, accessibility, global styles, tests.
 
 ## Conventions
 
@@ -1805,14 +1816,16 @@ Mukoko-weather sits on the shared **Nyuchi Platform cluster** (27 databases). Mu
 
 `weather.locations` is **gone**. Every location read/write flows through `places.placesGeo` (admin geography) + `places.places` (POIs from OSM/Fundi) via `src/lib/places.ts`. Mukoko-weather is now a consumer of the platform's canonical geographic data, not a maintainer of a parallel silo.
 
-| Helper (`src/lib/places.ts`)             | Purpose                                                    |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| `resolveLocationSlug(slug)`              | Clean URL slug → adapted `LocationDoc` via placesGeo       |
-| `nearestPlacesGeo(lat, lon, maxKm?)`     | $nearSphere on placesGeo for IP-geo / GPS reverse lookup   |
-| `nearestPlace(lat, lon, maxKm?)`         | $nearSphere on `places.places` POIs — tight ≤250 m match   |
-| `poiTypeFromPlace(doc)`                  | Extract a single POI type (school/hospital/market/park)    |
-| `searchPlaces(query, bbox?)`             | Searches `places.places` POIs for the explore/search flows |
-| `adaptPlacesGeoToLocationDoc(doc, hint)` | Adapter — placesGeo doc → legacy `LocationDoc` shape       |
+| Helper (`src/lib/places.ts`)             | Purpose                                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `resolveLocationSlug(slug)`              | Clean URL slug → adapted `LocationDoc` via placesGeo                                                                      |
+| `nearestPlacesGeo(lat, lon, maxKm?)`     | $nearSphere on placesGeo for IP-geo / GPS reverse lookup                                                                  |
+| `nearestPlace(lat, lon, maxKm?)`         | $nearSphere on `places.places` POIs — tight ≤250 m match                                                                  |
+| `poiTypeFromPlace(doc)`                  | Extract a single POI type (school/hospital/market/park)                                                                   |
+| `searchPlaces(query, bbox?)`             | Searches `places.places` POIs for the explore/search flows                                                                |
+| `adaptPlacesGeoToLocationDoc(doc, hint)` | Adapter — placesGeo doc → legacy `LocationDoc` shape                                                                      |
+| `adaptSeedToLocationDoc(seed)`           | Adapter — static seed entry → `AdaptedLocation` (`_id: "seed:<slug>"`)                                                    |
+| `nearestSeedLocation(lat, lon, maxKm?)`  | Haversine scan over the static seed — coordinate fallback when placesGeo has no city/town/village nearby (default 250 km) |
 
 **POI-nearest refinement (create-on-demand):** After a GPS/coords reverse-geocode, `geo_lookup` / `add_location` (`api/py/_locations.py` `_match_nearby_poi` → `_places_geo.find_nearest_place`) query `places.places` for the nearest POI within **≤250 m** (`POI_MATCH_RADIUS_KM`). If a named POI is that close, its name replaces the raw reverse-geocode name (richer + consistent with the platform POI catalog) and its type is stamped onto `sourceProvenance.mukokoPoiType` and surfaced as `poiType` on the location payload (so the location page + AI summary can mention "school", "hospital", "market", "park"). This is deliberately tight — NOT a coarse distance-snap to far-away places. The whole lookup is wrapped in try/except and falls back to the reverse-geocode on any miss, empty result, or missing 2dsphere index. TS mirror: `nearestPlace` / `poiTypeFromPlace` in `src/lib/places.ts`; the adapter surfaces `poiType` from `sourceProvenance.mukokoPoiType`.
 
@@ -1835,6 +1848,78 @@ Resolution chain for `/harare`:
        slug     ← the requested CLEAN slug (NOT the hash-suffixed platform slug)
 ```
 
+### Location identity — places vs spots
+
+**A place is identified by the map, not by its coordinate.** This is the correction that matters most: our source of truth for what exists is OpenStreetMap.
+
+A location slug is `{name}--{ref}`, and there are exactly two kinds of ref because there are exactly two kinds of thing a person points at:
+
+| Form      | Example                             | Identity                 | For                              |
+| --------- | ----------------------------------- | ------------------------ | -------------------------------- |
+| **Place** | `/canberra-residences--osm-w890123` | the map's own feature id | anything OSM knows about         |
+| **Spot**  | `/west-paddock--ksy4dd7`            | the geohash cell         | a coordinate with no map feature |
+
+**Why a coordinate cannot identify a place.** The obvious design — round the coordinate to a cell, call that the identity — cannot work, and the reason is only visible once you try it:
+
+- A cell coarse enough to absorb GPS jitter (±15 m is routine) is also coarse enough to swallow neighbouring places. Canberra Plaza and Canberra MRT are ~100 m apart and would merge into one record.
+- A cell fine enough to separate them (~5 m) is finer than the jitter, so the same doorway lands in a different cell on every visit — identity stops being stable, which is the exact bug the cell was introduced to fix.
+
+Those requirements point in opposite directions, so **no precision setting satisfies both**. Identity has to come from somewhere other than the coordinate. OSM already assigns every feature a stable id, already distinguishes Canberra Residences from Visionaire, and is maintained by people who care about exactly that — so `osm_ref()` in `api/py/_overpass.py` carries `{n|w|r}{id}` through as the identity.
+
+**Multiple places legitimately share one coordinate.** Two condos in adjacent towers, a mall and the MRT station beneath it — on the map they are separate features, so here they are separate saveable places. `refsIdentifySameThing()` in `src/lib/place-ref.ts` is the join rule and is deliberately strict: **proximity is never sufficient to merge.** A place and a spot never merge either, even at identical coordinates — the paddock and the farmhouse standing on it are different things to a person.
+
+**Where the geohash still belongs.** Demoted from identity to two jobs it is genuinely good at: a spatial index (`what is near me`, which is how candidates get offered), and the identity of a **spot**. Spots are not an edge case for this app — a farm boundary or grazing paddock in rural Zimbabwe frequently has nothing mapped on it, and those users still need a saveable, shareable weather URL.
+
+**The two forms cannot be confused.** The geohash alphabet excludes `a`, `i`, `l`, `o`. The place prefix is `osm-`, which contains an `o` and a `-`. A geohash therefore cannot spell the prefix — no discriminator flag or length heuristic needed, the alphabets simply do not overlap.
+
+| Module                                                       | Role                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `src/lib/place-ref.ts`                                       | `parseOsmRef` / `parseRefSegment` / `refsIdentifySameThing` — refs and the join rule |
+| `api/py/_overpass.py` → `osm_ref()`                          | Extracts the map's feature id from an Overpass element                               |
+| `api/py/_geohash.py` → `build_place_slug()`                  | Mints `{name}--osm-{ref}` at creation                                                |
+| `src/lib/places.ts` → `resolvePlaceSlug` / `resolveSpotSlug` | Resolution, split by ref kind                                                        |
+
+**Resolution differs by kind.** A spot renders from the slug alone and cannot fail. A place resolves by exact ref match against our records, which are a **cache of the map, not the source of truth** — a miss means we have not stored that feature yet, and the fix is an OSM backfill by ref (not yet implemented; a miss currently returns null).
+
+### Smart slugs — the `{name}--{ref}` grammar
+
+**The place no longer has to exist before the URL means anything.** Platform slugs used a random 6-hex suffix (`harare-a1b2c3`), which carries no information: the only way to learn where `a1b2c3` is, is to look it up, so a record had to exist before a URL could resolve. A **smart slug** embeds the coordinate instead — `harare--ksy4dd7` decodes to a 153 m box locally, with no database and no network — so the render path is self-sufficient and the database becomes an _enrichment_, not a gate.
+
+| Module                                 | Role                                                                                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/geohash.ts`                   | `encodeGeohash` / `decodeGeohash` / `geohashNeighbors` / `GEOHASH_CELL_METRES`. Standard geohash, base-32 excluding a/i/l/o. Pinned to published reference vectors. |
+| `src/lib/smart-slug.ts`                | `buildSmartSlug` / `parseSmartSlug` / `slugifyName` / `isLegacySlug`.                                                                                               |
+| `api/py/_geohash.py`                   | Python mirror — `encode_geohash` / `build_smart_slug`. Minting only; decoding lives in TS on the render path.                                                       |
+| `src/lib/places.ts → resolveSmartSlug` | Coordinate-first resolution.                                                                                                                                        |
+
+**Precision is 7 characters ≈ a 153 m × 153 m box** (`DEFAULT_GEOHASH_PRECISION`, mirrored as `DEFAULT_PRECISION` in Python). Fine enough to tell a school from the street outside it; coarse enough not to mint a URL per metre of GPS jitter. Both implementations are pinned to the **same published reference vectors** (`u4pruydqqvj`, `ezs42`, `gcpvj0`, `r3gx2f`) plus shared app vectors — change one, change both.
+
+**The delimiter is `--`, and this is not cosmetic.** The geohash alphabet excludes a/i/l/o, but plenty of ordinary words survive that filter. **Six existing seed slugs are themselves valid geohash strings** — `gweru`, `kwekwe`, `chegutu`, `guruve`, `gutu`, `ngundu`. Read as a geohash, `gweru` decodes to **82.95° N in the Arctic Ocean**. With a single-dash delimiter a name segment of the right length and alphabet would be silently mistaken for a coordinate and render the wrong hemisphere's weather. Slugification collapses every run of non-alphanumerics to one dash, so `--` cannot occur in a generated name — which is also why **there is deliberately no bare-geohash URL form**. `src/lib/smart-slug.test.ts` guards this against every shipped slug.
+
+**Resolution order** in `resolveLocationSlug`: smart slug first (purely local, and a slug containing `--` can never be a legacy catalog slug) → legacy placesGeo chain → static-seed fallback. `resolveSmartSlug` cannot fail for a syntactically valid smart slug; it enriches in four descending steps — exact stamped placesGeo doc → nearest placesGeo within the cell radius → nearest static seed for country/province → the slug alone. Enrichment never overrides the URL's own coordinate and name: the slug is the more specific statement of what the visitor asked for.
+
+**Creation mints smart slugs** — `add_location` calls `build_smart_slug(name, lat, lon)`, falling back to the legacy `{name}-{country}` form only when the coordinate is unusable. Because a smart-slug collision means the same name inside the same 153 m cell (i.e. genuinely the same place), the suburb/road enrichment in `_resolve_slug_collision` is now a rarely-taken path rather than routine.
+
+**Legacy slugs are untouched.** `harare`, `nairobi-ke` and the other 264 shipped slugs contain no `--`, keep resolving through the catalog path, and stay canonical for SEO.
+
+### Naming a bare coordinate — Overpass, not Nominatim
+
+`api/py/_overpass.py` names coordinates from OSM directly. Nominatim's `/reverse` returns a _postal-address_ view, and `_extract_location_name` had to reconstruct "what is actually here" from address fields. Overpass answers that question natively, and one round trip covers both halves:
+
+- `nwr(around:250,lat,lon)[name]` — nearby named features with raw OSM tags, ranked so a school beats the street it fronts (`_FEATURE_KEYS`, then `place=*` by specificity via `_PLACE_RANK`).
+- `is_in(lat,lon)` — the administrative areas _containing_ the point, giving country (`ISO3166-1`) and province (`admin_level` 4). This is the GeoJSON admin-boundary lookup, except OSM holds the polygons and does the point-in-polygon server-side — **no boundary dataset to ship, version or keep current**.
+
+`_reverse_geocode` tries Overpass first and falls back to Nominatim whenever it fails _or returns no name_. Two constraints worth keeping in mind:
+
+- **Creation only, never the render path.** Overpass is a shared community resource; queries take seconds and are instance-rate-limited. Putting it in front of a page render would trade a 404 for a timeout. Smart slugs already make rendering self-sufficient; Overpass produces the good name that gets _stored_, which upgrades the next visitor's local enrichment. Timeouts are deliberately short (5 s server / 6 s client) because a user is waiting on this.
+- **`name` is never the country.** An admin-only result names the point after its province at best (`"Matabeleland North"`), never its country — otherwise a spot in a Harare suburb gets labelled "Zimbabwe". Empty `name` is the signal for the caller to fall back while keeping the admin context.
+
+Tests must not reach Overpass: `tests/py/conftest.py` has an autouse fixture making it unreachable by default, so existing Nominatim-path assertions keep their exact semantics. Tests wanting the Overpass path patch `py._overpass._get_http` themselves.
+
+**Advertised means renderable (seed fallback).** The browse/advertise surfaces (`sitemap.ts`, `/explore/[tag]`, `GET /api/py/search`, and `not-found.tsx`'s own "try one of these cities" list) all enumerate the static `LOCATIONS` catalog, while rendering resolves through `places.placesGeo`. When those two disagreed, a slug the app itself advertised rendered "Location not found" — Google indexed the sitemap's 265 URLs, users searched and clicked, and the 404 page suggested 20 more slugs that could 404 in turn. `resolveLocationSlug` therefore falls back to the static seed on EVERY miss path (no placesGeo document, no name match, or a thrown DB error), since the seed already carries name/lat/lon/elevation/province/country/tags — everything a weather page needs. placesGeo is an _enrichment_, never a _gate_: a real document still wins when one exists, and a slug the app does NOT ship still 404s correctly. A transient Mongo failure now degrades to seed data instead of presenting as a permanent 404.
+
+**City-states.** `places.placesGeo` carries Singapore, Monaco, Gibraltar and friends only as `geoType: "country"` documents, which both `resolveLocationSlug` and `nearestPlacesGeo` filter out — so those slugs were unresolvable and their coordinates matched nothing. The resolver now accepts a country-level document when the seed's country code is in `CITY_STATE_COUNTRIES` (`src/lib/places.ts`, mirrors `_CITY_STATES` in `api/py/_locations.py` — keep the two in sync). The check keys off the COUNTRY CODE deliberately: the normalised name being matched is itself derived from the seed's name, so a name-equality check there is always true and would let a country document hijack any slug.
+
 `src/lib/db.ts → getLocationFromDb(slug)` now delegates straight to `resolveLocationSlug` and packages the response as a `LocationDoc`, so every existing caller (`src/app/[location]/*` server components, sitemap, etc.) keeps working with no changes.
 
 **Create-on-demand:** When a user lands on `/<unknown-slug>` AND the request has lat/lon (IP geo header or GPS), `POST /api/py/locations/add` runs the shared `_create_location_from_coords()` helper (`api/py/_locations.py` — the single reverse-geocode → POI check → dedupe → slug/elevation/province → placesGeo-upsert sequence also used by `GET /api/py/geo?autoCreate=true`, so the two creation paths can't drift), which calls `upsert_placesgeo_city(...)` (Phase 0E helper). The upsert:
@@ -1846,6 +1931,16 @@ Resolution chain for `/harare`:
 Slugs in `places.placesGeo` are hash-suffixed (`harare-a1b2c3`) — the resolver always bridges the clean mukoko slug to the platform record, never exposes the suffix in URLs.
 
 **Dedup discipline (Phase 0E carried forward):** No auto-suffixed slugs (`-2`, `-3`) ever. When two placesGeo entries share a normalised name within 5 km, the resolver prefers `geoType: city > town > village`, then higher `sourceProvenance.dataConfidence`. The `LOCATIONS` static seed array has globally-unique slugs by construction (tested).
+
+**The write path joins on the OSM ref, not on the name.** Identity comes from the map (see "Location identity — places vs spots"), so deduplication has to key on the same thing the URL does. `sourceProvenance.mukokoOsmRef` holds the feature id; `find_placesgeo_by_osm_ref()` is the authoritative lookup. Both the duplicate gate (`_find_duplicate` in `api/py/_locations.py`) and the upsert (`upsert_placesgeo_city`) consult it in the same order, so the two can never disagree about what counts as the same place:
+
+1. **Ref match** — exact, and sufficient on its own. Stable across GPS jitter, distinct between neighbours.
+2. **Proximity + normalised name**, carrying a **ref veto**: a nearby candidate already stamped with a _different_ ref is a different map feature and is never merged onto, however close or however similarly named. This is what keeps Browning Drive and Strathaven Service Station — **3 m apart in the live data** — as two records, and what lets one person save Canberra Residences while another saves Visionaire.
+3. **Same name + country anywhere** — skipped once a ref is in hand. A ref miss at step 1 already establishes that the map does not recognise this feature as one we hold, so a bare name sweep there would collapse genuinely distinct same-named features (Canberra Plaza vs Canberra MRT).
+
+**Refs are adopted, not migrated.** Every placesGeo record predating ref capture has no `mukokoOsmRef`, so step 2 is what still joins them. When it matches a ref-less record, the ref is **backfilled** under a `{"$exists": false}` guard (so a concurrent writer that stamped one first isn't clobbered) and the next visit joins by identity. No batch migration is needed or wanted — records adopt refs as they are visited, and a record matched _by_ ref is never re-stamped.
+
+The creation lock is keyed by the ref when there is one (`placesgeo:osm:w890123`), falling back to `placesgeo:{COUNTRY}:{normalised name}`. The ref key is the precise one: it neither over-serializes distinct same-named places nor under-serializes two requests for one feature that reverse-geocoded to different names.
 
 **Static `LOCATIONS` array still ships in code** (`src/lib/locations.ts`) — but **not as a database seed source**. It's the canonical clean-slug → display-name/tags/province/elevation map for the 265 places the app ships with. New community-created entries get those fields via `sourceProvenance.mukoko*` on the placesGeo doc itself.
 
