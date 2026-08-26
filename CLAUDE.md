@@ -1932,6 +1932,16 @@ Slugs in `places.placesGeo` are hash-suffixed (`harare-a1b2c3`) — the resolver
 
 **Dedup discipline (Phase 0E carried forward):** No auto-suffixed slugs (`-2`, `-3`) ever. When two placesGeo entries share a normalised name within 5 km, the resolver prefers `geoType: city > town > village`, then higher `sourceProvenance.dataConfidence`. The `LOCATIONS` static seed array has globally-unique slugs by construction (tested).
 
+**The write path joins on the OSM ref, not on the name.** Identity comes from the map (see "Location identity — places vs spots"), so deduplication has to key on the same thing the URL does. `sourceProvenance.mukokoOsmRef` holds the feature id; `find_placesgeo_by_osm_ref()` is the authoritative lookup. Both the duplicate gate (`_find_duplicate` in `api/py/_locations.py`) and the upsert (`upsert_placesgeo_city`) consult it in the same order, so the two can never disagree about what counts as the same place:
+
+1. **Ref match** — exact, and sufficient on its own. Stable across GPS jitter, distinct between neighbours.
+2. **Proximity + normalised name**, carrying a **ref veto**: a nearby candidate already stamped with a _different_ ref is a different map feature and is never merged onto, however close or however similarly named. This is what keeps Browning Drive and Strathaven Service Station — **3 m apart in the live data** — as two records, and what lets one person save Canberra Residences while another saves Visionaire.
+3. **Same name + country anywhere** — skipped once a ref is in hand. A ref miss at step 1 already establishes that the map does not recognise this feature as one we hold, so a bare name sweep there would collapse genuinely distinct same-named features (Canberra Plaza vs Canberra MRT).
+
+**Refs are adopted, not migrated.** Every placesGeo record predating ref capture has no `mukokoOsmRef`, so step 2 is what still joins them. When it matches a ref-less record, the ref is **backfilled** under a `{"$exists": false}` guard (so a concurrent writer that stamped one first isn't clobbered) and the next visit joins by identity. No batch migration is needed or wanted — records adopt refs as they are visited, and a record matched _by_ ref is never re-stamped.
+
+The creation lock is keyed by the ref when there is one (`placesgeo:osm:w890123`), falling back to `placesgeo:{COUNTRY}:{normalised name}`. The ref key is the precise one: it neither over-serializes distinct same-named places nor under-serializes two requests for one feature that reverse-geocoded to different names.
+
 **Static `LOCATIONS` array still ships in code** (`src/lib/locations.ts`) — but **not as a database seed source**. It's the canonical clean-slug → display-name/tags/province/elevation map for the 265 places the app ships with. New community-created entries get those fields via `sourceProvenance.mukoko*` on the placesGeo doc itself.
 
 **Backward compat:** `getDb()` / `get_db()` is aliased to `weatherDb()` / `weather_db()` so existing call sites keep working. Legacy collection accessors (`weather_cache_collection`, `locations_collection`, etc.) now route to the appropriate platform DB internally — no call-site changes required.
